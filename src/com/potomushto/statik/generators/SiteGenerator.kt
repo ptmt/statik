@@ -1,10 +1,10 @@
 package com.potomushto.statik.generators
 
+import HandlebarsTemplateEngine
 import com.potomushto.statik.models.BlogPost
 import kotlin.io.path.readText
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.processors.MarkdownProcessor
-import com.potomushto.statik.template.HandlebarsTemplateEngine
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
@@ -16,7 +16,7 @@ import kotlin.io.path.nameWithoutExtension
 class SiteGenerator(private val rootPath: String,
                     private val config: BlogConfig) {
     private val markdownProcessor = MarkdownProcessor()
-    private val templateEngine = HandlebarsTemplateEngine(rootPath)
+    private val templateEngine = HandlebarsTemplateEngine()
   //  private val rssGenerator = RssGenerator()
     private val fileWalker = FileWalker(rootPath)
 
@@ -32,7 +32,6 @@ class SiteGenerator(private val rootPath: String,
     private fun loadBlogPosts(): List<BlogPost> {
         return fileWalker.walkBlogFiles()
             .map { file ->
-
                 val postContent = file.readText()
                 val parsedPost = markdownProcessor.process(postContent)
                 val title = parsedPost.metadata["title"] ?: file.nameWithoutExtension
@@ -65,10 +64,11 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun generateBlogPosts(posts: List<BlogPost>) {
-        val template = templateEngine.compile("post")
+        val templateFile = Paths.get(rootPath, config.theme.templates, "post.${templateEngine.extension}")
+        val template = templateEngine.compile(templateFile.readText())
 
         posts.forEach { post ->
-            val html = template.apply(mapOf(
+            val html = template(mapOf(
                 "post" to post,
                 "baseUrl" to config.baseUrl
             ))
@@ -80,9 +80,10 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun generateHomePage(posts: List<BlogPost>) {
-        val template = templateEngine.compile("home")
+        val templateFile = Paths.get(rootPath, config.theme.templates, "home.${templateEngine.extension}")
+        val template = templateEngine.compile(templateFile.readText())
 
-        val html = template.apply(mapOf(
+        val html = template(mapOf(
             "posts" to posts,
             "siteName" to config.siteName,
             "baseUrl" to config.baseUrl
