@@ -5,6 +5,8 @@ RUN yum install -y tar gzip coreutils && \
 
 COPY . .
 
+WORKDIR .
+
 RUN chmod +x ./amper
 
 RUN ./amper
