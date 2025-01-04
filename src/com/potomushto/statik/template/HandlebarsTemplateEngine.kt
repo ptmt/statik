@@ -1,3 +1,5 @@
+package com.potomushto.statik.template
+
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
 import java.time.LocalDateTime

@@ -1,10 +1,10 @@
 package com.potomushto.statik.generators
 
-import HandlebarsTemplateEngine
 import com.potomushto.statik.models.BlogPost
 import kotlin.io.path.readText
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.processors.MarkdownProcessor
+import com.potomushto.statik.template.HandlebarsTemplateEngine
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption

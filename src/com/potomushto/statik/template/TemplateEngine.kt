@@ -1,3 +1,4 @@
+package com.potomushto.statik.template
 import com.github.jknack.handlebars.Helper
 
 interface TemplateEngine {
