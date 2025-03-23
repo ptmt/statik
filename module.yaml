@@ -7,6 +7,10 @@ dependencies:
   - $kotlin.serialization.json
   - com.github.jknack:handlebars:4.3.1
   - com.github.ajalt.clikt:clikt:4.3.0
+  - io.ktor:ktor-server-core:3.1.0
+  - io.ktor:ktor-server-netty:3.1.0
+  - io.ktor:ktor-server-status-pages:3.1.0
+  - org.slf4j:slf4j-simple:2.0.12
 
 settings:
   kotlin:

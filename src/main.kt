@@ -1,7 +1,10 @@
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.ajalt.clikt.parameters.types.int
 import com.potomushto.statik.BlogEngine
 
 class Hello : CliktCommand() {
@@ -11,9 +14,19 @@ class Hello : CliktCommand() {
         canBeDir = true,
         mustBeReadable = true
     ).required()
+    
+    val watch by option(
+        "--watch", "-w",
+        help = "Watch mode: automatically rebuild the site when files change"
+    ).flag()
+    
+    val port by option(
+        "--port", "-p",
+        help = "Port for the HTTP server (only used with --watch)"
+    ).int().default(3000)
 
     override fun run() {
-        BlogEngine.run(rootPath.path)
+        BlogEngine.run(rootPath.path, watch, port)
     }
 }
 
