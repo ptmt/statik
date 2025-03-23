@@ -44,7 +44,7 @@ class SiteGenerator(private val rootPath: String,
                     content = parsedPost.content,
                     rawHtml = null,
                     metadata = parsedPost.metadata,
-                    path = fileWalker.generatePath(file)
+                    outputPath = fileWalker.generatePath(file)
                 )
             }.toList()
     }
@@ -73,7 +73,7 @@ class SiteGenerator(private val rootPath: String,
                 "baseUrl" to config.baseUrl
             ))
 
-            val outputPath = Paths.get(rootPath, config.theme.output, post.path, "index.html")
+            val outputPath = Paths.get(rootPath, config.theme.output, post.outputPath, "index.html")
             outputPath.parent.createDirectories()
             Files.writeString(outputPath, html)
         }

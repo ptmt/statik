@@ -21,8 +21,28 @@ class HandlebarsTemplateEngine : TemplateEngine {
         })
         registerHelper("excerpt", object: Helper<String> {
             override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): Any? {
+                if (context == null) return ""
+                
+                // Strip HTML tags but preserve content
+                val plainText = context.replace(Regex("<h[1-6].*?>(.*?)</h[1-6]>"), "$1 ")
+                    .replace(Regex("<[^>]*>"), "")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                
                 val words = options?.hash?.get("words") as? Int ?: 30
-                return context?.split(" ")?.take(words)?.joinToString(" ")?.plus("...")
+                return plainText.split(" ")
+                    .take(words)
+                    .joinToString(" ")
+                    .plus(if (plainText.split(" ").size > words) "..." else "")
+            }
+        })
+        
+        // Add a helper to render HTML content safely
+        registerHelper("safe", object: Helper<String> {
+            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): Any? {
+                return context?.let {
+                    com.github.jknack.handlebars.Handlebars.SafeString(it)
+                } ?: ""
             }
         })
     }

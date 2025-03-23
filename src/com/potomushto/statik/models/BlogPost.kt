@@ -9,5 +9,7 @@ data class BlogPost(
     val content: String,      // Markdown content
     val rawHtml: String? = null, // Optional custom HTML
     val metadata: Map<String, String> = mapOf(), // For SEO and other metadata
-    val path: String          // URL path like "2024/blog-title"
-) 
+    val outputPath: String          // URL path like "2024/blog-title"
+) {
+    val path: String get() = outputPath//.removePrefix("../../posts")         // URL path like "2024/blog-title"
+}

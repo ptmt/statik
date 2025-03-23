@@ -46,8 +46,9 @@ class BlogEngine {
                 }
                 
                 routing {
-                    staticFiles("/", Paths.get(rootPath, config.theme.output).toFile()) {
-                        default(Paths.get(rootPath, config.theme.output, "index.html").toString())
+                    staticFiles("/",
+                        Paths.get(rootPath, config.theme.output).toFile()) {
+
                     }
                 }
             }
