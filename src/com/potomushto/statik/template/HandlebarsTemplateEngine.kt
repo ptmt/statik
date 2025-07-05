@@ -2,9 +2,11 @@ package com.potomushto.statik.template
 
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
+import java.io.File
+import java.nio.file.Path
 import java.time.LocalDateTime
 
-class HandlebarsTemplateEngine : TemplateEngine {
+class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     override val extension = "hbs"
 
     private val handlebars: Handlebars = Handlebars()
@@ -45,6 +47,23 @@ class HandlebarsTemplateEngine : TemplateEngine {
                 } ?: ""
             }
         })
+
+        registerHelper("include", object: Helper<String> {
+            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): CharSequence {
+                try {
+                    val fileName = context ?: error("missing template name")
+                    val file = templatesPath.resolve(fileName).toFile()
+                    return if (file.exists()) {
+                        val template = handlebars.compileInline(file.readText())
+                        Handlebars.SafeString(template.apply(options!!.context))
+                    } else {
+                        Handlebars.SafeString("<!-- File not found: $fileName -->")
+                    }
+                } catch (e: Exception) {
+                    return Handlebars.SafeString("<!-- Error including file: ${e.message} -->")
+                }
+            }
+        })
     }
 
     override fun compile(template: String): (Map<String, Any?>) -> String {
@@ -62,6 +81,6 @@ class HandlebarsTemplateEngine : TemplateEngine {
     }
 
     override fun registerPartial(name: String, partial: String) {
-        TODO()
+
     }
 } 

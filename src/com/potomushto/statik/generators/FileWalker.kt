@@ -33,7 +33,7 @@ class FileWalker(private val rootPath: String) {
      * Generates a URL path for a blog post based on its file path
      */
     fun generatePath(file: Path): String {
-        val postsPath = Paths.get(rootPath, "content", "posts")
+        val postsPath = Paths.get(rootPath, "posts")
         val relativePath = postsPath.relativize(file)
         
         // Remove the file extension and convert to URL path

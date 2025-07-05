@@ -15,8 +15,9 @@ import kotlin.io.path.nameWithoutExtension
 
 class SiteGenerator(private val rootPath: String,
                     private val config: BlogConfig) {
+    private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
-    private val templateEngine = HandlebarsTemplateEngine()
+    private val templateEngine = HandlebarsTemplateEngine(templatesPath)
   //  private val rssGenerator = RssGenerator()
     private val fileWalker = FileWalker(rootPath)
 
@@ -36,7 +37,6 @@ class SiteGenerator(private val rootPath: String,
                 val parsedPost = markdownProcessor.process(postContent)
                 val title = parsedPost.metadata["title"] ?: file.nameWithoutExtension
                 val date = parsedPost.metadata["published"]?.let { LocalDateTime.parse(it) } ?: Files.getLastModifiedTime(file).let { LocalDateTime.ofInstant(it.toInstant(), ZoneId.systemDefault()) }
-                println(">> parse $file ${parsedPost.content} ${parsedPost.metadata} $title $date")
                 BlogPost(
                     id = file.nameWithoutExtension,
                     title = title,
@@ -64,28 +64,30 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun generateBlogPosts(posts: List<BlogPost>) {
-        val templateFile = Paths.get(rootPath, config.theme.templates, "post.${templateEngine.extension}")
+        val templateFile = templatesPath.resolve( "post.${templateEngine.extension}")
         val template = templateEngine.compile(templateFile.readText())
 
         posts.forEach { post ->
             val html = template(mapOf(
                 "post" to post,
-                "baseUrl" to config.baseUrl
+                "baseUrl" to config.baseUrl,
+                "siteName" to config.siteName
             ))
 
-            val outputPath = Paths.get(rootPath, config.theme.output, post.outputPath, "index.html")
+            val outputPath = Paths.get(rootPath, config.theme.output, post.path, "index.html")
             outputPath.parent.createDirectories()
             Files.writeString(outputPath, html)
         }
     }
 
     private fun generateHomePage(posts: List<BlogPost>) {
-        val templateFile = Paths.get(rootPath, config.theme.templates, "home.${templateEngine.extension}")
+        val templateFile = templatesPath.resolve("home.${templateEngine.extension}")
         val template = templateEngine.compile(templateFile.readText())
 
         val html = template(mapOf(
             "posts" to posts,
             "siteName" to config.siteName,
+            "description" to config.description,
             "baseUrl" to config.baseUrl
         ))
 
