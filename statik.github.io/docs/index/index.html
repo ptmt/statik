@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>&quot;Welcome to Statik&quot; - Statik - Static Site Generator</title>
+    <meta name="description" content="Statik - Modern Static Site Generator Statik is a powerful static site generator built with Kotlin that combines simplicity with advanced features. This website itself is generated using Statik, serving...">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/syntax.css">
+</head>
+<body>
+    <header class="site-header">
+    <div class="container">
+        <div class="header-content">
+            <div class="logo">
+                <a href="/">
+                    <span class="logo-icon">⚡</span>
+                    <span class="logo-text">Statik - Static Site Generator</span>
+                </a>
+            </div>
+            <nav class="main-nav">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/getting-started" class="nav-link">Getting Started</a>
+                <a href="https://github.com/statik/statik" class="nav-link" target="_blank">
+                    <span>GitHub</span>
+                    <span class="external-icon">↗</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+</header>
+    <main class="main-content">
+        <article class="post">
+            <header class="page-header">
+                <h1>&quot;Welcome to Statik&quot;</h1>
+                <time datetime="2025-09-12T17:05:32.861177240">September 12, 2025</time>
+            </header>
+            <div class="content">
+                <h1><a href="#statik---modern-static-site-generator" id="statik---modern-static-site-generator">Statik - Modern Static Site Generator</a></h1>
+<p>Statik is a powerful static site generator built with <strong>Kotlin</strong> that combines simplicity with advanced features. This website itself is generated using Statik, serving as both documentation and a live example.</p>
+<h2><a href="#-key-features" id="-key-features">✨ Key Features</a></h2>
+<ul>
+<li><strong>Markdown Processing</strong>: Full support for GitHub Flavored Markdown with extensions</li>
+<li><strong>Handlebars Templates</strong>: Flexible templating system with partials and helpers</li>
+<li><strong>Live Development</strong>: Built-in server with hot reload during development</li>
+<li><strong>Flexible Configuration</strong>: JSON-based configuration with sensible defaults</li>
+<li><strong>Extensible</strong>: Plugin architecture for custom processors and generators</li>
+</ul>
+<h2><a href="#-quick-start" id="-quick-start">🚀 Quick Start</a></h2>
+<pre><code class="language-bash"># Build the project
+./amper
+
+# Run on your content
+./amper run --root-path=/path/to/your/site
+
+# Development mode with live reload
+./amper run --root-path=/path/to/your/site --watch
+</code></pre>
+<h2><a href="#-how-this-site-works" id="-how-this-site-works">📖 How This Site Works</a></h2>
+<p>This website demonstrates Statik's capabilities:</p>
+<ol>
+<li><strong>Markdown Content</strong>: All pages are written in Markdown with YAML frontmatter</li>
+<li><strong>Handlebars Templates</strong>: Layout and partials define the site structure</li>
+<li><strong>Static Assets</strong>: CSS, JavaScript, and images are copied to the output</li>
+<li><strong>GitHub Actions</strong>: Automated building and deployment to GitHub Pages</li>
+</ol>
+<h2><a href="#-architecture" id="-architecture">🛠 Architecture</a></h2>
+<p>Statik follows a modular architecture:</p>
+<ul>
+<li><code>BlogEngine</code>: Core engine coordinating all components</li>
+<li><code>MarkdownProcessor</code>: Processes Markdown files with frontmatter</li>
+<li><code>TemplateEngine</code>: Handles Handlebars template rendering</li>
+<li><code>SiteGenerator</code>: Orchestrates the build process</li>
+<li><code>FileWalker</code>: Efficiently traverses and processes file trees</li>
+</ul>
+<h2><a href="#-markdown-extensions" id="-markdown-extensions">📝 Markdown Extensions</a></h2>
+<p>This site showcases various Markdown features:</p>
+<h3><a href="#tables" id="tables">Tables</a></h3>
+<table>
+<thead>
+<tr><th>Feature</th><th>Status</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Tables</td><td>✅</td><td>GitHub-style tables</td></tr>
+<tr><td>Footnotes</td><td>✅</td><td>Reference-style footnotes<sup id="fnref-1"><a class="footnote-ref" href="#fn-1">1</a></sup></td></tr>
+<tr><td>Anchor Links</td><td>✅</td><td>Auto-generated heading anchors</td></tr>
+<tr><td>Strikethrough</td><td>✅</td><td><del>Crossed out text</del></td></tr>
+</tbody>
+</table>
+<h3><a href="#code-highlighting" id="code-highlighting">Code Highlighting</a></h3>
+<pre><code class="language-kotlin">class BlogEngine(private val config: BlogConfig) {
+    fun generateSite() {
+        val posts = processor.loadPosts()
+        val renderedPosts = posts.map { templateEngine.render(it) }
+        generator.writeSite(renderedPosts)
+    }
+}
+</code></pre>
+<h2><a href="#-live-example" id="-live-example">🌟 Live Example</a></h2>
+<p>You're viewing a live example right now! This entire site is:</p>
+<ul>
+<li>Generated from Markdown files</li>
+<li>Styled with modern CSS</li>
+<li>Built automatically via GitHub Actions</li>
+<li>Hosted on GitHub Pages</li>
+</ul>
+<hr />
+<p>Ready to build your own static site? Check out the <a href="/getting-started">Getting Started Guide</a> or explore the <a href="https://github.com/statik/statik">source code</a>.</p>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn-1">
+<p>Footnotes provide additional context without cluttering the main text.</p>
+<a href="#fnref-1" class="footnote-backref">&#8617;</a>
+</li>
+</ol>
+</div>
+
+            </div>
+        </article>
+        <nav class="post-nav">
+            <a href="/" class="back-home">← Back to Home</a>
+        </nav>
+    </main>
+    <footer class="site-footer">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-info">
+                <p>Statik - Static Site Generator - </p>
+                <p>Built with ❤️ using Statik</p>
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/statik/statik" target="_blank">Source Code</a>
+                <span class="separator">•</span>
+                <a href="https://github.com/statik/statik/issues" target="_blank">Issues</a>
+                <span class="separator">•</span>
+                <a href="/getting-started">Documentation</a>
+            </div>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

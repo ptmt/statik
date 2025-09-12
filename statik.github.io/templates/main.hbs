@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{#if title}}{{title}} - {{/if}}{{siteName}}</title>
+    <meta name="description" content="{{#if description}}{{description}}{{else}}{{siteName}} - {{description}}{{/if}}">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/syntax.css">
+</head>
+<body>
+    {{> header}}
+    <main class="main-content">
+        {{#if title}}
+        <header class="page-header">
+            <h1>{{title}}</h1>
+            {{#if date}}<time datetime="{{date}}">{{formatDate date}}</time>{{/if}}
+        </header>
+        {{/if}}
+        <div class="content">
+            {{{content}}}
+        </div>
+    </main>
+    {{> footer}}
+</body>
+</html>

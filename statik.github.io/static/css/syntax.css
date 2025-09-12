@@ -1,0 +1,108 @@
+/* Syntax highlighting for code blocks */
+.highlight {
+    background: #f8f9fa;
+}
+
+/* Kotlin syntax highlighting */
+.language-kotlin .keyword {
+    color: #0033b3;
+    font-weight: bold;
+}
+
+.language-kotlin .string {
+    color: #067d17;
+}
+
+.language-kotlin .comment {
+    color: #8c8c8c;
+    font-style: italic;
+}
+
+.language-kotlin .function {
+    color: #8b44ad;
+    font-weight: bold;
+}
+
+.language-kotlin .class {
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+/* JSON syntax highlighting */
+.language-json .key {
+    color: #0033b3;
+}
+
+.language-json .string {
+    color: #067d17;
+}
+
+.language-json .number {
+    color: #1750eb;
+}
+
+.language-json .boolean {
+    color: #0033b3;
+    font-weight: bold;
+}
+
+/* Bash syntax highlighting */
+.language-bash .command {
+    color: #8b44ad;
+    font-weight: bold;
+}
+
+.language-bash .flag {
+    color: #0033b3;
+}
+
+.language-bash .string {
+    color: #067d17;
+}
+
+.language-bash .comment {
+    color: #8c8c8c;
+    font-style: italic;
+}
+
+/* Markdown syntax highlighting */
+.language-markdown .header {
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+.language-markdown .bold {
+    font-weight: bold;
+}
+
+.language-markdown .italic {
+    font-style: italic;
+}
+
+.language-markdown .code {
+    background: #e9ecef;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    font-family: monospace;
+}
+
+.language-markdown .link {
+    color: #667eea;
+}
+
+/* General code styling improvements */
+pre[class*="language-"] {
+    position: relative;
+}
+
+pre[class*="language-"]:before {
+    content: attr(data-language);
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.7rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+}

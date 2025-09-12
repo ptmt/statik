@@ -1,0 +1,77 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'statik.github.io/**'
+      - 'src/**'
+      - 'module.yaml'
+      - 'amper'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'statik.github.io/**'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make amper executable
+        run: chmod +x ./amper
+
+      - name: Build Statik
+        run: ./amper
+
+      - name: Generate documentation site
+        run: ./amper run --root-path=./statik.github.io
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        if: github.ref == 'refs/heads/main'
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: './statik.github.io/docs'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

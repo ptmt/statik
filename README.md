@@ -1,13 +1,17 @@
 # statik - Static web-site generator in Kotlin
 
+There's no description of how to use it or public documentation.
+
+## Humans and agents contribution guidelines
+
 This README provides quick guidelines for both human contributors and AI coding assistants.
 
 ## Build & Run Commands
 - Build: `./amper`
 - Run: `./amper run`
+- Test: `./amper test`
 - Single test: `./amper test --tests <TestClassName>` or `./amper test --tests <TestClassName.testMethodName>`
-- Clean: `./amper clean`
-- Run on real website: `./amper run --root-path=../ptmt.github.com`
+- Run on a real website: `./amper run -- --root-path=./statik.github.io`
 
 ## Code Style Guidelines
 - **Package Structure**: Follow `com.potomushto.statik.*` namespace convention
@@ -16,9 +20,7 @@ This README provides quick guidelines for both human contributors and AI coding 
   - Classes: PascalCase (e.g., `BlogEngine`)
   - Functions/Properties: camelCase (e.g., `generateSite()`)
   - Constants: SCREAMING_SNAKE_CASE
-- **Error Handling**: Use Kotlin's `Result` type or exceptions with descriptive messages
 - **Documentation**: Add KDoc comments for public APIs
-- **Formatting**: 4-space indentation, 120-character line limit
 - **Null Safety**: Prefer non-nullable types, use safe calls (`?.`) or the Elvis operator (`?:`) when needed
 - **Testing**: Write unit tests for core functionality
 
