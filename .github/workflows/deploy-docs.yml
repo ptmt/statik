@@ -52,7 +52,7 @@ jobs:
         run: ./amper
 
       - name: Generate documentation site
-        run: ./amper run --root-path=./statik.github.io
+        run: ./amper run -- --root-path=./statik.github.io
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
