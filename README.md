@@ -27,6 +27,37 @@ This README provides quick guidelines for both human contributors and AI coding 
 ## Dependencies
 The project uses the Amper build system with dependencies defined in `module.yaml`.
 
+## Docker Usage
+
+The project is published as a Docker image at `ghcr.io/ptmt/statik:latest`.
+
+### Running with Docker
+
+To generate a static website from your current directory:
+
+```bash
+docker run --rm -v $(pwd):/github/workspace ghcr.io/ptmt/statik:latest run -- --root-path .
+```
+
+To build and watch a documentation website:
+
+```bash
+docker run --rm -v $(pwd):/github/workspace -p 8080:8080 ghcr.io/ptmt/statik:latest run -- --root-path . --w
+```
+
+### GitHub Actions Usage
+
+You can use this Docker image in GitHub Actions workflows:
+
+```yaml
+- name: Generate static site
+  uses: docker://ghcr.io/ptmt/statik:latest
+  with:
+    args: run -- --root-path .
+```
+
+The Docker image contains the pre-built Statik application and all necessary dependencies.
+
 ## Ktor
 
 Use Ktor version 3.

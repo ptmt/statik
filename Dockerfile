@@ -9,4 +9,8 @@ WORKDIR /src
 
 RUN chmod +x ./amper
 
-RUN ./amper
+# Pre-build the project to cache dependencies
+RUN ./amper build
+
+ENTRYPOINT ["./amper"]
+CMD ["run"]
