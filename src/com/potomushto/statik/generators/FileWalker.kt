@@ -7,38 +7,56 @@ import kotlin.io.path.extension
 import kotlin.streams.asSequence
 
 class FileWalker(private val rootPath: String) {
-    
+    private val markdownExtensions = setOf("md", "html")
+
     /**
-     * Walks through the blog files directory and returns a sequence of markdown files
+     * Walk through a content directory (posts, pages, etc) and return markdown-like files
      */
-    fun walkBlogFiles(): Sequence<Path> {
-        val postsPath = Paths.get(rootPath, "posts")
-        return Files.walk(postsPath)
+    fun walkMarkdownFiles(contentPath: String): Sequence<Path> {
+        val absolutePath = Paths.get(rootPath, contentPath)
+        if (!Files.exists(absolutePath)) {
+            return emptySequence()
+        }
+
+        return Files.walk(absolutePath)
             .asSequence()
             .filter { Files.isRegularFile(it) }
-            .filter { it.extension in setOf("md", "html") }
+            .filter { it.extension in markdownExtensions }
     }
 
     /**
      * Walks through the static files directory and returns a sequence of files
      */
     fun walkStaticFiles(assetsPath: String): Sequence<Path> {
-        val staticPath = Paths.get(assetsPath)
+        val staticPath = Paths.get(rootPath, assetsPath)
+        if (!Files.exists(staticPath)) {
+            return emptySequence()
+        }
+
         return Files.walk(staticPath)
             .asSequence()
             .filter { Files.isRegularFile(it) }
     }
 
     /**
-     * Generates a URL path for a blog post based on its file path
+     * Generates a URL path relative to the content root based on the file path
      */
-    fun generatePath(file: Path): String {
-        val postsPath = Paths.get(rootPath, "posts")
-        val relativePath = postsPath.relativize(file)
-        
-        // Remove the file extension and convert to URL path
-        return relativePath.toString()
+    fun generatePath(file: Path, contentPath: String, stripIndex: Boolean = false): String {
+        val contentRoot = Paths.get(rootPath, contentPath)
+        val relativePath = contentRoot.relativize(file)
+
+        val pathWithoutExtension = relativePath.toString()
             .replace('\\', '/')
             .substringBeforeLast('.')
+
+        if (!stripIndex) {
+            return pathWithoutExtension
+        }
+
+        return when {
+            pathWithoutExtension == "index" -> ""
+            pathWithoutExtension.endsWith("/index") -> pathWithoutExtension.removeSuffix("/index")
+            else -> pathWithoutExtension
+        }
     }
-} 
+}

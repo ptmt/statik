@@ -31,7 +31,9 @@
             <div class="welcome-message">
                 <h2>Welcome to Statik</h2>
                 <p>This is a static site generator built with Kotlin. Add your content to the <code>content/</code> directory to get started.</p>
-                <p><a href="/getting-started">Get started with the documentation →</a></p>
+                {{#if featuredPage}}
+                <p><a href="/{{featuredPage.path}}">{{featuredPage.title}} →</a></p>
+                {{/if}}
             </div>
             {{/unless}}
         </div>

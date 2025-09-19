@@ -77,7 +77,10 @@ class BlogEngine {
             // Add posts directory to watch
             val postsDir = rootDir.resolve(config.paths.posts)
             if (postsDir.exists()) pathsToWatch.add(postsDir)
-            
+
+            val pagesDir = rootDir.resolve(config.paths.pages)
+            if (pagesDir.exists()) pathsToWatch.add(pagesDir)
+
             // Add templates directory to watch
             val templatesDir = rootDir.resolve(config.theme.templates)
             if (templatesDir.exists()) pathsToWatch.add(templatesDir)

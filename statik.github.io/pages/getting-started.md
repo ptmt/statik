@@ -1,7 +1,7 @@
 ---
 title: "Getting Started with Statik"
 layout: "main"
-date: "2025-09-12"
+nav_order: 1
 ---
 
 # Getting Started with Statik

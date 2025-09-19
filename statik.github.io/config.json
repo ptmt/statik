@@ -10,6 +10,6 @@
   },
   "paths": {
     "posts": "posts",
-    "pages": "posts"
+    "pages": "pages"
   }
 }
