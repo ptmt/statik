@@ -49,14 +49,28 @@ class MarkdownProcessor {
         
         // Convert the YAML visitor data to a Map<String, String>
         // The visitor returns List<String> for each key, we take the first value
-        val metadata = yamlVisitor.data.mapValues { (_, values) -> 
-            values.firstOrNull() ?: ""
+        val metadata = yamlVisitor.data.mapValues { (_, values) ->
+            sanitizeMetadataValue(values.firstOrNull())
         }
-        
+
         return ParsedPost(
             renderer.render(document),
             metadata
         )
+    }
+
+    private fun sanitizeMetadataValue(rawValue: String?): String {
+        val value = rawValue?.trim() ?: return ""
+
+        if (value.length >= 2) {
+            val firstChar = value.first()
+            val lastChar = value.last()
+            if ((firstChar == '"' && lastChar == '"') || (firstChar == '\'' && lastChar == '\'')) {
+                return value.substring(1, value.length - 1)
+            }
+        }
+
+        return value
     }
 }
 
