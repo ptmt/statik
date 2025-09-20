@@ -7,10 +7,14 @@ COPY . /src
 
 WORKDIR /src
 
-RUN chmod +x ./amper
+# Ensure amper is executable and verify it exists
+RUN chmod +x ./amper && ls -la ./amper
 
 # Pre-build the project to cache dependencies
 RUN ./amper build
+
+# Verify amper still exists after build
+RUN ls -la ./amper && ./amper --help || echo "amper help failed"
 
 ENTRYPOINT ["./amper"]
 CMD ["run"]
