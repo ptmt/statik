@@ -12,6 +12,7 @@ This README provides quick guidelines for both human contributors and AI coding 
 - Test: `./amper test`
 - Single test: `./amper test --tests <TestClassName>` or `./amper test --tests <TestClassName.testMethodName>`
 - Build and watch a documentation website: `./amper run -- --root-path=./statik.github.io --w`
+- Test Docker image: `./test-docker.sh` (comprehensive) 
 
 ## Code Style Guidelines
 - **Package Structure**: Follow `com.potomushto.statik.*` namespace convention
