@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{post.title}} - {{siteName}}</title>
     <meta name="description" content="{{excerpt post.content words=30}}">
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/syntax.css">
+    <link rel="stylesheet" href="{{baseUrl}}css/style.css">
+    <link rel="stylesheet" href="{{baseUrl}}css/syntax.css">
 </head>
 <body>
     {{include "partials/header.hbs"}}
@@ -21,7 +21,7 @@
             </div>
         </article>
         <nav class="post-nav">
-            <a href="/" class="back-home">← Back to Home</a>
+            <a href="{{baseUrl}}" class="back-home">← Back to Home</a>
         </nav>
     </main>
     {{include "partials/footer.hbs"}}

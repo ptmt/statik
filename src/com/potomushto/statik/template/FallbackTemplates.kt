@@ -31,7 +31,7 @@ object FallbackTemplates {
                 {{#if pages}}
                 <nav class="pages-nav">
                     {{#each pages}}
-                    <a href="{{path}}/">{{title}}</a>
+                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
                     {{/each}}
                 </nav>
                 {{/if}}
@@ -43,7 +43,7 @@ object FallbackTemplates {
                 <ul class="post-list">
                     {{#each posts}}
                     <li class="post-item">
-                        <h3 class="post-title"><a href="{{path}}/">{{title}}</a></h3>
+                        <h3 class="post-title"><a href="{{../baseUrl}}{{path}}/">{{title}}</a></h3>
                         <div class="post-date">{{date}}</div>
                         <div class="post-excerpt">{{{content}}}</div>
                     </li>
@@ -79,7 +79,7 @@ object FallbackTemplates {
                 {{#if pages}}
                 <nav class="pages-nav">
                     {{#each pages}}
-                    <a href="{{path}}/">{{title}}</a>
+                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
                     {{/each}}
                 </nav>
                 {{/if}}
@@ -117,7 +117,7 @@ object FallbackTemplates {
                 {{#if pages}}
                 <nav class="pages-nav">
                     {{#each pages}}
-                    <a href="{{path}}/">{{title}}</a>
+                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
                     {{/each}}
                 </nav>
                 {{/if}}

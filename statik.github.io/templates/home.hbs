@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{siteName}}</title>
     <meta name="description" content="{{description}}">
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/syntax.css">
+    <link rel="stylesheet" href="{{baseUrl}}css/style.css">
+    <link rel="stylesheet" href="{{baseUrl}}css/syntax.css">
 </head>
 <body>
     {{include "partials/header.hbs"}}
@@ -18,12 +18,12 @@
         <div class="content">
             {{#each posts}}
             <article class="post-preview">
-                <h2><a href="/{{path}}">{{title}}</a></h2>
+                <h2><a href="{{baseUrl}}{{path}}">{{title}}</a></h2>
                 <time datetime="{{date}}">{{formatDate date}}</time>
                 <div class="excerpt">
                     {{excerpt content words=50}}
                 </div>
-                <a href="/{{path}}" class="read-more">Read more →</a>
+                <a href="{{baseUrl}}{{path}}" class="read-more">Read more →</a>
             </article>
             {{/each}}
             
@@ -32,7 +32,7 @@
                 <h2>Welcome to Statik</h2>
                 <p>This is a static site generator built with Kotlin. Add your content to the <code>content/</code> directory to get started.</p>
                 {{#if featuredPage}}
-                <p><a href="/{{featuredPage.path}}">{{featuredPage.title}} →</a></p>
+                <p><a href="{{baseUrl}}{{featuredPage.path}}">{{featuredPage.title}} →</a></p>
                 {{/if}}
             </div>
             {{/unless}}

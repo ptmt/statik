@@ -2,16 +2,16 @@
     <div class="container">
         <div class="header-content">
             <div class="logo">
-                <a href="/">
+                <a href="{{baseUrl}}">
                     <span class="logo-icon">⚡</span>
                     <span class="logo-text">{{siteName}}</span>
                 </a>
             </div>
             <nav class="main-nav">
-                <a href="/" class="nav-link">Home</a>
+                <a href="{{baseUrl}}" class="nav-link">Home</a>
                 {{#each pages}}
                     {{#if path}}
-                        <a href="/{{path}}" class="nav-link">{{title}}</a>
+                        <a href="{{../baseUrl}}{{path}}" class="nav-link">{{title}}</a>
                     {{/if}}
                 {{/each}}
                 <a href="https://github.com/ptmt/statik" class="nav-link" target="_blank">
