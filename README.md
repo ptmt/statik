@@ -32,6 +32,19 @@ The project uses the Amper build system with dependencies defined in `module.yam
 
 The project is published as a Docker image at `ghcr.io/ptmt/statik:latest`.
 
+### Building Locally
+
+To build the Docker image for your platform:
+
+```bash
+# Build for current platform (recommended)
+docker build --platform linux/$(uname -m) -t statik .
+
+# Or build for specific platform
+docker build --platform linux/amd64 -t statik .     # Intel/AMD
+docker build --platform linux/arm64 -t statik .     # Apple Silicon/ARM
+```
+
 ### Running with Docker
 
 To generate a static website from your current directory:
@@ -44,6 +57,48 @@ To build and watch a documentation website:
 
 ```bash
 docker run --rm -v $(pwd):/github/workspace -p 8080:8080 ghcr.io/ptmt/statik:latest run -- --root-path . --w
+```
+
+**Note**: Your project directory must contain:
+- `config.json` with site configuration
+- `templates/` directory with Handlebars templates (see below)
+- `content/` or `posts/` directory with Markdown files
+
+### Required Templates
+
+Your `templates/` directory must include these Handlebars (.hbs) templates:
+
+- **`home.hbs`** - Homepage template (shows list of posts and pages)
+- **`post.hbs`** - Individual blog post template
+- **`page.hbs`** - Static page template (optional)
+
+Template variables available:
+- `home.hbs`: `siteName`, `description`, `baseUrl`, `posts[]`, `pages[]`
+- `post.hbs`: `post` (title, content, date, metadata), `siteName`, `baseUrl`, `pages[]`
+- `page.hbs`: `page` (title, content, metadata), `siteName`, `baseUrl`, `pages[]`
+
+You can also use partials in `templates/partials/` for shared components like headers and footers.
+
+### Configuration
+
+Example `config.json`:
+
+```json
+{
+  "siteName": "My Blog",
+  "baseUrl": "https://example.com",
+  "description": "A static site built with Statik",
+  "author": "Your Name",
+  "theme": {
+    "templates": "templates",
+    "assets": "static",
+    "output": "build"
+  },
+  "paths": {
+    "posts": "posts",
+    "pages": "content"
+  }
+}
 ```
 
 ### GitHub Actions Usage

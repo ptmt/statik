@@ -33,7 +33,7 @@ trap cleanup EXIT
 
 # Test 1: Build Docker image
 echo -e "${YELLOW}Test 1: Building Docker image...${NC}"
-if docker build -t "${FULL_IMAGE_NAME}" .; then
+if docker build --platform linux/$(uname -m) -t "${FULL_IMAGE_NAME}" .; then
     echo -e "${GREEN}✓ Docker image built successfully${NC}"
 else
     echo -e "${RED}✗ Docker image build failed${NC}"
@@ -63,6 +63,7 @@ fi
 # Test 4: Create test workspace
 echo -e "${YELLOW}Test 4: Setting up test workspace...${NC}"
 mkdir -p "${TEST_CONTENT_DIR}"
+mkdir -p "${TEST_DIR}/templates"
 
 # Create a simple test markdown file
 cat > "${TEST_CONTENT_DIR}/index.md" << 'EOF'
@@ -80,6 +81,9 @@ This is a test page for Docker image testing.
 - Static site generation
 - Docker containerization
 EOF
+
+# Copy templates from the project to test workspace
+cp -r "./statik.github.io/templates/"* "${TEST_DIR}/templates/"
 
 # Create a config file
 cat > "${TEST_DIR}/config.json" << 'EOF'
@@ -104,10 +108,10 @@ fi
 
 # Test 6: Check generated output
 echo -e "${YELLOW}Test 6: Verifying generated output...${NC}"
-if [ -d "${TEST_DIR}/dist" ] && [ -f "${TEST_DIR}/dist/index.html" ]; then
+if [ -d "${TEST_DIR}/build" ] && [ -f "${TEST_DIR}/build/index.html" ]; then
     echo -e "${GREEN}✓ Generated files found${NC}"
     echo -e "${GREEN}Generated files:${NC}"
-    find "${TEST_DIR}/dist" -type f | sed 's/^/  /'
+    find "${TEST_DIR}/build" -type f | sed 's/^/  /'
 else
     echo -e "${RED}✗ Generated files not found${NC}"
     echo -e "${YELLOW}Contents of test directory:${NC}"
@@ -118,7 +122,24 @@ fi
 # Test 7: Test with bind mount (simulating real usage)
 echo -e "${YELLOW}Test 7: Testing with current directory mount...${NC}"
 TEMP_TEST_DIR=$(mktemp -d)
+mkdir -p "${TEMP_TEST_DIR}/templates"
+mkdir -p "${TEMP_TEST_DIR}/content"
 echo "# Docker Test" > "${TEMP_TEST_DIR}/README.md"
+
+# Copy templates to temp directory
+cp -r "./statik.github.io/templates/"* "${TEMP_TEST_DIR}/templates/"
+
+# Create a simple content file
+cat > "${TEMP_TEST_DIR}/content/index.md" << 'EOF'
+---
+title: Bind Mount Test
+---
+
+# Bind Mount Test
+
+Testing bind mount functionality.
+EOF
+
 cat > "${TEMP_TEST_DIR}/config.json" << 'EOF'
 {
     "siteName": "Bind Mount Test",
