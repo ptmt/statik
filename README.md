@@ -1,6 +1,36 @@
 # statik - Static web-site generator in Kotlin
 
-There's no description of how to use it or public documentation.
+A fast, simple static site generator built with Kotlin that works out of the box with minimal setup.
+
+## Quick Start
+
+1. Create a `config.json`:
+```json
+{
+  "siteName": "My Blog",
+  "baseUrl": "https://example.com",
+  "description": "My awesome blog",
+  "author": "Your Name"
+}
+```
+
+2. Add some content in `posts/` or `content/`:
+```markdown
+---
+title: Hello World
+---
+
+# Hello World
+
+This is my first post!
+```
+
+3. Generate your site:
+```bash
+./amper run -- --root-path .
+```
+
+That's it! No templates required - Statik includes clean, minimal built-in templates to get you started.
 
 ## Humans and agents contribution guidelines
 
@@ -61,18 +91,20 @@ docker run --rm -v $(pwd):/github/workspace -p 8080:8080 ghcr.io/ptmt/statik:lat
 
 **Note**: Your project directory must contain:
 - `config.json` with site configuration
-- `templates/` directory with Handlebars templates (see below)
 - `content/` or `posts/` directory with Markdown files
+- `templates/` directory with Handlebars templates (optional - see below)
 
-### Required Templates
+### Templates (Optional)
 
-Your `templates/` directory must include these Handlebars (.hbs) templates:
+Statik includes built-in fallback templates, so you can start generating sites immediately without creating any templates. However, you can customize the look by creating your own `.hbs` templates:
 
-- **`home.hbs`** - Homepage template (shows list of posts and pages)
-- **`post.hbs`** - Individual blog post template
-- **`page.hbs`** - Static page template (optional)
+- **`templates/home.hbs`** - Homepage template (shows list of posts and pages)
+- **`templates/post.hbs`** - Individual blog post template
+- **`templates/page.hbs`** - Static page template
 
-Template variables available:
+If a template file doesn't exist, Statik will use a clean, minimal built-in template instead.
+
+#### Template Variables Available:
 - `home.hbs`: `siteName`, `description`, `baseUrl`, `posts[]`, `pages[]`
 - `post.hbs`: `post` (title, content, date, metadata), `siteName`, `baseUrl`, `pages[]`
 - `page.hbs`: `page` (title, content, metadata), `siteName`, `baseUrl`, `pages[]`

@@ -6,6 +6,7 @@ import kotlin.io.path.readText
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.processors.MarkdownProcessor
 import com.potomushto.statik.template.HandlebarsTemplateEngine
+import com.potomushto.statik.template.FallbackTemplates
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
@@ -21,6 +22,19 @@ class SiteGenerator(private val rootPath: String,
     private val templateEngine = HandlebarsTemplateEngine(templatesPath)
   //  private val rssGenerator = RssGenerator()
     private val fileWalker = FileWalker(rootPath)
+
+    /**
+     * Gets template content, falling back to built-in template if file doesn't exist
+     */
+    private fun getTemplateContent(templateName: String, fallbackTemplate: String): String {
+        val templateFile = templatesPath.resolve("$templateName.${templateEngine.extension}")
+        return if (Files.exists(templateFile)) {
+            templateFile.readText()
+        } else {
+            println("Template $templateName.${templateEngine.extension} not found, using built-in fallback")
+            fallbackTemplate
+        }
+    }
 
     fun generate() {
         val posts = loadBlogPosts().sortedByDescending { it.date }
@@ -92,8 +106,8 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun generateBlogPosts(posts: List<BlogPost>, pages: List<SitePage>) {
-        val templateFile = templatesPath.resolve( "post.${templateEngine.extension}")
-        val template = templateEngine.compile(templateFile.readText())
+        val templateContent = getTemplateContent("post", FallbackTemplates.POST_TEMPLATE)
+        val template = templateEngine.compile(templateContent)
 
         posts.forEach { post ->
             val html = template(mapOf(
@@ -110,8 +124,8 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun generateHomePage(posts: List<BlogPost>, pages: List<SitePage>) {
-        val templateFile = templatesPath.resolve("home.${templateEngine.extension}")
-        val template = templateEngine.compile(templateFile.readText())
+        val templateContent = getTemplateContent("home", FallbackTemplates.HOME_TEMPLATE)
+        val template = templateEngine.compile(templateContent)
 
         val html = template(mapOf(
             "posts" to posts,
@@ -128,12 +142,8 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun generatePages(pages: List<SitePage>) {
-        val templateFile = templatesPath.resolve("page.${templateEngine.extension}")
-        if (!Files.exists(templateFile)) {
-            return
-        }
-
-        val template = templateEngine.compile(templateFile.readText())
+        val templateContent = getTemplateContent("page", FallbackTemplates.PAGE_TEMPLATE)
+        val template = templateEngine.compile(templateContent)
 
         val outputRoot = Paths.get(rootPath, config.theme.output)
 

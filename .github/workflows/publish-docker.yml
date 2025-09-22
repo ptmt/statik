@@ -7,7 +7,7 @@ permissions:
 on:
   push:
     branches:
-      - main # Adjust branch as needed
+      - main
 
 jobs:
   build-and-push:
