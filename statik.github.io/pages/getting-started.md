@@ -8,13 +8,46 @@ nav_order: 1
 
 This guide will help you set up and use Statik to create your own static website.
 
+## Quick Start (No Templates Needed!)
+
+Statik now works out of the box with built-in templates. Just create content and go!
+
+1. **Create a config.json**
+   ```json
+   {
+     "siteName": "My Blog",
+     "baseUrl": "https://example.com",
+     "description": "My awesome blog",
+     "author": "Your Name"
+   }
+   ```
+
+2. **Add some content**
+   ```markdown
+   ---
+   title: Hello World
+   ---
+
+   # Hello World
+
+   This is my first post!
+   ```
+
+3. **Generate your site**
+   ```bash
+   ./amper run -- --root-path .
+   ```
+
+That's it! Statik includes clean, minimal built-in templates to get you started.
+
 ## Prerequisites
 
-- **JVM**: Java 17 or later
-- **Git**: For cloning the repository
+- **JVM**: Java 17 or later (or use Docker)
 - **Text Editor**: Your favorite editor for writing content
 
-## Installation
+## Installation Options
+
+### Option 1: Build from Source
 
 1. **Clone the Repository**
    ```bash
@@ -27,10 +60,11 @@ This guide will help you set up and use Statik to create your own static website
    ./amper
    ```
 
-3. **Verify Installation**
-   ```bash
-   ./amper run --help
-   ```
+### Option 2: Use Docker (Recommended)
+
+```bash
+docker run --rm -v $(pwd):/github/workspace ghcr.io/ptmt/statik:latest run -- --root-path .
+```
 
 ## Project Structure
 
@@ -38,21 +72,26 @@ A typical Statik project follows this structure:
 
 ```
 my-website/
-├── config.json          # Site configuration
-├── content/             # Markdown content files
-│   ├── index.md
-│   └── blog/
-│       └── first-post.md
-├── templates/           # Handlebars templates
-│   ├── main.hbs        # Main layout
-│   └── partials/
-│       └── header.hbs
-├── static/             # Static assets
+├── config.json          # Site configuration (required)
+├── posts/               # Blog posts (optional)
+│   └── first-post.md
+├── content/             # Static pages (optional)
+│   └── about.md
+├── templates/           # Custom templates (optional)
+│   ├── home.hbs        # Homepage template
+│   ├── post.hbs        # Blog post template
+│   ├── page.hbs        # Static page template
+│   └── partials/       # Shared components
+│       ├── header.hbs
+│       └── footer.hbs
+├── static/             # Static assets (optional)
 │   ├── css/
 │   ├── js/
 │   └── images/
-└── docs/               # Generated output (configurable)
+└── build/              # Generated output (default)
 ```
+
+**Note**: Only `config.json` and content files are required. Templates and assets are optional!
 
 ## Configuration
 
@@ -60,33 +99,43 @@ Create a `config.json` file in your project root:
 
 ```json
 {
-  "site": {
-    "title": "My Website",
-    "description": "A website built with Statik",
-    "baseUrl": "https://mysite.com",
-    "author": "Your Name"
-  },
+  "siteName": "My Website",
+  "description": "A website built with Statik",
+  "baseUrl": "https://mysite.com",
+  "author": "Your Name",
   "theme": {
-    "name": "default",
     "templates": "templates",
-    "static": "static",
-    "output": "docs"
+    "assets": "static",
+    "output": "build"
+  },
+  "paths": {
+    "posts": "posts",
+    "pages": "content"
   }
 }
 ```
 
+**Configuration Options:**
+- `siteName`: Your site's name (required)
+- `baseUrl`: Your site's URL (required)
+- `description`: Site description (required)
+- `author`: Your name (required)
+- `theme.templates`: Templates directory (default: "templates")
+- `theme.assets`: Static assets directory (default: "static")
+- `theme.output`: Output directory (default: "build")
+- `paths.posts`: Blog posts directory (default: "posts")
+- `paths.pages`: Static pages directory (default: "content")
+
 ## Writing Content
 
-### Basic Markdown File
+### Blog Posts
 
-Create files in the `content/` directory:
+Create files in the `posts/` directory:
 
 ```markdown
 ---
 title: "My First Post"
-layout: "main"
-date: "2025-09-12"
-tags: ["blog", "first-post"]
+published: "2024-01-01T00:00:00"
 ---
 
 # Welcome to My Blog
@@ -96,23 +145,53 @@ This is my first post using **Statik**!
 ## Features I Love
 
 - Simple Markdown writing
-- Flexible templating
+- Built-in templates (no setup required!)
 - Live development server
+- Docker support
+```
+
+### Static Pages
+
+Create files in the `content/` directory:
+
+```markdown
+---
+title: "About Me"
+nav_order: 1
+---
+
+# About Me
+
+I'm a developer who loves static sites!
+
+You can reach me at [email@example.com](mailto:email@example.com).
 ```
 
 ### Frontmatter Options
 
 The YAML frontmatter supports these options:
 
-- `title`: Page title
-- `layout`: Template to use (defaults to "main")
-- `date`: Publication date
-- `tags`: Array of tags
-- `draft`: Set to `true` to exclude from builds
+- `title`: Page title (required)
+- `published`: Publication date for posts (format: "YYYY-MM-DDTHH:MM:SS")
+- `nav_order`: Order in navigation menu (for pages)
 
-## Creating Templates
+## Custom Templates (Optional)
 
-### Main Layout (`templates/main.hbs`)
+Statik includes built-in templates that work great out of the box. But if you want to customize the look and feel, you can create your own templates.
+
+### Built-in Templates
+
+When you don't provide templates, Statik uses clean, minimal built-in templates that include:
+- Responsive design with basic CSS
+- Navigation between pages
+- Proper HTML5 structure
+- Support for all template variables
+
+### Creating Custom Templates
+
+If you want to customize, create these files in your `templates/` directory:
+
+#### Homepage Template (`templates/home.hbs`)
 
 ```handlebars
 <!DOCTYPE html>
@@ -120,31 +199,53 @@ The YAML frontmatter supports these options:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{#if title}}{{title}} - {{/if}}{{site.title}}</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>{{siteName}}</title>
 </head>
 <body>
-    {{> header}}
-    <main>
-        {{{content}}}
-    </main>
-    {{> footer}}
+    <h1>{{siteName}}</h1>
+    <p>{{description}}</p>
+
+    {{#if posts}}
+    <h2>Recent Posts</h2>
+    <ul>
+        {{#each posts}}
+        <li><a href="{{path}}/">{{title}}</a> - {{date}}</li>
+        {{/each}}
+    </ul>
+    {{/if}}
 </body>
 </html>
 ```
 
-### Partials (`templates/partials/header.hbs`)
+#### Post Template (`templates/post.hbs`)
 
 ```handlebars
-<header>
-    <h1><a href="/">{{site.title}}</a></h1>
-    <nav>
-        <a href="/">Home</a>
-        <a href="/blog">Blog</a>
-        <a href="/about">About</a>
-    </nav>
-</header>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{post.title}} - {{siteName}}</title>
+</head>
+<body>
+    <h1><a href="{{baseUrl}}">{{siteName}}</a></h1>
+    <article>
+        <h1>{{post.title}}</h1>
+        <time>{{post.date}}</time>
+        <div>{{{post.content}}}</div>
+    </article>
+</body>
+</html>
 ```
+
+### Template Variables
+
+Available in all templates:
+- `siteName`, `description`, `baseUrl`, `author`
+- `pages[]` - Array of static pages
+- `posts[]` - Array of blog posts (in home template)
+- `post` - Current post object (in post template)
+- `page` - Current page object (in page template)
 
 ## Building Your Site
 
@@ -153,7 +254,7 @@ The YAML frontmatter supports these options:
 Run with live reload for development:
 
 ```bash
-./amper run --root-path=/path/to/your/site --watch
+./amper run -- --root-path=/path/to/your/site --w
 ```
 
 This starts a local server at `http://localhost:8080` and automatically rebuilds when files change.
@@ -163,34 +264,75 @@ This starts a local server at `http://localhost:8080` and automatically rebuilds
 Generate static files for deployment:
 
 ```bash
-./amper run --root-path=/path/to/your/site
+./amper run -- --root-path=/path/to/your/site
 ```
 
-The generated files will be in your configured output directory (default: `docs/`).
+The generated files will be in your configured output directory (default: `build/`).
+
+### Using Docker
+
+You can also use Docker instead of building from source:
+
+```bash
+# Development with live reload
+docker run --rm -v $(pwd):/github/workspace -p 8080:8080 \
+  ghcr.io/ptmt/statik:latest run -- --root-path . --w
+
+# Production build
+docker run --rm -v $(pwd):/github/workspace \
+  ghcr.io/ptmt/statik:latest run -- --root-path .
+```
 
 ## Deployment
 
 ### GitHub Pages
 
-1. **Setup**: Use `docs/` as your output directory
+1. **Setup**: Configure output directory in your `config.json`
+   ```json
+   {
+     "theme": {
+       "output": "docs"
+     }
+   }
+   ```
+
 2. **Configure**: In repository settings, set GitHub Pages source to `/docs` folder
-3. **Automate**: Use GitHub Actions for automatic builds (see example workflow)
+3. **Automate**: Use GitHub Actions for automatic builds
 
 ### Other Platforms
 
 The generated static files can be deployed to:
 
-- **Netlify**: Drag and drop the output folder
-- **Vercel**: Connect your repository
+- **Netlify**: Drag and drop the output folder or connect your repository
+- **Vercel**: Connect your repository with automatic builds
 - **AWS S3**: Upload files to your bucket
 - **Any static hosting**: Copy files to your web server
 
-## Next Steps
+### Example GitHub Actions Workflow
 
-- Explore the [template system](/templates) for advanced layouts
-- Learn about [custom processors](/processors) for special content types
-- Check out [deployment examples](/deployment) for various platforms
-- Browse the [API documentation](/api) for extending Statik
+```yaml
+name: Deploy Site
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate site with Statik
+        run: |
+          docker run --rm -v $(pwd):/github/workspace \
+            ghcr.io/ptmt/statik:latest run -- --root-path .
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
+```
 
 ## Need Help?
 

@@ -10,23 +10,40 @@ Statik is a powerful static site generator built with **Kotlin** that combines s
 
 ## ✨ Key Features
 
+- **Zero Setup**: Works out of the box with built-in templates - no configuration required!
+- **Templates Optional**: Start with content only, customize templates later if desired
 - **Markdown Processing**: Full support for GitHub Flavored Markdown with extensions
-- **Handlebars Templates**: Flexible templating system with partials and helpers
+- **Docker Support**: Run anywhere with pre-built Docker images
 - **Live Development**: Built-in server with hot reload during development
 - **Flexible Configuration**: JSON-based configuration with sensible defaults
-- **Extensible**: Plugin architecture for custom processors and generators
 
 ## 🚀 Quick Start
+
+**Super Simple** - Just create content and go:
+
+```bash
+# 1. Create a config.json
+echo '{"siteName":"My Blog","baseUrl":"https://example.com","description":"My blog","author":"Me"}' > config.json
+
+# 2. Add some content
+mkdir posts
+echo -e '---\ntitle: Hello World\n---\n\n# Hello World\n\nMy first post!' > posts/hello.md
+
+# 3. Generate with Docker (no templates needed!)
+docker run --rm -v $(pwd):/github/workspace ghcr.io/ptmt/statik:latest run -- --root-path .
+```
+
+**Or build from source:**
 
 ```bash
 # Build the project
 ./amper
 
-# Run on your content
-./amper run --root-path=/path/to/your/site
+# Run on your content (built-in templates work automatically)
+./amper run -- --root-path=/path/to/your/site
 
 # Development mode with live reload
-./amper run --root-path=/path/to/your/site --watch
+./amper run -- --root-path=/path/to/your/site --w
 ```
 
 ## 📖 How This Site Works
