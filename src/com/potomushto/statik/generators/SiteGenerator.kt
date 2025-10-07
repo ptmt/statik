@@ -3,8 +3,10 @@ package com.potomushto.statik.generators
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
 import kotlin.io.path.readText
+import kotlin.io.path.extension
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.processors.MarkdownProcessor
+import com.potomushto.statik.processors.ContentProcessor
 import com.potomushto.statik.template.HandlebarsTemplateEngine
 import com.potomushto.statik.template.FallbackTemplates
 import java.nio.file.Files
@@ -19,6 +21,7 @@ class SiteGenerator(private val rootPath: String,
                     private val config: BlogConfig) {
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
+    private val contentProcessor = ContentProcessor(markdownProcessor)
     private val templateEngine = HandlebarsTemplateEngine(templatesPath)
   //  private val rssGenerator = RssGenerator()
     private val fileWalker = FileWalker(rootPath)
@@ -51,10 +54,11 @@ class SiteGenerator(private val rootPath: String,
         val postsDirectory = config.paths.posts
         return fileWalker.walkMarkdownFiles(postsDirectory)
             .map { file ->
-                val postContent = file.readText()
-                val parsedPost = markdownProcessor.process(postContent)
+                val parsedPost = contentProcessor.process(file)
                 val title = parsedPost.metadata["title"] ?: file.nameWithoutExtension
                 val date = parsedPost.metadata["published"]?.let { LocalDateTime.parse(it) } ?: Files.getLastModifiedTime(file).let { LocalDateTime.ofInstant(it.toInstant(), ZoneId.systemDefault()) }
+                val layout = parsedPost.metadata["layout"]
+
                 BlogPost(
                     id = file.nameWithoutExtension,
                     title = title,
@@ -62,7 +66,8 @@ class SiteGenerator(private val rootPath: String,
                     content = parsedPost.content,
                     rawHtml = null,
                     metadata = parsedPost.metadata,
-                    outputPath = fileWalker.generatePath(file, postsDirectory)
+                    outputPath = fileWalker.generatePath(file, postsDirectory),
+                    isTemplate = file.extension.lowercase() == "hbs"
                 )
             }.toList()
     }
@@ -71,8 +76,7 @@ class SiteGenerator(private val rootPath: String,
         val pagesDirectory = config.paths.pages
         return fileWalker.walkMarkdownFiles(pagesDirectory)
             .map { file ->
-                val pageContent = file.readText()
-                val parsedPage = markdownProcessor.process(pageContent)
+                val parsedPage = contentProcessor.process(file)
                 val title = parsedPage.metadata["title"] ?: file.nameWithoutExtension
                 val navOrder = parsedPage.metadata["nav_order"]?.toIntOrNull()
                     ?: parsedPage.metadata["navOrder"]?.toIntOrNull()
@@ -83,7 +87,8 @@ class SiteGenerator(private val rootPath: String,
                     content = parsedPage.content,
                     metadata = parsedPage.metadata,
                     outputPath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true),
-                    navOrder = navOrder
+                    navOrder = navOrder,
+                    isTemplate = file.extension.lowercase() == "hbs"
                 )
             }
             .toList()
@@ -108,15 +113,42 @@ class SiteGenerator(private val rootPath: String,
         val templateContent = getTemplateContent("post", FallbackTemplates.POST_TEMPLATE)
 
         posts.forEach { post ->
-            val html = templateEngine.renderWithLayout(templateContent, mapOf(
-                "post" to post,
-                "baseUrl" to config.baseUrl,
-                "siteName" to config.siteName,
-                "pages" to pages,
-                "title" to post.title,
-                "description" to post.content.take(160),
-                "layout" to "default"
-            ))
+            val contentToRender = if (post.isTemplate) {
+                // For .hbs files, render the content as a template first
+                templateEngine.render(post.content, mapOf(
+                    "post" to post,
+                    "baseUrl" to config.baseUrl,
+                    "siteName" to config.siteName,
+                    "pages" to pages
+                ))
+            } else {
+                post.content
+            }
+
+            // Use the post template if not a template file, otherwise wrap in layout
+            val html = if (post.isTemplate) {
+                // For template files, use layout if specified in metadata or default
+                val layout = post.metadata["layout"] ?: "default"
+                templateEngine.renderWithLayout(post.content, mapOf(
+                    "post" to post,
+                    "baseUrl" to config.baseUrl,
+                    "siteName" to config.siteName,
+                    "pages" to pages,
+                    "title" to post.title,
+                    "description" to post.metadata["description"] ?: post.title,
+                    "layout" to layout
+                ))
+            } else {
+                templateEngine.renderWithLayout(templateContent, mapOf(
+                    "post" to post,
+                    "baseUrl" to config.baseUrl,
+                    "siteName" to config.siteName,
+                    "pages" to pages,
+                    "title" to post.title,
+                    "description" to post.content.take(160),
+                    "layout" to (post.metadata["layout"] ?: "default")
+                ))
+            }
 
             val outputPath = Paths.get(rootPath, config.theme.output, post.path, "index.html")
             outputPath.parent.createDirectories()
@@ -148,17 +180,33 @@ class SiteGenerator(private val rootPath: String,
         val outputRoot = Paths.get(rootPath, config.theme.output)
 
         pages.forEach { page ->
-            val html = templateEngine.renderWithLayout(templateContent,
-                mapOf(
-                    "page" to page,
-                    "pages" to pages,
-                    "baseUrl" to config.baseUrl,
-                    "siteName" to config.siteName,
-                    "description" to config.description,
-                    "title" to page.title,
-                    "layout" to "default"
+            val html = if (page.isTemplate) {
+                // For template files, render directly with layout
+                val layout = page.metadata["layout"] ?: "default"
+                templateEngine.renderWithLayout(page.content,
+                    mapOf(
+                        "page" to page,
+                        "pages" to pages,
+                        "baseUrl" to config.baseUrl,
+                        "siteName" to config.siteName,
+                        "description" to page.metadata["description"] ?: config.description,
+                        "title" to page.title,
+                        "layout" to layout
+                    )
                 )
-            )
+            } else {
+                templateEngine.renderWithLayout(templateContent,
+                    mapOf(
+                        "page" to page,
+                        "pages" to pages,
+                        "baseUrl" to config.baseUrl,
+                        "siteName" to config.siteName,
+                        "description" to config.description,
+                        "title" to page.title,
+                        "layout" to (page.metadata["layout"] ?: "default")
+                    )
+                )
+            }
 
             val pageOutputDir = if (page.path.isNotEmpty()) {
                 outputRoot.resolve(page.path)

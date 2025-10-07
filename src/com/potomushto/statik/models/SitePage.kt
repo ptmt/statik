@@ -6,7 +6,8 @@ data class SitePage(
     val content: String,
     val metadata: Map<String, String> = emptyMap(),
     val outputPath: String,
-    val navOrder: Int? = null
+    val navOrder: Int? = null,
+    val isTemplate: Boolean = false  // True if content is a Handlebars template
 ) {
     val path: String get() = outputPath
 }

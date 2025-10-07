@@ -195,6 +195,115 @@ class SiteGeneratorTest {
         assertEquals("logo", assetPath.readText())
     }
 
+    @Test
+    fun `generate processes HTML files in posts and pages`() {
+        val config = BlogConfig(
+            siteName = "HTML Test Site",
+            baseUrl = "https://html.example/",
+            description = "Test HTML files",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            paths = PathConfig(posts = "posts", pages = "pages")
+        )
+
+        // Create an HTML post with frontmatter
+        createPost("posts/html-post.html", """
+            ---
+            title: HTML Post
+            published: 2024-07-01T10:00:00
+            description: A post written in HTML
+            ---
+            <h1>HTML Content</h1>
+            <p>This is an HTML post with custom markup.</p>
+        """.trimIndent())
+
+        // Create an HTML page with frontmatter
+        createPage("pages/html-page.html", """
+            ---
+            title: HTML Page
+            nav_order: 1
+            ---
+            <h2>Custom HTML Page</h2>
+            <div class="custom">HTML content directly</div>
+        """.trimIndent())
+
+        writeTemplate("templates/post.hbs", "<article>{{post.title}}: {{{post.content}}}</article>")
+        writeTemplate("templates/page.hbs", "<section>{{page.title}}: {{{page.content}}}</section>")
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val postHtml = (tempRoot / "build" / "html-post" / "index.html").readText()
+        assertTrue(postHtml.contains("HTML Post"))
+        assertTrue(postHtml.contains("<h1>HTML Content</h1>"))
+        assertTrue(postHtml.contains("This is an HTML post with custom markup."))
+
+        val pageHtml = (tempRoot / "build" / "html-page" / "index.html").readText()
+        assertTrue(pageHtml.contains("HTML Page"))
+        assertTrue(pageHtml.contains("<h2>Custom HTML Page</h2>"))
+        assertTrue(pageHtml.contains("class=\"custom\""))
+    }
+
+    @Test
+    fun `generate processes HBS template files in posts and pages`() {
+        val config = BlogConfig(
+            siteName = "HBS Test Site",
+            baseUrl = "https://hbs.example/",
+            description = "Test HBS files",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            paths = PathConfig(posts = "posts", pages = "pages")
+        )
+
+        // Create an HBS post with frontmatter and template variables
+        createPost("posts/template-post.hbs", """
+            ---
+            title: Template Post
+            published: 2024-08-01T10:00:00
+            custom_var: Hello World
+            ---
+            <h1>{{post.title}}</h1>
+            <p>Site: {{siteName}}</p>
+            <p>Custom: {{post.metadata.custom_var}}</p>
+        """.trimIndent())
+
+        // Create an HBS page that uses template variables
+        createPage("pages/template-page.hbs", """
+            ---
+            title: Template Page
+            nav_order: 1
+            greeting: Welcome
+            ---
+            <h2>{{page.title}}</h2>
+            <p>{{page.metadata.greeting}} to {{siteName}}</p>
+            <ul>
+            {{#each pages}}
+              <li>{{title}}</li>
+            {{/each}}
+            </ul>
+        """.trimIndent())
+
+        writeTemplate("templates/layouts/default.hbs", """
+            <html>
+            <head><title>{{title}}</title></head>
+            <body>{{{content}}}</body>
+            </html>
+        """.trimIndent())
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val postHtml = (tempRoot / "build" / "template-post" / "index.html").readText()
+        assertTrue(postHtml.contains("<h1>Template Post</h1>"))
+        assertTrue(postHtml.contains("<p>Site: HBS Test Site</p>"))
+        assertTrue(postHtml.contains("<p>Custom: Hello World</p>"))
+
+        val pageHtml = (tempRoot / "build" / "template-page" / "index.html").readText()
+        assertTrue(pageHtml.contains("<h2>Template Page</h2>"))
+        assertTrue(pageHtml.contains("Welcome to HBS Test Site"))
+        assertTrue(pageHtml.contains("<li>Template Page</li>"))
+    }
+
     private fun createPost(relative: String, content: String) {
         createFile(relative, content)
     }

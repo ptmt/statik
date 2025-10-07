@@ -7,10 +7,10 @@ import kotlin.io.path.extension
 import kotlin.streams.asSequence
 
 class FileWalker(private val rootPath: String) {
-    private val markdownExtensions = setOf("md", "html")
+    private val contentExtensions = setOf("md", "html", "hbs")
 
     /**
-     * Walk through a content directory (posts, pages, etc) and return markdown-like files
+     * Walk through a content directory (posts, pages, etc) and return content files (.md, .html, .hbs)
      */
     fun walkMarkdownFiles(contentPath: String): Sequence<Path> {
         val absolutePath = Paths.get(rootPath, contentPath)
@@ -21,7 +21,7 @@ class FileWalker(private val rootPath: String) {
         return Files.walk(absolutePath)
             .asSequence()
             .filter { Files.isRegularFile(it) }
-            .filter { it.extension in markdownExtensions }
+            .filter { it.extension in contentExtensions }
     }
 
     /**
