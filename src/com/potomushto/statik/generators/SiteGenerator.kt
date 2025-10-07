@@ -41,7 +41,6 @@ class SiteGenerator(private val rootPath: String,
         val pages = loadPages().sortedWith(compareBy<SitePage> { it.navOrder ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
 
         generateHomePage(posts, pages)
-//        generateArchivePages(posts)
         generateBlogPosts(posts, pages)
         generatePages(pages)
 //        generateRssFeed(posts)
@@ -107,14 +106,16 @@ class SiteGenerator(private val rootPath: String,
 
     private fun generateBlogPosts(posts: List<BlogPost>, pages: List<SitePage>) {
         val templateContent = getTemplateContent("post", FallbackTemplates.POST_TEMPLATE)
-        val template = templateEngine.compile(templateContent)
 
         posts.forEach { post ->
-            val html = template(mapOf(
+            val html = templateEngine.renderWithLayout(templateContent, mapOf(
                 "post" to post,
                 "baseUrl" to config.baseUrl,
                 "siteName" to config.siteName,
-                "pages" to pages
+                "pages" to pages,
+                "title" to post.title,
+                "description" to post.content.take(160),
+                "layout" to "default"
             ))
 
             val outputPath = Paths.get(rootPath, config.theme.output, post.path, "index.html")
@@ -125,15 +126,15 @@ class SiteGenerator(private val rootPath: String,
 
     private fun generateHomePage(posts: List<BlogPost>, pages: List<SitePage>) {
         val templateContent = getTemplateContent("home", FallbackTemplates.HOME_TEMPLATE)
-        val template = templateEngine.compile(templateContent)
 
-        val html = template(mapOf(
+        val html = templateEngine.renderWithLayout(templateContent, mapOf(
             "posts" to posts,
             "siteName" to config.siteName,
             "description" to config.description,
             "baseUrl" to config.baseUrl,
             "pages" to pages,
-            "featuredPage" to pages.firstOrNull { it.path.isNotEmpty() }
+            "featuredPage" to pages.firstOrNull { it.path.isNotEmpty() },
+            "layout" to "default"
         ))
 
         val outputPath = Paths.get(rootPath, config.theme.output, "index.html")
@@ -143,18 +144,19 @@ class SiteGenerator(private val rootPath: String,
 
     private fun generatePages(pages: List<SitePage>) {
         val templateContent = getTemplateContent("page", FallbackTemplates.PAGE_TEMPLATE)
-        val template = templateEngine.compile(templateContent)
 
         val outputRoot = Paths.get(rootPath, config.theme.output)
 
         pages.forEach { page ->
-            val html = template(
+            val html = templateEngine.renderWithLayout(templateContent,
                 mapOf(
                     "page" to page,
                     "pages" to pages,
                     "baseUrl" to config.baseUrl,
                     "siteName" to config.siteName,
-                    "description" to config.description
+                    "description" to config.description,
+                    "title" to page.title,
+                    "layout" to "default"
                 )
             )
 
@@ -170,4 +172,5 @@ class SiteGenerator(private val rootPath: String,
             Files.writeString(outputPath, html)
         }
     }
+
 }

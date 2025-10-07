@@ -66,7 +66,7 @@ class MarkdownProcessor {
             val firstChar = value.first()
             val lastChar = value.last()
             if ((firstChar == '"' && lastChar == '"') || (firstChar == '\'' && lastChar == '\'')) {
-                return value.substring(1, value.length - 1)
+                return value.substring(1, value.length - 1).trim()
             }
         }
 

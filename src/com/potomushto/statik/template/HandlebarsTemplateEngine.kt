@@ -3,13 +3,25 @@ package com.potomushto.statik.template
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
+import kotlin.io.path.readText
 
 class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     override val extension = "hbs"
 
     private val handlebars: Handlebars = Handlebars()
+    private val layoutCache = mutableMapOf<String, String>()
+
+    fun registerHelper(name: String, helper: Helper<*>) {
+        handlebars.registerHelper(name, helper)
+    }
+
+    override fun registerPartial(name: String, partial: String) {
+        // Partials are loaded via the include helper dynamically
+        // No need to pre-register them
+    }
 
     init {
         registerHelper("formatDate", object: Helper<LocalDateTime> {
@@ -64,6 +76,17 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                 }
             }
         })
+
+        registerHelper("eq", object: Helper<Any> {
+            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): CharSequence {
+                val param = options?.param<Any>(0)
+                return if (context == param) {
+                    options?.fn() ?: ""
+                } else {
+                    options?.inverse() ?: ""
+                }
+            }
+        })
     }
 
     override fun compile(template: String): (Map<String, Any?>) -> String {
@@ -76,11 +99,49 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
         return compiledTemplate(data)
     }
 
-    fun registerHelper(name: String, helper: Helper<*>) {
-        handlebars.registerHelper(name, helper)
+    /**
+     * Load a layout template from the layouts directory
+     */
+    private fun loadLayout(layoutName: String): String? {
+        if (layoutCache.containsKey(layoutName)) {
+            return layoutCache[layoutName]
+        }
+
+        val layoutPath = templatesPath.resolve("layouts").resolve("$layoutName.$extension")
+        return if (Files.exists(layoutPath)) {
+            val content = layoutPath.readText()
+            layoutCache[layoutName] = content
+            content
+        } else {
+            null
+        }
     }
 
-    override fun registerPartial(name: String, partial: String) {
+    /**
+     * Render a template with an optional layout wrapper
+     * If layout is specified in data, wraps the template content in the layout
+     */
+    override fun renderWithLayout(template: String, data: Map<String, Any?>): String {
+        val layoutName = data["layout"] as? String
 
+        // First, render the content template
+        val contentHtml = render(template, data)
+
+        // If no layout specified, return content as-is
+        if (layoutName == null) {
+            return contentHtml
+        }
+
+        // Load and apply layout
+        val layoutTemplate = loadLayout(layoutName)
+        if (layoutTemplate != null) {
+            // Create new data map with content injected
+            val layoutData = data.toMutableMap()
+            layoutData["content"] = contentHtml
+            return render(layoutTemplate, layoutData)
+        }
+
+        // If layout not found, return content without layout
+        return contentHtml
     }
 } 

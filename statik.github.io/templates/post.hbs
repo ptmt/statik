@@ -1,29 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{post.title}} - {{siteName}}</title>
-    <meta name="description" content="{{excerpt post.content words=30}}">
-    <link rel="stylesheet" href="{{baseUrl}}css/style.css">
-    <link rel="stylesheet" href="{{baseUrl}}css/syntax.css">
-</head>
-<body>
-    {{include "partials/header.hbs"}}
-    <main class="main-content">
-        <article class="post">
-            <header class="page-header">
-                <h1>{{post.title}}</h1>
-                <time datetime="{{post.date}}">{{formatDate post.date}}</time>
-            </header>
-            <div class="content">
-                {{{post.content}}}
-            </div>
-        </article>
-        <nav class="post-nav">
-            <a href="{{baseUrl}}" class="back-home">← Back to Home</a>
-        </nav>
-    </main>
-    {{include "partials/footer.hbs"}}
-</body>
-</html>
+<article class="post">
+    <header class="page-header">
+        <h1>{{post.title}}</h1>
+        <time datetime="{{post.date}}">{{formatDate post.date}}</time>
+    </header>
+    <div class="content">
+        {{{post.content}}}
+    </div>
+</article>
+<nav class="post-nav">
+    <a href="{{baseUrl}}" class="back-home">← Back to Home</a>
+</nav>

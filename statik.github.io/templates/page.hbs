@@ -1,28 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{page.title}} - {{siteName}}</title>
-    <meta name="description" content="{{excerpt page.content words=30}}">
-    <link rel="stylesheet" href="{{baseUrl}}css/style.css">
-    <link rel="stylesheet" href="{{baseUrl}}css/syntax.css">
-</head>
-<body>
-    {{include "partials/header.hbs"}}
-    <main class="main-content">
-        <article class="page">
-            <header class="page-header">
-                <h1>{{page.title}}</h1>
-            </header>
-            <div class="content">
-                {{{page.content}}}
-            </div>
-        </article>
-        <nav class="post-nav">
-            <a href="{{baseUrl}}" class="back-home">← Back to Home</a>
-        </nav>
-    </main>
-    {{include "partials/footer.hbs"}}
-</body>
-</html>
+<article class="page">
+    <header class="page-header">
+        <h1>{{page.title}}</h1>
+    </header>
+    <div class="content">
+        {{{page.content}}}
+    </div>
+</article>
+<nav class="post-nav">
+    <a href="{{baseUrl}}" class="back-home">← Back to Home</a>
+</nav>
