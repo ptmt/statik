@@ -2,4 +2,4 @@ build
 .idea
 .DS_Store
 .claude
-statik.github.io/docs/**
+documentation/docs/**

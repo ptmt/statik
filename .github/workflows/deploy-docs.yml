@@ -4,14 +4,14 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'statik.github.io/**'
+      - 'documentation/**'
       - 'src/**'
       - 'module.yaml'
       - 'amper'
   pull_request:
     branches: [ main ]
     paths:
-      - 'statik.github.io/**'
+      - 'documentation/**'
 
 permissions:
   contents: read
@@ -52,7 +52,7 @@ jobs:
         run: ./amper
 
       - name: Generate documentation site
-        run: ./amper run -- --root-path=./statik.github.io
+        run: ./amper run -- --root-path=./documentation
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -62,7 +62,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main'
         with:
-          path: './statik.github.io/docs'
+          path: './documentation/docs'
 
   deploy:
     environment:

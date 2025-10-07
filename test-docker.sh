@@ -83,7 +83,7 @@ This is a test page for Docker image testing.
 EOF
 
 # Copy templates from the project to test workspace
-cp -r "./statik.github.io/templates/"* "${TEST_DIR}/templates/"
+cp -r "./documentation/templates/"* "${TEST_DIR}/templates/"
 
 # Create a config file
 cat > "${TEST_DIR}/config.json" << 'EOF'
@@ -127,7 +127,7 @@ mkdir -p "${TEMP_TEST_DIR}/content"
 echo "# Docker Test" > "${TEMP_TEST_DIR}/README.md"
 
 # Copy templates to temp directory
-cp -r "./statik.github.io/templates/"* "${TEMP_TEST_DIR}/templates/"
+cp -r "./documentation/templates/"* "${TEMP_TEST_DIR}/templates/"
 
 # Create a simple content file
 cat > "${TEMP_TEST_DIR}/content/index.md" << 'EOF'

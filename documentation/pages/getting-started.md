@@ -128,10 +128,13 @@ Create a `config.json` file in your project root:
 
 ## Writing Content
 
+Statik supports multiple file formats: Markdown (`.md`), HTML (`.html`), and Handlebars templates (`.hbs`).
+
 ### Blog Posts
 
-Create files in the `posts/` directory:
+Create files in the `posts/` directory using any supported format:
 
+**Markdown (`.md`)**
 ```markdown
 ---
 title: "My First Post"
@@ -148,6 +151,32 @@ This is my first post using **Statik**!
 - Built-in templates (no setup required!)
 - Live development server
 - Docker support
+```
+
+**HTML (`.html`)**
+```html
+---
+title: "Custom HTML Post"
+published: "2024-01-01T00:00:00"
+layout: default
+---
+<div class="custom-post">
+    <h1>Welcome to My Blog</h1>
+    <p class="highlight">This post uses pure HTML!</p>
+</div>
+```
+
+**Handlebars Template (`.hbs`)**
+```handlebars
+---
+title: "Dynamic Post"
+published: "2024-01-01T00:00:00"
+---
+<article>
+    <h1>{{post.title}}</h1>
+    <p>Published on {{formatDate post.date}}</p>
+    <p>Welcome to {{siteName}}!</p>
+</article>
 ```
 
 ### Static Pages
@@ -174,6 +203,9 @@ The YAML frontmatter supports these options:
 - `title`: Page title (required)
 - `published`: Publication date for posts (format: "YYYY-MM-DDTHH:MM:SS")
 - `nav_order`: Order in navigation menu (for pages)
+- `layout`: Specify a custom layout (e.g., "minimal", "landing")
+- `description`: Page description for SEO
+- Custom fields: Add any custom metadata you need
 
 ## Custom Templates (Optional)
 
@@ -187,11 +219,11 @@ When you don't provide templates, Statik uses clean, minimal built-in templates 
 - Proper HTML5 structure
 - Support for all template variables
 
-### Creating Custom Templates
+### Creating Custom Templates with Layouts
 
-If you want to customize, create these files in your `templates/` directory:
+Statik supports a hierarchical template system with layouts to eliminate duplication.
 
-#### Homepage Template (`templates/home.hbs`)
+#### Create a Layout (`templates/layouts/default.hbs`)
 
 ```handlebars
 <!DOCTYPE html>
@@ -199,44 +231,52 @@ If you want to customize, create these files in your `templates/` directory:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{siteName}}</title>
+    <title>{{#if title}}{{title}} - {{/if}}{{siteName}}</title>
+    <link rel="stylesheet" href="{{baseUrl}}css/style.css">
 </head>
 <body>
-    <h1>{{siteName}}</h1>
-    <p>{{description}}</p>
-
-    {{#if posts}}
-    <h2>Recent Posts</h2>
-    <ul>
-        {{#each posts}}
-        <li><a href="{{path}}/">{{title}}</a> - {{date}}</li>
-        {{/each}}
-    </ul>
-    {{/if}}
+    {{include "partials/header.hbs"}}
+    <main class="main-content">
+        {{{content}}}
+    </main>
+    {{include "partials/footer.hbs"}}
 </body>
 </html>
+```
+
+#### Homepage Template (`templates/home.hbs`)
+
+With layouts, templates become simpler:
+
+```handlebars
+<h1>{{siteName}}</h1>
+<p>{{description}}</p>
+
+{{#if posts}}
+<h2>Recent Posts</h2>
+<ul>
+    {{#each posts}}
+    <li><a href="{{path}}/">{{title}}</a> - {{formatDate date}}</li>
+    {{/each}}
+</ul>
+{{/if}}
 ```
 
 #### Post Template (`templates/post.hbs`)
 
 ```handlebars
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{post.title}} - {{siteName}}</title>
-</head>
-<body>
-    <h1><a href="{{baseUrl}}">{{siteName}}</a></h1>
-    <article>
+<article class="post">
+    <header>
         <h1>{{post.title}}</h1>
-        <time>{{post.date}}</time>
-        <div>{{{post.content}}}</div>
-    </article>
-</body>
-</html>
+        <time datetime="{{post.date}}">{{formatDate post.date}}</time>
+    </header>
+    <div class="content">
+        {{{post.content}}}
+    </div>
+</article>
 ```
+
+The layout wrapper is automatically applied! See the [Layouts documentation](layouts.html) for more details.
 
 ### Template Variables
 
