@@ -129,16 +129,18 @@ class SiteGenerator(private val rootPath: String,
             val html = if (post.isTemplate) {
                 // For template files, use layout if specified in metadata or default
                 val layout = post.metadata["layout"] ?: "default"
+                val description: String = post.metadata["description"] ?: post.title
                 templateEngine.renderWithLayout(post.content, mapOf(
                     "post" to post,
                     "baseUrl" to config.baseUrl,
                     "siteName" to config.siteName,
                     "pages" to pages,
                     "title" to post.title,
-                    "description" to post.metadata["description"] ?: post.title,
+                    "description" to description,
                     "layout" to layout
                 ))
             } else {
+                val layout = post.metadata["layout"] ?: "default"
                 templateEngine.renderWithLayout(templateContent, mapOf(
                     "post" to post,
                     "baseUrl" to config.baseUrl,
@@ -146,7 +148,7 @@ class SiteGenerator(private val rootPath: String,
                     "pages" to pages,
                     "title" to post.title,
                     "description" to post.content.take(160),
-                    "layout" to (post.metadata["layout"] ?: "default")
+                    "layout" to layout
                 ))
             }
 
@@ -183,18 +185,20 @@ class SiteGenerator(private val rootPath: String,
             val html = if (page.isTemplate) {
                 // For template files, render directly with layout
                 val layout = page.metadata["layout"] ?: "default"
+                val description: String = page.metadata["description"] ?: config.description
                 templateEngine.renderWithLayout(page.content,
                     mapOf(
                         "page" to page,
                         "pages" to pages,
                         "baseUrl" to config.baseUrl,
                         "siteName" to config.siteName,
-                        "description" to page.metadata["description"] ?: config.description,
+                        "description" to description,
                         "title" to page.title,
                         "layout" to layout
                     )
                 )
             } else {
+                val layout = page.metadata["layout"] ?: "default"
                 templateEngine.renderWithLayout(templateContent,
                     mapOf(
                         "page" to page,
@@ -203,7 +207,7 @@ class SiteGenerator(private val rootPath: String,
                         "siteName" to config.siteName,
                         "description" to config.description,
                         "title" to page.title,
-                        "layout" to (page.metadata["layout"] ?: "default")
+                        "layout" to layout
                     )
                 )
             }

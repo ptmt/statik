@@ -51,6 +51,9 @@ jobs:
       - name: Build Statik
         run: ./amper
 
+      - name: Run tests
+        run: ./amper test
+
       - name: Generate documentation site
         run: ./amper run -- --root-path=./documentation
 
