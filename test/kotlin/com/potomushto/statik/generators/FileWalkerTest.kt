@@ -58,4 +58,31 @@ class FileWalkerTest {
         assertEquals("about", walker.generatePath(simplePage, "pages", stripIndex = true))
         assertEquals("docs/index", walker.generatePath(nestedIndex, "pages", stripIndex = false))
     }
+
+    @Test
+    fun `walkMarkdownFiles excludes index files when excludeIndex is true`() {
+        val postsDir = tempRoot / "posts"
+        (postsDir / "category").createDirectories()
+
+        (postsDir / "index.md").writeText("# Index page")
+        (postsDir / "index.html").writeText("<p>Index HTML</p>")
+        (postsDir / "index.hbs").writeText("<p>Index Handlebars</p>")
+        (postsDir / "regular-post.md").writeText("# Regular post")
+        (postsDir / "category" / "index.md").writeText("# Category index")
+        (postsDir / "category" / "another-post.md").writeText("# Another post")
+
+        val walker = FileWalker(tempRoot.toString())
+
+        // With excludeIndex = false, all files should be included
+        val allFiles = walker.walkMarkdownFiles("posts", excludeIndex = false)
+            .map { it.fileName.toString() }
+            .toSet()
+        assertEquals(setOf("index.md", "index.html", "index.hbs", "regular-post.md", "index.md", "another-post.md"), allFiles)
+
+        // With excludeIndex = true, index files should be excluded
+        val nonIndexFiles = walker.walkMarkdownFiles("posts", excludeIndex = true)
+            .map { it.fileName.toString() }
+            .toSet()
+        assertEquals(setOf("regular-post.md", "another-post.md"), nonIndexFiles)
+    }
 }

@@ -52,7 +52,7 @@ class SiteGenerator(private val rootPath: String,
 
     private fun loadBlogPosts(): List<BlogPost> {
         val postsDirectory = config.paths.posts
-        return fileWalker.walkMarkdownFiles(postsDirectory)
+        return fileWalker.walkMarkdownFiles(postsDirectory, excludeIndex = true)
             .map { file ->
                 val parsedPost = contentProcessor.process(file)
                 val title = parsedPost.metadata["title"] ?: file.nameWithoutExtension

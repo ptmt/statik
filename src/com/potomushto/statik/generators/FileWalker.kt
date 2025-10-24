@@ -6,13 +6,17 @@ import java.nio.file.Paths
 import kotlin.io.path.extension
 import kotlin.streams.asSequence
 
-class FileWalker(private val rootPath: String) {
+class FileWalker(
+    private val rootPath: String,
+    private val excludedFileNames: Set<String> = setOf("index")
+) {
     private val contentExtensions = setOf("md", "html", "hbs")
 
     /**
      * Walk through a content directory (posts, pages, etc) and return content files (.md, .html, .hbs)
+     * @param excludeIndex if true, exclude files whose name (without extension) is in excludedFileNames
      */
-    fun walkMarkdownFiles(contentPath: String): Sequence<Path> {
+    fun walkMarkdownFiles(contentPath: String, excludeIndex: Boolean = false): Sequence<Path> {
         val absolutePath = Paths.get(rootPath, contentPath)
         if (!Files.exists(absolutePath)) {
             return emptySequence()
@@ -22,6 +26,14 @@ class FileWalker(private val rootPath: String) {
             .asSequence()
             .filter { Files.isRegularFile(it) }
             .filter { it.extension in contentExtensions }
+            .filter { file ->
+                if (excludeIndex) {
+                    val fileNameWithoutExtension = file.fileName.toString().substringBeforeLast('.')
+                    fileNameWithoutExtension !in excludedFileNames
+                } else {
+                    true
+                }
+            }
     }
 
     /**
