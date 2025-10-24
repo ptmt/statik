@@ -1,7 +1,7 @@
 {
   "siteName": "Statik - Static Site Generator",
   "description": "A powerful static site generator built with Kotlin, featuring Markdown processing, Handlebars templating, and live development server.",
-  "baseUrl": "http://potomushto.com/statik/",
+  "baseUrl": "https://potomushto.com/statik/",
   "author": "Statik Contributors",
   "theme": {
     "templates": "templates",
