@@ -87,6 +87,32 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                 }
             }
         })
+
+        registerHelper("substring", object: Helper<String> {
+            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): Any? {
+                if (context == null) return ""
+
+                return try {
+                    val start = options?.param<Int>(0) ?: 0
+                    val end = if (options != null && options.params.size > 1) {
+                        options.param<Int>(1)
+                    } else {
+                        context.length
+                    }
+
+                    val safeStart = start.coerceIn(0, context.length)
+                    val safeEnd = end.coerceIn(0, context.length)
+
+                    if (safeStart >= safeEnd) {
+                        ""
+                    } else {
+                        context.substring(safeStart, safeEnd)
+                    }
+                } catch (e: Exception) {
+                    ""
+                }
+            }
+        })
     }
 
     override fun compile(template: String): (Map<String, Any?>) -> String {
