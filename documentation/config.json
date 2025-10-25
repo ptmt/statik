@@ -11,5 +11,10 @@
   "paths": {
     "posts": "posts",
     "pages": "pages"
+  },
+  "staticDatasource": {
+    "outputDir": "datasource",
+    "collectAttribute": "data-collect",
+    "imagesFileName": "images.json"
   }
 }

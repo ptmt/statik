@@ -3,6 +3,8 @@ package com.potomushto.statik.generators
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.config.PathConfig
 import com.potomushto.statik.config.ThemeConfig
+import com.potomushto.statik.generators.CollectableDatasourceItem
+import com.potomushto.statik.generators.ImageDatasourceItem
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.ExperimentalPathApi
@@ -13,6 +15,8 @@ import kotlin.io.path.div
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -242,6 +246,67 @@ class SiteGeneratorTest {
         assertTrue(pageHtml.contains("HTML Page"))
         assertTrue(pageHtml.contains("<h2>Custom HTML Page</h2>"))
         assertTrue(pageHtml.contains("class=\"custom\""))
+    }
+
+    @Test
+    fun `generate writes static datasource files`() {
+        val config = BlogConfig(
+            siteName = "Datasource Site",
+            baseUrl = "https://datasource.example/",
+            description = "Datasource demo",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            paths = PathConfig(posts = "posts", pages = "pages")
+        )
+
+        createPost("posts/gallery.md", """
+            ---
+            title: Gallery
+            published: 2024-01-01T00:00:00
+            ---
+            ![Sunrise](/media/sunrise.jpg)
+
+            <div data-collect="quotes" data-author="Alice">The dawn arrives.</div>
+        """.trimIndent())
+
+        createPage("pages/about.html", """
+            ---
+            title: About
+            ---
+            <img src="/media/about.jpg" alt="About" title="About us" />
+            <blockquote data-collect="quotes" data-author="Bob">We build things.</blockquote>
+        """.trimIndent())
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val datasourceDir = tempRoot / "build" / "datasource"
+        val json = Json { ignoreUnknownKeys = false }
+
+        val imagesPath = datasourceDir / "images.json"
+        assertTrue(imagesPath.exists())
+        val images = json.decodeFromString<List<ImageDatasourceItem>>(imagesPath.readText())
+        assertEquals(2, images.size)
+        val sunrise = images.first { it.src == "/media/sunrise.jpg" }
+        assertEquals("Sunrise", sunrise.alt)
+        assertEquals("post", sunrise.source.type)
+        assertEquals("/gallery/", sunrise.source.path)
+
+        val aboutImage = images.first { it.src == "/media/about.jpg" }
+        assertEquals("About", aboutImage.alt)
+        assertEquals("About us", aboutImage.title)
+        assertEquals("page", aboutImage.source.type)
+
+        val quotesPath = datasourceDir / "quotes.json"
+        assertTrue(quotesPath.exists())
+        val quotes = json.decodeFromString<List<CollectableDatasourceItem>>(quotesPath.readText())
+        assertEquals(2, quotes.size)
+        val aliceQuote = quotes.first { it.source.id == "gallery" }
+        assertEquals("The dawn arrives.", aliceQuote.text)
+        assertEquals("Alice", aliceQuote.attributes["data-author"])
+        val bobQuote = quotes.first { it.source.type == "page" }
+        assertEquals("We build things.", bobQuote.text)
+        assertEquals("Bob", bobQuote.attributes["data-author"])
     }
 
     @Test

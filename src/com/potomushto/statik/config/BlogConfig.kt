@@ -16,7 +16,8 @@ data class BlogConfig(
     val author: String,
     val theme: ThemeConfig = ThemeConfig(),
     val paths: PathConfig = PathConfig(),
-    val devServer: DevServerConfig = DevServerConfig()
+    val devServer: DevServerConfig = DevServerConfig(),
+    val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig()
 ) {
     companion object {
         val json = Json {
@@ -66,4 +67,12 @@ data class PathConfig(
 @Serializable
 data class DevServerConfig(
     val port: Int = 3000
+)
+
+@Serializable
+data class StaticDatasourceConfig(
+    val enabled: Boolean = true,
+    val outputDir: String = "datasource",
+    val collectAttribute: String = "data-collect",
+    val imagesFileName: String = "images.json"
 )

@@ -26,6 +26,10 @@ class SiteGenerator(private val rootPath: String,
     private val templateEngine = HandlebarsTemplateEngine(templatesPath)
   //  private val rssGenerator = RssGenerator()
     private val fileWalker = FileWalker(rootPath)
+    private val datasourceGenerator = StaticDatasourceGenerator(
+        Paths.get(rootPath, config.theme.output),
+        config.staticDatasource
+    )
 
     // Use overridden baseUrl if provided, otherwise use config baseUrl
     private val effectiveBaseUrl: String
@@ -53,6 +57,7 @@ class SiteGenerator(private val rootPath: String,
         generatePages(pages)
 //        generateRssFeed(posts)
         copyStaticAssets()
+        datasourceGenerator.generate(posts, pages)
     }
 
     private fun loadBlogPosts(): List<BlogPost> {

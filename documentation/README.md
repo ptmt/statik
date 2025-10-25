@@ -37,6 +37,7 @@ This site showcases:
 - **Static Assets**: CSS styling and responsive design  
 - **Configuration**: JSON-based site configuration
 - **Automatic Deployment**: CI/CD via GitHub Actions
+- **Static Datasources**: JSON feeds for images and custom collectables
 
 ## Content Guidelines
 

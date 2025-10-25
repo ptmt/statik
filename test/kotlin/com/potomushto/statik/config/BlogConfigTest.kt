@@ -55,6 +55,9 @@ class BlogConfigTest {
         assertEquals("build", config.theme.output)
         assertEquals("articles", config.paths.posts)
         assertEquals(3000, config.devServer.port)
+        assertEquals("datasource", config.staticDatasource.outputDir)
+        assertEquals("data-collect", config.staticDatasource.collectAttribute)
+        assertEquals("images.json", config.staticDatasource.imagesFileName)
     }
 
     @Test
@@ -76,6 +79,31 @@ class BlogConfigTest {
         val config = BlogConfig.load(tempRoot.toString())
 
         assertEquals(4100, config.devServer.port)
+    }
+
+    @Test
+    fun `load overrides static datasource when provided`() {
+        val configJson = """
+            {
+              "siteName": "My Blog",
+              "baseUrl": "https://example.com",
+              "description": "Desc",
+              "author": "Author",
+              "staticDatasource": {
+                "outputDir": "feeds",
+                "collectAttribute": "data-statik",
+                "imagesFileName": "media.json"
+              }
+            }
+        """.trimIndent()
+
+        (tempRoot / "config.json").writeText(configJson)
+
+        val config = BlogConfig.load(tempRoot.toString())
+
+        assertEquals("feeds", config.staticDatasource.outputDir)
+        assertEquals("data-statik", config.staticDatasource.collectAttribute)
+        assertEquals("media.json", config.staticDatasource.imagesFileName)
     }
 
     @Test

@@ -132,9 +132,26 @@ Example `config.json`:
   },
   "devServer": {
     "port": 3000
+  },
+  "staticDatasource": {
+    "outputDir": "datasource",
+    "collectAttribute": "data-collect",
+    "imagesFileName": "images.json"
   }
 }
 ```
+
+- `staticDatasource.outputDir`: Directory (inside `theme.output`) for generated datasource JSON files.
+- `staticDatasource.collectAttribute`: Attribute used to mark custom collectable elements (default `data-collect`).
+- `staticDatasource.imagesFileName`: File name for the aggregated images list (default `images.json`).
+
+## Static Datasources
+
+Statik can emit JSON datasources alongside the generated HTML so client-side code can hydrate dynamic widgets:
+- Images referenced in Markdown and HTML content are exported automatically to `/<outputDir>/<imagesFileName>`.
+- Add `data-collect="quotes"` (or any value) to an element to collect it into `/<outputDir>/quotes.json`. Additional `data-*` attributes (e.g. `data-author`) are preserved in the JSON output.
+
+Each datasource entry includes its originating page/post metadata and the rendered HTML/text, making it simple to build interactive components.
 
 ### GitHub Actions Usage
 

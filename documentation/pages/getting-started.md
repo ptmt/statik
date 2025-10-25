@@ -114,6 +114,11 @@ Create a `config.json` file in your project root:
   },
   "devServer": {
     "port": 3000
+  },
+  "staticDatasource": {
+    "outputDir": "datasource",
+    "collectAttribute": "data-collect",
+    "imagesFileName": "images.json"
   }
 }
 ```
@@ -129,6 +134,17 @@ Create a `config.json` file in your project root:
 - `paths.posts`: Blog posts directory (default: "posts")
 - `paths.pages`: Static pages directory (default: "content")
 - `devServer.port`: Development server port for `--watch` (default: `3000`)
+- `staticDatasource.outputDir`: Datasource JSON folder under `theme.output` (default: `"datasource"`)
+- `staticDatasource.collectAttribute`: Attribute for marking collectable elements (default: `"data-collect"`)
+- `staticDatasource.imagesFileName`: Image datasource filename (default: `"images.json"`)
+
+### Static Datasources
+
+When generation finishes, Statik can emit helper JSON files that you can consume from JavaScript:
+- **Images**: Every `<img>` found in Markdown or HTML content is added to `/<staticDatasource.outputDir>/<staticDatasource.imagesFileName>` along with its `alt`, `title`, and source page information.
+- **Custom entities**: Add the configured attribute (e.g. `data-collect="quotes"`) to any HTML block to gather it into `/<staticDatasource.outputDir>/quotes.json`. Any extra `data-*` attributes travel with the entity for richer metadata.
+
+This makes it easy to fuel interactive widgets (carousels, quotes, galleries) without a back end.
 
 ## Writing Content
 

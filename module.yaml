@@ -14,6 +14,7 @@ dependencies:
   - io.ktor:ktor-server-core:3.1.0
   - io.ktor:ktor-server-netty:3.1.0
   - io.ktor:ktor-server-status-pages:3.1.0
+  - org.jsoup:jsoup:1.17.2
   - org.slf4j:slf4j-simple:2.0.12
 test-dependencies:
   - $kotlin.test
