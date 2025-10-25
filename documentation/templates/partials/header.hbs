@@ -7,9 +7,9 @@
             </a>
         </div>
         <nav class="main-nav">
-            <a href="{{baseUrl}}" class="nav-link">Home</a>
-            <a href="{{baseUrl}}getting-started" class="nav-link">Getting Started</a>
-            <a href="{{baseUrl}}layouts" class="nav-link">Documentation</a>
+            <a href="{{baseUrl}}" class="nav-link{{#unless page}}{{#unless post}} active{{/unless}}{{/unless}}">Home</a>
+            <a href="{{baseUrl}}getting-started" class="nav-link{{#if page}}{{#eq page.path "getting-started"}} active{{/eq}}{{/if}}">Getting Started</a>
+            <a href="{{baseUrl}}layouts" class="nav-link{{#if page}}{{#unless page.gettingStarted}} active{{/unless}}{{/if}}">Documentation</a>
             <a href="https://github.com/ptmt/statik" class="nav-link nav-link-github" target="_blank">
                 <span>GitHub</span>
                 <span class="external-icon">↗</span>

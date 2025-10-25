@@ -6,7 +6,7 @@
                 {{#each pages}}
                     {{#if path}}
                     <li class="sidebar-item">
-                        <a href="{{../baseUrl}}{{path}}" class="sidebar-link">{{title}}</a>
+                        <a href="{{../baseUrl}}{{path}}" class="sidebar-link{{#eq path ../../page.path}} active{{/eq}}">{{title}}</a>
                     </li>
                     {{/if}}
                 {{/each}}

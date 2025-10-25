@@ -74,6 +74,11 @@ body {
     background-color: rgba(255,255,255,0.15);
 }
 
+.nav-link.active {
+    background-color: rgba(255,255,255,0.25);
+    font-weight: 600;
+}
+
 .nav-link-github {
     margin-left: 1rem;
     background-color: rgba(255,255,255,0.1);
@@ -149,6 +154,14 @@ body.has-sidebar .layout-wrapper {
     background-color: #f3f4f6;
     color: #667eea;
     text-decoration: none;
+}
+
+.sidebar-link.active {
+    background-color: #ede9fe;
+    color: #667eea;
+    font-weight: 600;
+    border-left: 3px solid #667eea;
+    padding-left: calc(1rem - 3px);
 }
 
 /* Main content - Full Width */
@@ -322,6 +335,182 @@ blockquote {
     color: #6b7280;
 }
 
+/* Hero Section */
+.hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6rem 2rem;
+    text-align: center;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    color: white;
+    line-height: 1.2;
+}
+
+.hero-description {
+    font-size: 1.25rem;
+    margin-bottom: 2.5rem;
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.6;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.875rem 2rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-size: 1rem;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: white;
+    color: #667eea;
+}
+
+.btn-primary:hover {
+    background: #f9fafb;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 2px solid white;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    text-decoration: none;
+}
+
+/* Features Section */
+.features {
+    padding: 5rem 2rem;
+    background: white;
+}
+
+.features-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 3rem;
+}
+
+.feature-card {
+    text-align: center;
+    padding: 2rem;
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.feature-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #111827;
+}
+
+.feature-description {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #6b7280;
+}
+
+/* Posts Section */
+.posts-section {
+    padding: 5rem 2rem;
+    background: #fafafa;
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 3rem;
+    color: #111827;
+}
+
+.posts-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+}
+
+.post-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 2rem;
+    transition: all 0.2s;
+}
+
+.post-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
+}
+
+.post-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+}
+
+.post-card h3 a {
+    color: #111827;
+}
+
+.post-card h3 a:hover {
+    color: #667eea;
+    text-decoration: none;
+}
+
+.post-card time {
+    color: #6b7280;
+    font-size: 0.875rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.post-card .excerpt {
+    margin: 1rem 0;
+    color: #6b7280;
+    line-height: 1.7;
+}
+
+.post-card .read-more {
+    color: #667eea;
+    font-weight: 600;
+    display: inline-block;
+    margin-top: 0.5rem;
+}
+
 /* Home page specific */
 .page.home .content {
     max-width: 1200px;
@@ -488,5 +677,50 @@ blockquote {
     pre {
         padding: 1rem;
         font-size: 0.8rem;
+    }
+
+    /* Hero responsive */
+    .hero {
+        padding: 4rem 1.5rem;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+    }
+
+    .hero-description {
+        font-size: 1.125rem;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    /* Features responsive */
+    .features {
+        padding: 3rem 1.5rem;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    /* Posts responsive */
+    .posts-section {
+        padding: 3rem 1.5rem;
+    }
+
+    .section-title {
+        font-size: 2rem;
+    }
+
+    .posts-grid {
+        grid-template-columns: 1fr;
     }
 }

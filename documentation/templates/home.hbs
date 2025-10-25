@@ -1,16 +1,48 @@
-<header class="page-header">
-    <h1>{{siteName}}</h1>
-    <p class="page-description">{{description}}</p>
-</header>
-<div class="content">
-    {{#each posts}}
-    <article class="post-preview">
-        <h2><a href="{{baseUrl}}{{path}}">{{title}}</a></h2>
-        <time datetime="{{date}}">{{formatDate date}}</time>
-        <div class="excerpt">
-            {{excerpt content words=50}}
+<section class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">{{siteName}}</h1>
+        <p class="hero-description">{{description}}</p>
+        <div class="hero-actions">
+            <a href="{{baseUrl}}getting-started" class="btn btn-primary">Get Started</a>
+            <a href="https://github.com/ptmt/statik" class="btn btn-secondary" target="_blank">View on GitHub</a>
         </div>
-        <a href="{{baseUrl}}{{path}}" class="read-more">Read more →</a>
-    </article>
-    {{/each}}
-</div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3 class="feature-title">Zero Setup</h3>
+            <p class="feature-description">Works out of the box with built-in templates. No configuration required to get started. Just add your content and go!</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🎨</div>
+            <h3 class="feature-title">Handlebars Templates</h3>
+            <p class="feature-description">Powerful templating with layouts, partials, and custom helpers. Full control over your site's design and structure.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔥</div>
+            <h3 class="feature-title">Live Development</h3>
+            <p class="feature-description">Built-in development server with hot reload. See your changes instantly as you write and iterate on your content.</p>
+        </div>
+    </div>
+</section>
+
+{{#if posts}}
+<section class="posts-section">
+    <h2 class="section-title">Latest Posts</h2>
+    <div class="posts-grid">
+        {{#each posts}}
+        <article class="post-card">
+            <h3><a href="{{baseUrl}}{{path}}">{{title}}</a></h3>
+            <time datetime="{{date}}">{{formatDate date}}</time>
+            <div class="excerpt">
+                {{excerpt content words=30}}
+            </div>
+            <a href="{{baseUrl}}{{path}}" class="read-more">Read more →</a>
+        </article>
+        {{/each}}
+    </div>
+</section>
+{{/if}}
