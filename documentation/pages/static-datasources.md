@@ -3,8 +3,6 @@ title: Static Datasources
 nav_order: 4
 ---
 
-# Static Datasources
-
 Static datasources let you ship machine-friendly JSON alongside the generated HTML so your front-end code can power dynamic widgets without needing a live API. Statik currently supports two datasource types:
 
 - `images.json`: Every `<img>` encountered in Markdown or HTML content.
@@ -21,7 +19,8 @@ Datasources are enabled by default. You can toggle or configure them in `config.
   "enabled": true,
   "outputDir": "datasource",
   "collectAttribute": "data-collect",
-  "imagesFileName": "images.json"
+  "imagesFileName": "images.json",
+  "configFile": "datasource-config.json"
 }
 ```
 
@@ -29,6 +28,7 @@ Datasources are enabled by default. You can toggle or configure them in `config.
 - `outputDir`: Folder (under `theme.output`) where JSON files are written.
 - `collectAttribute`: HTML attribute that marks custom collectable elements.
 - `imagesFileName`: File name used for the auto-generated images list.
+- `configFile`: Optional location of dataset definitions for standalone entities.
 
 All values are optional; Statik falls back to the defaults shown above.
 
@@ -81,6 +81,88 @@ Statik sanitises the attribute value to create a filename (for example, `quotes.
 ```
 
 Only `data-*` attributes (aside from the collect attribute itself) are preserved, keeping the payload compact while still exposing structured metadata.
+
+## Custom Datasets with `datasource-config.json`
+
+To expose bespoke datasets, describe them in `datasource-config.json` (relative to your project root by default):
+
+```json
+{
+  "datasets": [
+    {
+      "name": "team",
+      "output": "entity-datasource.json",
+      "folder": "entities",
+      "metadataKey": "collectAs",
+      "metadataValue": "team",
+      "includeSources": ["posts", "pages"]
+    }
+  ]
+}
+```
+
+- `name`: Logical name for the dataset. Exposed on each JSON item.
+- `output`: File that will be written inside `staticDatasource.outputDir`.
+- `folder`: Optional directory whose files should be ingested.
+- `metadataKey` / `metadataValue`: Optional frontmatter key/value pair that selects posts or pages to include (presence alone is enough if `metadataValue` is omitted).
+- `includeSources`: Limit metadata collection to `posts`, `pages`, or both.
+
+You can define multiple datasets in the same configuration file.
+
+## Standalone Entity Folders
+
+Place Markdown or HTML files in the configured `folder` to create self-contained entities with free-form metadata:
+
+```
+entities/
+└── alice.md
+```
+
+```markdown
+---
+id: alice
+title: Alice Doe
+role: Engineer
+---
+Alice keeps the CI green.
+```
+
+Each file is rendered through Statik’s Markdown pipeline so you can mix prose with metadata. The resulting JSON item looks like:
+
+```json
+{
+  "dataset": "team",
+  "id": "alice",
+  "title": "Alice Doe",
+  "content": "<p>Alice keeps the CI green.</p>\n",
+  "metadata": {
+    "id": "alice",
+    "title": "Alice Doe",
+    "role": "Engineer"
+  },
+  "source": {
+    "type": "team",
+    "id": "alice",
+    "path": "/entities/alice/",
+    "title": "Alice Doe"
+  }
+}
+```
+
+## Tagging Posts or Pages as Entities
+
+Reuse your existing content by tagging posts or pages with the configured metadata key:
+
+```markdown
+---
+title: Meet the Team
+collectAs: team
+---
+
+Say hello to the people behind the product.
+```
+
+The entry will be appended to the same dataset, keeping `source.type` as `post` or `page` so you can distinguish the origin on the client side.
 
 ## Consuming Datasources in JavaScript
 

@@ -75,7 +75,8 @@ data class StaticDatasourceConfig(
     val enabled: Boolean = true,
     val outputDir: String = "datasource",
     val collectAttribute: String = "data-collect",
-    val imagesFileName: String = "images.json"
+    val imagesFileName: String = "images.json",
+    val configFile: String? = "datasource-config.json"
 )
 
 @Serializable

@@ -3,8 +3,6 @@ title: Custom HTML and Template Files
 nav_order: 3
 ---
 
-# Custom HTML and Template Files
-
 Statik supports multiple file formats for your content, giving you flexibility in how you author your pages and posts.
 
 ## Supported File Types

@@ -4,8 +4,6 @@ layout: "main"
 nav_order: 1
 ---
 
-# Getting Started with Statik
-
 This guide will help you set up and use Statik to create your own static website.
 
 ## Quick Start (No Templates Needed!)
@@ -146,6 +144,7 @@ Create a `config.json` file in your project root:
 - `staticDatasource.outputDir`: Datasource JSON folder under `theme.output` (default: `"datasource"`)
 - `staticDatasource.collectAttribute`: Attribute for marking collectable elements (default: `"data-collect"`)
 - `staticDatasource.imagesFileName`: Image datasource filename (default: `"images.json"`)
+- `staticDatasource.configFile`: Optional dataset definition file (default: `"datasource-config.json"`)
 - `rss.enabled`: Enable RSS feed generation (default: `true`)
 - `rss.fileName`: RSS feed filename (default: `"feed.xml"`)
 - `rss.title`: RSS feed title (default: uses `siteName`)
@@ -197,6 +196,7 @@ After generation, your RSS feed will be available at `https://yoursite.com/feed.
 When generation finishes, Statik can emit helper JSON files that you can consume from JavaScript:
 - **Images**: Every `<img>` found in Markdown or HTML content is added to `/<staticDatasource.outputDir>/<staticDatasource.imagesFileName>` along with its `alt`, `title`, and source page information.
 - **Custom entities**: Add the configured attribute (e.g. `data-collect="quotes"`) to any HTML block to gather it into `/<staticDatasource.outputDir>/quotes.json`. Any extra `data-*` attributes travel with the entity for richer metadata.
+- **Standalone datasets**: Describe additional collections in `datasource-config.json` to pull entries from dedicated folders (like `entities/`) or by tagging posts/pages with frontmatter metadata.
 
 This makes it easy to fuel interactive widgets (carousels, quotes, galleries) without a back end.
 

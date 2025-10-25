@@ -4,6 +4,7 @@ import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.config.PathConfig
 import com.potomushto.statik.config.ThemeConfig
 import com.potomushto.statik.generators.CollectableDatasourceItem
+import com.potomushto.statik.generators.EntityDatasourceItem
 import com.potomushto.statik.generators.ImageDatasourceItem
 import java.nio.file.Files
 import java.nio.file.Path
@@ -307,6 +308,95 @@ class SiteGeneratorTest {
         val bobQuote = quotes.first { it.source.type == "page" }
         assertEquals("We build things.", bobQuote.text)
         assertEquals("Bob", bobQuote.attributes["data-author"])
+    }
+
+    @Test
+    fun `generate writes configured entity datasets`() {
+        val config = BlogConfig(
+            siteName = "Entity Site",
+            baseUrl = "https://entity.example/",
+            description = "Entity demo",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            paths = PathConfig(posts = "posts", pages = "pages")
+        )
+
+        (tempRoot / "datasource-config.json").writeText(
+            """
+                {
+                  "datasets": [
+                    {
+                      "name": "team",
+                      "output": "entity-datasource.json",
+                      "folder": "entities",
+                      "metadataKey": "collectAs",
+                      "metadataValue": "team",
+                      "includeSources": ["posts", "pages"]
+                    }
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        createFile("entities/alice.md", """
+            ---
+            id: alice
+            title: Alice
+            role: Engineer
+            ---
+            Alice builds things.
+        """.trimIndent())
+
+        createFile("entities/bob.html", """
+            ---
+            id: bob
+            title: Bob
+            role: Designer
+            ---
+            <p>Bob designs experiences.</p>
+        """.trimIndent())
+
+        createPost("posts/profile.md", """
+            ---
+            title: Profile
+            published: 2024-02-01T00:00:00
+            collectAs: team
+            ---
+            Team profile entry.
+        """.trimIndent())
+
+        createPage("pages/overview.md", """
+            ---
+            title: Overview
+            collectAs: team
+            ---
+            Overview of the team.
+        """.trimIndent())
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val datasourceDir = tempRoot / "build" / "datasource"
+        val json = Json { ignoreUnknownKeys = false }
+
+        val entitiesPath = datasourceDir / "entity-datasource.json"
+        assertTrue(entitiesPath.exists())
+        val entities = json.decodeFromString<List<EntityDatasourceItem>>(entitiesPath.readText())
+        assertEquals(4, entities.size)
+        assertTrue(entities.all { it.dataset == "team" })
+
+        val alice = entities.first { it.id == "alice" }
+        assertEquals("Engineer", alice.metadata["role"])
+        assertEquals("team", alice.source.type)
+        assertEquals("/entities/alice/", alice.source.path)
+
+        val profile = entities.first { it.source.type == "post" }
+        assertEquals("Profile", profile.title)
+        assertEquals("team", profile.metadata["collectAs"])
+
+        val overview = entities.first { it.source.type == "page" }
+        assertEquals("Overview", overview.title)
+        assertEquals("/overview/", overview.source.path)
     }
 
     @Test

@@ -58,6 +58,7 @@ class BlogConfigTest {
         assertEquals("datasource", config.staticDatasource.outputDir)
         assertEquals("data-collect", config.staticDatasource.collectAttribute)
         assertEquals("images.json", config.staticDatasource.imagesFileName)
+        assertEquals("datasource-config.json", config.staticDatasource.configFile)
     }
 
     @Test
@@ -92,7 +93,8 @@ class BlogConfigTest {
               "staticDatasource": {
                 "outputDir": "feeds",
                 "collectAttribute": "data-statik",
-                "imagesFileName": "media.json"
+                "imagesFileName": "media.json",
+                "configFile": "custom-datasource.json"
               }
             }
         """.trimIndent()
@@ -104,6 +106,7 @@ class BlogConfigTest {
         assertEquals("feeds", config.staticDatasource.outputDir)
         assertEquals("data-statik", config.staticDatasource.collectAttribute)
         assertEquals("media.json", config.staticDatasource.imagesFileName)
+        assertEquals("custom-datasource.json", config.staticDatasource.configFile)
     }
 
     @Test

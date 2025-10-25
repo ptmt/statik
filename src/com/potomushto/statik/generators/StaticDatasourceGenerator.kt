@@ -3,47 +3,69 @@ package com.potomushto.statik.generators
 import com.potomushto.statik.config.StaticDatasourceConfig
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
+import com.potomushto.statik.processors.ContentProcessor
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
+import kotlin.io.path.extension
+import kotlin.io.path.nameWithoutExtension
 
 class StaticDatasourceGenerator(
+    private val rootPath: Path,
     private val outputRoot: Path,
-    private val config: StaticDatasourceConfig
+    private val config: StaticDatasourceConfig,
+    private val contentProcessor: ContentProcessor
 ) {
 
     private val json = Json { prettyPrint = true }
+    private val configJson = Json { ignoreUnknownKeys = true }
+    private val datasetDefinitions: List<DatasourceDatasetConfig> by lazy { loadDatasetDefinitions() }
 
     fun generate(posts: List<BlogPost>, pages: List<SitePage>) {
         if (!config.enabled) return
 
-        val documents = collectDocuments(posts, pages)
-        if (documents.isEmpty()) return
-
         val datasourceRoot = outputRoot.resolve(config.outputDir)
-        datasourceRoot.createDirectories()
+        var directoryEnsured = false
 
-        val images = collectImages(documents)
-        if (images.isNotEmpty()) {
-            val target = datasourceRoot.resolve(config.imagesFileName)
-            target.parent?.createDirectories()
-            Files.writeString(target, json.encodeToString(images))
+        val documents = collectDocuments(posts, pages)
+        if (documents.isNotEmpty()) {
+            datasourceRoot.createDirectories()
+            directoryEnsured = true
+
+            val images = collectImages(documents)
+            if (images.isNotEmpty()) {
+                val target = datasourceRoot.resolve(config.imagesFileName)
+                target.parent?.createDirectories()
+                Files.writeString(target, json.encodeToString(images))
+            }
+
+            val customAttribute = config.collectAttribute.trim()
+            if (customAttribute.isNotEmpty()) {
+                val collectables = collectCustomEntities(documents, customAttribute)
+                collectables.forEach { (type, items) ->
+                    if (items.isEmpty()) return@forEach
+                    val fileName = "${sanitizeType(type)}.json"
+                    val target = datasourceRoot.resolve(fileName)
+                    target.parent?.createDirectories()
+                    Files.writeString(target, json.encodeToString(items))
+                }
+            }
         }
 
-        val customAttribute = config.collectAttribute.trim()
-        if (customAttribute.isNotEmpty()) {
-            val collectables = collectCustomEntities(documents, customAttribute)
-            collectables.forEach { (type, items) ->
-                if (items.isEmpty()) return@forEach
-                val fileName = "${sanitizeType(type)}.json"
-                val target = datasourceRoot.resolve(fileName)
-                target.parent?.createDirectories()
-                Files.writeString(target, json.encodeToString(items))
+        val wroteDatasets = generateConfiguredDatasets(datasourceRoot, posts, pages) { created ->
+            if (!directoryEnsured && created) {
+                datasourceRoot.createDirectories()
+                directoryEnsured = true
             }
+        }
+
+        if (!directoryEnsured && wroteDatasets) {
+            datasourceRoot.createDirectories()
         }
     }
 
@@ -56,7 +78,8 @@ class StaticDatasourceGenerator(
                     id = it.id,
                     title = it.title,
                     path = it.path,
-                    html = it.content
+                    html = it.content,
+                    metadata = it.metadata
                 )
             }
 
@@ -68,7 +91,8 @@ class StaticDatasourceGenerator(
                     id = it.id,
                     title = it.title,
                     path = it.path,
-                    html = it.content
+                    html = it.content,
+                    metadata = it.metadata
                 )
             }
 
@@ -128,6 +152,153 @@ class StaticDatasourceGenerator(
         return byType
     }
 
+    private fun generateConfiguredDatasets(
+        datasourceRoot: Path,
+        posts: List<BlogPost>,
+        pages: List<SitePage>,
+        onFirstWrite: (Boolean) -> Unit
+    ): Boolean {
+        val datasets = datasetDefinitions
+        if (datasets.isEmpty()) return false
+
+        var wroteAny = false
+
+        datasets.forEach { dataset ->
+            val items = buildList {
+                addAll(collectEntitiesFromFolder(dataset))
+                addAll(collectEntitiesFromMetadata(dataset, posts, pages))
+            }
+
+            if (items.isNotEmpty()) {
+                if (!wroteAny) {
+                    onFirstWrite(true)
+                }
+                val target = datasourceRoot.resolve(dataset.output)
+                target.parent?.createDirectories()
+                Files.writeString(target, json.encodeToString(items))
+                wroteAny = true
+            }
+        }
+
+        return wroteAny
+    }
+
+    private fun collectEntitiesFromFolder(dataset: DatasourceDatasetConfig): List<EntityDatasourceItem> {
+        val folder = dataset.folder ?: return emptyList()
+        val folderPath = rootPath.resolve(folder)
+        if (!Files.exists(folderPath)) return emptyList()
+
+        val supportedExtensions = setOf("md", "markdown", "html", "hbs")
+        val folderPrefix = folder.replace('\\', '/').trim('/')
+        val items = mutableListOf<EntityDatasourceItem>()
+
+        Files.walk(folderPath).use { stream ->
+            stream.filter { Files.isRegularFile(it) }
+                .filter { it.extension.lowercase() in supportedExtensions }
+                .forEach { file ->
+                    val parsed = try {
+                        contentProcessor.process(file)
+                    } catch (e: IllegalArgumentException) {
+                        println("Skipping unsupported entity file: ${file.toAbsolutePath()} (${e.message})")
+                        return@forEach
+                    }
+
+                    val relative = folderPath.relativize(file)
+                    val slug = relative.toString()
+                        .replace('\\', '/')
+                        .substringBeforeLast('.')
+                        .ifBlank { file.nameWithoutExtension }
+
+                    val combinedSlug = listOf(folderPrefix, slug)
+                        .filter { it.isNotEmpty() }
+                        .joinToString("/")
+
+                    val id = parsed.metadata["id"]?.ifBlank { null }
+                        ?: combinedSlug.replace('/', '-').ifBlank { file.nameWithoutExtension }
+                    val title = parsed.metadata["title"]?.ifBlank { null } ?: id
+
+                    val item = EntityDatasourceItem(
+                        dataset = dataset.name,
+                        id = id,
+                        title = title,
+                        content = parsed.content,
+                        metadata = parsed.metadata,
+                        source = DatasourceItemSource(
+                            type = dataset.name,
+                            id = id,
+                            path = combinedSlug.toDatasourcePath(),
+                            title = title
+                        )
+                    )
+
+                    items.add(item)
+                }
+        }
+
+        return items
+    }
+
+    private fun collectEntitiesFromMetadata(
+        dataset: DatasourceDatasetConfig,
+        posts: List<BlogPost>,
+        pages: List<SitePage>
+    ): List<EntityDatasourceItem> {
+        val key = dataset.metadataKey?.trim().orEmpty()
+        if (key.isEmpty()) return emptyList()
+
+        val value = dataset.metadataValue?.trim()?.ifEmpty { null }
+        val sources = dataset.normalizedSources()
+        val items = mutableListOf<EntityDatasourceItem>()
+
+        if (sources.contains(DatasetSource.POSTS)) {
+            posts.forEach { post ->
+                val metadataValue = post.metadata[key]?.trim() ?: return@forEach
+                if (value == null || metadataValue == value) {
+                    items.add(
+                        EntityDatasourceItem(
+                            dataset = dataset.name,
+                            id = post.metadata["id"]?.ifBlank { null } ?: post.id,
+                            title = post.title,
+                            content = post.content,
+                            metadata = post.metadata,
+                            source = DatasourceItemSource(
+                                type = "post",
+                                id = post.id,
+                                path = post.path.toUrlPath(),
+                                title = post.title
+                            )
+                        )
+                    )
+                }
+            }
+        }
+
+        if (sources.contains(DatasetSource.PAGES)) {
+            pages.forEach { page ->
+                val metadataValue = page.metadata[key]?.trim() ?: return@forEach
+                if (value == null || metadataValue == value) {
+                    items.add(
+                        EntityDatasourceItem(
+                            dataset = dataset.name,
+                            id = page.metadata["id"]?.ifBlank { null } ?: page.id,
+                            title = page.title,
+                            content = page.content,
+                            metadata = page.metadata,
+                            source = DatasourceItemSource(
+                                type = "page",
+                                id = page.id,
+                                path = page.path.toUrlPath(),
+                                title = page.title
+                            )
+                        )
+                    )
+                }
+            }
+        }
+
+        return items
+    }
+
     private fun sanitizeType(type: String): String {
         val normalized = type.lowercase().replace("[^a-z0-9-_]".toRegex(), "-")
         val collapsed = normalized.replace("-+".toRegex(), "-").trim('-')
@@ -141,8 +312,30 @@ class StaticDatasourceGenerator(
         title = title
     )
 
+    private fun loadDatasetDefinitions(): List<DatasourceDatasetConfig> {
+        val configFileName = config.configFile?.trim()?.ifEmpty { null } ?: return emptyList()
+        val configPath = rootPath.resolve(configFileName)
+        if (!Files.exists(configPath)) return emptyList()
+        return try {
+            val content = Files.readString(configPath)
+            val parsed = configJson.decodeFromString(DatasourceConfig.serializer(), content)
+            parsed.datasets
+        } catch (ex: IOException) {
+            println("Unable to read ${configPath.toAbsolutePath()}: ${ex.message}")
+            emptyList()
+        } catch (ex: Exception) {
+            println("Unable to parse ${configPath.toAbsolutePath()}: ${ex.message}")
+            emptyList()
+        }
+    }
+
     private fun String.toUrlPath(): String {
         if (isEmpty()) return "/"
+        val normalized = if (startsWith("/")) this else "/$this"
+        return if (normalized.endsWith("/")) normalized else "$normalized/"
+    }
+
+    private fun String.toDatasourcePath(): String {
         val normalized = if (startsWith("/")) this else "/$this"
         return if (normalized.endsWith("/")) normalized else "$normalized/"
     }
@@ -152,12 +345,29 @@ class StaticDatasourceGenerator(
         val id: String,
         val title: String,
         val path: String,
-        val html: String
+        val html: String,
+        val metadata: Map<String, String>
     )
 
     private enum class SourceType(val label: String) {
         POST("post"),
         PAGE("page")
+    }
+
+    private enum class DatasetSource {
+        POSTS,
+        PAGES
+    }
+
+    private fun DatasourceDatasetConfig.normalizedSources(): Set<DatasetSource> {
+        if (includeSources.isEmpty()) return setOf(DatasetSource.POSTS, DatasetSource.PAGES)
+        return includeSources.mapNotNull { value ->
+            when (value.lowercase()) {
+                "posts" -> DatasetSource.POSTS
+                "pages" -> DatasetSource.PAGES
+                else -> null
+            }
+        }.toSet().ifEmpty { setOf(DatasetSource.POSTS, DatasetSource.PAGES) }
     }
 }
 
@@ -178,9 +388,34 @@ data class CollectableDatasourceItem(
 )
 
 @Serializable
+data class EntityDatasourceItem(
+    val dataset: String,
+    val id: String,
+    val title: String,
+    val content: String,
+    val metadata: Map<String, String> = emptyMap(),
+    val source: DatasourceItemSource
+)
+
+@Serializable
 data class DatasourceItemSource(
     val type: String,
     val id: String,
     val path: String,
     val title: String
+)
+
+@Serializable
+data class DatasourceConfig(
+    val datasets: List<DatasourceDatasetConfig> = emptyList()
+)
+
+@Serializable
+data class DatasourceDatasetConfig(
+    val name: String,
+    val output: String = "entity-datasource.json",
+    val folder: String? = null,
+    val metadataKey: String? = null,
+    val metadataValue: String? = null,
+    val includeSources: List<String> = listOf("posts", "pages")
 )

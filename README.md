@@ -150,6 +150,7 @@ Example `config.json`:
 - `staticDatasource.outputDir`: Directory (inside `theme.output`) for generated datasource JSON files.
 - `staticDatasource.collectAttribute`: Attribute used to mark custom collectable elements (default `data-collect`).
 - `staticDatasource.imagesFileName`: File name for the aggregated images list (default `images.json`).
+- `staticDatasource.configFile`: Optional dataset definition file (default `datasource-config.json`).
 - `rss.enabled`: Enable RSS feed generation (default `true`).
 - `rss.fileName`: RSS feed filename (default `feed.xml`).
 - `rss.maxItems`: Maximum number of posts in the RSS feed (default `20`).
@@ -171,6 +172,7 @@ To disable RSS generation, set `"enabled": false` in the `rss` config section.
 Statik can emit JSON datasources alongside the generated HTML so client-side code can hydrate dynamic widgets:
 - Images referenced in Markdown and HTML content are exported automatically to `/<outputDir>/<imagesFileName>`.
 - Add `data-collect="quotes"` (or any value) to an element to collect it into `/<outputDir>/quotes.json`. Additional `data-*` attributes (e.g. `data-author`) are preserved in the JSON output.
+- Configure custom datasets in `datasource-config.json` to pull standalone entities from folders or tag existing posts/pages via metadata keys.
 
 Each datasource entry includes its originating page/post metadata and the rendered HTML/text, making it simple to build interactive components.
 

@@ -26,8 +26,10 @@ class SiteGenerator(private val rootPath: String,
     private val templateEngine = HandlebarsTemplateEngine(templatesPath)
     private val fileWalker = FileWalker(rootPath)
     private val datasourceGenerator = StaticDatasourceGenerator(
+        Paths.get(rootPath),
         Paths.get(rootPath, config.theme.output),
-        config.staticDatasource
+        config.staticDatasource,
+        contentProcessor
     )
     private val rssGenerator = RssGenerator(
         config,
