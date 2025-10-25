@@ -146,6 +146,7 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     /**
      * Render a template with an optional layout wrapper
      * If layout is specified in data, wraps the template content in the layout
+     * Falls back to "default" layout if the specified layout is not found
      */
     override fun renderWithLayout(template: String, data: Map<String, Any?>): String {
         val layoutName = data["layout"] as? String
@@ -159,7 +160,14 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
         }
 
         // Load and apply layout
-        val layoutTemplate = loadLayout(layoutName)
+        var layoutTemplate = loadLayout(layoutName)
+
+        // If layout not found and it's not already "default", try falling back to default
+        if (layoutTemplate == null && layoutName != "default") {
+            println("Layout '$layoutName' not found, falling back to 'default' layout")
+            layoutTemplate = loadLayout("default")
+        }
+
         if (layoutTemplate != null) {
             // Create new data map with content injected
             val layoutData = data.toMutableMap()
@@ -167,7 +175,7 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
             return render(layoutTemplate, layoutData)
         }
 
-        // If layout not found, return content without layout
+        // If no layout found at all, return content without layout
         return contentHtml
     }
 } 

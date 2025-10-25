@@ -18,13 +18,18 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.nameWithoutExtension
 
 class SiteGenerator(private val rootPath: String,
-                    private val config: BlogConfig) {
+                    private val config: BlogConfig,
+                    private val baseUrlOverride: String? = null) {
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
     private val contentProcessor = ContentProcessor(markdownProcessor)
     private val templateEngine = HandlebarsTemplateEngine(templatesPath)
   //  private val rssGenerator = RssGenerator()
     private val fileWalker = FileWalker(rootPath)
+
+    // Use overridden baseUrl if provided, otherwise use config baseUrl
+    private val effectiveBaseUrl: String
+        get() = baseUrlOverride ?: config.baseUrl
 
     /**
      * Gets template content, falling back to built-in template if file doesn't exist
@@ -117,7 +122,7 @@ class SiteGenerator(private val rootPath: String,
                 // For .hbs files, render the content as a template first
                 templateEngine.render(post.content, mapOf(
                     "post" to post,
-                    "baseUrl" to config.baseUrl,
+                    "baseUrl" to effectiveBaseUrl,
                     "siteName" to config.siteName,
                     "pages" to pages
                 ))
@@ -132,7 +137,7 @@ class SiteGenerator(private val rootPath: String,
                 val description: String = post.metadata["description"] ?: post.title
                 templateEngine.renderWithLayout(post.content, mapOf(
                     "post" to post,
-                    "baseUrl" to config.baseUrl,
+                    "baseUrl" to effectiveBaseUrl,
                     "siteName" to config.siteName,
                     "pages" to pages,
                     "title" to post.title,
@@ -143,7 +148,7 @@ class SiteGenerator(private val rootPath: String,
                 val layout = post.metadata["layout"] ?: "default"
                 templateEngine.renderWithLayout(templateContent, mapOf(
                     "post" to post,
-                    "baseUrl" to config.baseUrl,
+                    "baseUrl" to effectiveBaseUrl,
                     "siteName" to config.siteName,
                     "pages" to pages,
                     "title" to post.title,
@@ -165,7 +170,7 @@ class SiteGenerator(private val rootPath: String,
             "posts" to posts,
             "siteName" to config.siteName,
             "description" to config.description,
-            "baseUrl" to config.baseUrl,
+            "baseUrl" to effectiveBaseUrl,
             "pages" to pages,
             "featuredPage" to pages.firstOrNull { it.path.isNotEmpty() },
             "layout" to "default"
@@ -190,7 +195,7 @@ class SiteGenerator(private val rootPath: String,
                     mapOf(
                         "page" to page,
                         "pages" to pages,
-                        "baseUrl" to config.baseUrl,
+                        "baseUrl" to effectiveBaseUrl,
                         "siteName" to config.siteName,
                         "description" to description,
                         "title" to page.title,
@@ -203,7 +208,7 @@ class SiteGenerator(private val rootPath: String,
                     mapOf(
                         "page" to page,
                         "pages" to pages,
-                        "baseUrl" to config.baseUrl,
+                        "baseUrl" to effectiveBaseUrl,
                         "siteName" to config.siteName,
                         "description" to config.description,
                         "title" to page.title,

@@ -18,12 +18,18 @@ class BlogEngine {
     companion object {
         fun run(path: String, watch: Boolean = false, port: Int = 3000) {
             val config = BlogConfig.load(path)
-            val generator = SiteGenerator(path, config)
-            
+
+            // Override baseUrl for development mode
+            val devBaseUrl = if (watch) "http://localhost:$port/" else null
+            val generator = SiteGenerator(path, config, devBaseUrl)
+
             // Generate site initially
             println("Generating site...")
+            if (devBaseUrl != null) {
+                println("Development mode: using baseUrl=$devBaseUrl (overriding ${config.baseUrl})")
+            }
             generator.generate()
-            
+
             if (watch) {
                 // Start HTTP server and file watcher
                 startServer(path, config, port)
