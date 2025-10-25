@@ -1,6 +1,6 @@
 ---
 title: Layouts and Template Hierarchy
-nav_order: 2
+nav_order: 3
 ---
 
 Statik supports a hierarchical template system with layouts, allowing you to share common HTML structure across all your pages while keeping individual templates focused on content.

@@ -91,117 +91,17 @@ my-website/
 
 **Note**: Only `config.json` and content files are required. Templates and assets are optional!
 
-## Configuration
+## Configure Your Site
 
-Create a `config.json` file in your project root:
+Statik looks for a `config.json` file in the project root. Start with the minimal example from the quick start and expand it as your site grows. A complete field-by-field reference lives in the [Configuration Reference](./configuration.md).
 
-```json
-{
-  "siteName": "My Website",
-  "description": "A website built with Statik",
-  "baseUrl": "https://mysite.com",
-  "author": "Your Name",
-  "theme": {
-    "templates": "templates",
-    "assets": "static",
-    "output": "build"
-  },
-  "paths": {
-    "posts": "posts",
-    "pages": "content"
-  },
-  "devServer": {
-    "port": 3000
-  },
-  "staticDatasource": {
-    "outputDir": "datasource",
-    "collectAttribute": "data-collect",
-    "imagesFileName": "images.json"
-  },
-  "rss": {
-    "enabled": true,
-    "fileName": "feed.xml",
-    "title": "My Website RSS Feed",
-    "description": "Latest posts from my website",
-    "language": "en-us",
-    "maxItems": 20,
-    "includeFullContent": true
-  }
-}
-```
+Highlights:
+- Set core metadata such as `siteName`, `baseUrl`, and `description`.
+- Point `theme` and `paths` to your template, asset, and content directories.
+- Tweak `devServer.port` if the default `3000` conflicts with another process.
+- Enable advanced features like RSS or static datasources when you need them.
 
-**Configuration Options:**
-- `siteName`: Your site's name (required)
-- `baseUrl`: Your site's URL (required)
-- `description`: Site description (required)
-- `author`: Your name (required)
-- `theme.templates`: Templates directory (default: "templates")
-- `theme.assets`: Static assets directory (default: "static")
-- `theme.output`: Output directory (default: "build")
-- `paths.posts`: Blog posts directory (default: "posts")
-- `paths.pages`: Static pages directory (default: "content")
-- `devServer.port`: Development server port for `--watch` (default: `3000`)
-- `staticDatasource.outputDir`: Datasource JSON folder under `theme.output` (default: `"datasource"`)
-- `staticDatasource.collectAttribute`: Attribute for marking collectable elements (default: `"data-collect"`)
-- `staticDatasource.imagesFileName`: Image datasource filename (default: `"images.json"`)
-- `staticDatasource.configFile`: Optional dataset definition file (default: `"datasource-config.json"`)
-- `rss.enabled`: Enable RSS feed generation (default: `true`)
-- `rss.fileName`: RSS feed filename (default: `"feed.xml"`)
-- `rss.title`: RSS feed title (default: uses `siteName`)
-- `rss.description`: RSS feed description (default: uses site `description`)
-- `rss.language`: RSS feed language code (default: `"en-us"`)
-- `rss.maxItems`: Maximum number of posts in RSS feed (default: `20`)
-- `rss.includeFullContent`: Include full post content in feed (default: `true`)
-
-### RSS Feed
-
-Statik automatically generates an RSS feed for your blog posts, making it easy for readers to subscribe to your content.
-
-**Features:**
-- Automatically generates RSS 2.0 compliant feed
-- Includes post titles, links, descriptions, and publication dates
-- Supports full content or excerpt-only feeds
-- Configurable feed title, description, and language
-- Limits the number of items in the feed
-
-**Configuration:**
-The RSS feed is enabled by default and can be customized in your `config.json`:
-
-```json
-"rss": {
-  "enabled": true,              // Toggle RSS generation
-  "fileName": "feed.xml",       // Output filename
-  "title": "My Blog Feed",      // Feed title (optional, defaults to siteName)
-  "description": "Latest posts", // Feed description (optional, defaults to site description)
-  "language": "en-us",          // Language code
-  "maxItems": 20,               // Maximum posts in feed
-  "includeFullContent": true    // Include full HTML content vs. excerpts only
-}
-```
-
-**Disabling RSS:**
-To disable RSS feed generation, set `enabled` to `false`:
-
-```json
-"rss": {
-  "enabled": false
-}
-```
-
-**Accessing the Feed:**
-After generation, your RSS feed will be available at `https://yoursite.com/feed.xml` (or the filename you configured).
-
-### Static Datasources
-
-When generation finishes, Statik can emit helper JSON files that you can consume from JavaScript:
-- **Images**: Every `<img>` found in Markdown or HTML content is added to `/<staticDatasource.outputDir>/<staticDatasource.imagesFileName>` along with its `alt`, `title`, and source page information.
-- **Custom entities**: Add the configured attribute (e.g. `data-collect="quotes"`) to any HTML block to gather it into `/<staticDatasource.outputDir>/quotes.json`. Any extra `data-*` attributes travel with the entity for richer metadata.
-- **Standalone datasets**: Describe additional collections in `datasource-config.json` to pull entries from dedicated folders (like `entities/`) or by tagging posts/pages with frontmatter metadata.
-- **Templates**: Access all of the above inside Handlebars layouts via `{{datasource}}` (for example, `{{datasource.images}}`).
-
-This makes it easy to fuel interactive widgets (carousels, quotes, galleries) without a back end.
-
-For a deeper dive, see [Static Datasources](./static-datasources.md).
+For datasource details, continue to [Static Datasources](./static-datasources.md); for templating tips, see [Custom HTML and Template Files](./custom-html.md).
 
 ## Writing Content
 

@@ -1,6 +1,6 @@
 ---
 title: Custom HTML and Template Files
-nav_order: 3
+nav_order: 4
 ---
 
 Statik supports multiple file formats for your content, giving you flexibility in how you author your pages and posts.

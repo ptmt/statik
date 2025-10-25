@@ -1,6 +1,6 @@
 ---
 title: Static Datasources
-nav_order: 4
+nav_order: 5
 ---
 
 Static datasources let you ship machine-friendly JSON alongside the generated HTML so your front-end code can power dynamic widgets without needing a live API. Statik currently supports two datasource types:
