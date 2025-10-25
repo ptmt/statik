@@ -17,7 +17,8 @@ data class BlogConfig(
     val theme: ThemeConfig = ThemeConfig(),
     val paths: PathConfig = PathConfig(),
     val devServer: DevServerConfig = DevServerConfig(),
-    val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig()
+    val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig(),
+    val rss: RssConfig = RssConfig()
 ) {
     companion object {
         val json = Json {
@@ -75,4 +76,15 @@ data class StaticDatasourceConfig(
     val outputDir: String = "datasource",
     val collectAttribute: String = "data-collect",
     val imagesFileName: String = "images.json"
+)
+
+@Serializable
+data class RssConfig(
+    val enabled: Boolean = true,
+    val fileName: String = "feed.xml",
+    val title: String? = null, // Defaults to siteName if not provided
+    val description: String? = null, // Defaults to site description if not provided
+    val language: String = "en-us",
+    val maxItems: Int = 20,
+    val includeFullContent: Boolean = true
 )

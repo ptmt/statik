@@ -107,6 +107,63 @@ class BlogConfigTest {
     }
 
     @Test
+    fun `load uses default RSS config when not provided`() {
+        val configJson = """
+            {
+              "siteName": "My Blog",
+              "baseUrl": "https://example.com",
+              "description": "Desc",
+              "author": "Author"
+            }
+        """.trimIndent()
+
+        (tempRoot / "config.json").writeText(configJson)
+
+        val config = BlogConfig.load(tempRoot.toString())
+
+        assertEquals(true, config.rss.enabled)
+        assertEquals("feed.xml", config.rss.fileName)
+        assertEquals(null, config.rss.title)
+        assertEquals(null, config.rss.description)
+        assertEquals("en-us", config.rss.language)
+        assertEquals(20, config.rss.maxItems)
+        assertEquals(true, config.rss.includeFullContent)
+    }
+
+    @Test
+    fun `load overrides RSS config when provided`() {
+        val configJson = """
+            {
+              "siteName": "My Blog",
+              "baseUrl": "https://example.com",
+              "description": "Desc",
+              "author": "Author",
+              "rss": {
+                "enabled": false,
+                "fileName": "rss.xml",
+                "title": "Custom RSS Title",
+                "description": "Custom RSS Description",
+                "language": "fr-fr",
+                "maxItems": 10,
+                "includeFullContent": false
+              }
+            }
+        """.trimIndent()
+
+        (tempRoot / "config.json").writeText(configJson)
+
+        val config = BlogConfig.load(tempRoot.toString())
+
+        assertEquals(false, config.rss.enabled)
+        assertEquals("rss.xml", config.rss.fileName)
+        assertEquals("Custom RSS Title", config.rss.title)
+        assertEquals("Custom RSS Description", config.rss.description)
+        assertEquals("fr-fr", config.rss.language)
+        assertEquals(10, config.rss.maxItems)
+        assertEquals(false, config.rss.includeFullContent)
+    }
+
+    @Test
     fun `load throws when config missing`() {
         assertFailsWith<IllegalArgumentException> {
             BlogConfig.load(tempRoot.toString())

@@ -119,6 +119,15 @@ Create a `config.json` file in your project root:
     "outputDir": "datasource",
     "collectAttribute": "data-collect",
     "imagesFileName": "images.json"
+  },
+  "rss": {
+    "enabled": true,
+    "fileName": "feed.xml",
+    "title": "My Website RSS Feed",
+    "description": "Latest posts from my website",
+    "language": "en-us",
+    "maxItems": 20,
+    "includeFullContent": true
   }
 }
 ```
@@ -137,6 +146,51 @@ Create a `config.json` file in your project root:
 - `staticDatasource.outputDir`: Datasource JSON folder under `theme.output` (default: `"datasource"`)
 - `staticDatasource.collectAttribute`: Attribute for marking collectable elements (default: `"data-collect"`)
 - `staticDatasource.imagesFileName`: Image datasource filename (default: `"images.json"`)
+- `rss.enabled`: Enable RSS feed generation (default: `true`)
+- `rss.fileName`: RSS feed filename (default: `"feed.xml"`)
+- `rss.title`: RSS feed title (default: uses `siteName`)
+- `rss.description`: RSS feed description (default: uses site `description`)
+- `rss.language`: RSS feed language code (default: `"en-us"`)
+- `rss.maxItems`: Maximum number of posts in RSS feed (default: `20`)
+- `rss.includeFullContent`: Include full post content in feed (default: `true`)
+
+### RSS Feed
+
+Statik automatically generates an RSS feed for your blog posts, making it easy for readers to subscribe to your content.
+
+**Features:**
+- Automatically generates RSS 2.0 compliant feed
+- Includes post titles, links, descriptions, and publication dates
+- Supports full content or excerpt-only feeds
+- Configurable feed title, description, and language
+- Limits the number of items in the feed
+
+**Configuration:**
+The RSS feed is enabled by default and can be customized in your `config.json`:
+
+```json
+"rss": {
+  "enabled": true,              // Toggle RSS generation
+  "fileName": "feed.xml",       // Output filename
+  "title": "My Blog Feed",      // Feed title (optional, defaults to siteName)
+  "description": "Latest posts", // Feed description (optional, defaults to site description)
+  "language": "en-us",          // Language code
+  "maxItems": 20,               // Maximum posts in feed
+  "includeFullContent": true    // Include full HTML content vs. excerpts only
+}
+```
+
+**Disabling RSS:**
+To disable RSS feed generation, set `enabled` to `false`:
+
+```json
+"rss": {
+  "enabled": false
+}
+```
+
+**Accessing the Feed:**
+After generation, your RSS feed will be available at `https://yoursite.com/feed.xml` (or the filename you configured).
 
 ### Static Datasources
 

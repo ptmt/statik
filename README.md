@@ -137,6 +137,12 @@ Example `config.json`:
     "outputDir": "datasource",
     "collectAttribute": "data-collect",
     "imagesFileName": "images.json"
+  },
+  "rss": {
+    "enabled": true,
+    "fileName": "feed.xml",
+    "maxItems": 20,
+    "includeFullContent": true
   }
 }
 ```
@@ -144,6 +150,21 @@ Example `config.json`:
 - `staticDatasource.outputDir`: Directory (inside `theme.output`) for generated datasource JSON files.
 - `staticDatasource.collectAttribute`: Attribute used to mark custom collectable elements (default `data-collect`).
 - `staticDatasource.imagesFileName`: File name for the aggregated images list (default `images.json`).
+- `rss.enabled`: Enable RSS feed generation (default `true`).
+- `rss.fileName`: RSS feed filename (default `feed.xml`).
+- `rss.maxItems`: Maximum number of posts in the RSS feed (default `20`).
+- `rss.includeFullContent`: Include full post content in RSS feed (default `true`).
+
+## RSS Feed
+
+Statik automatically generates an RSS feed for your blog posts. The feed is enabled by default and can be customized in `config.json`:
+
+- **Enabled by default**: RSS feed is generated automatically at `build/feed.xml`
+- **Configurable**: Customize filename, max items, language, and whether to include full content
+- **RSS 2.0 compliant**: Compatible with all major feed readers
+- **Automatic descriptions**: Uses post metadata or excerpt from content
+
+To disable RSS generation, set `"enabled": false` in the `rss` config section.
 
 ## Static Datasources
 

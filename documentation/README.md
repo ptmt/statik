@@ -34,9 +34,10 @@ This site showcases:
 
 - **Markdown Processing**: GitHub Flavored Markdown with extensions
 - **Handlebars Templates**: Layout system with partials
-- **Static Assets**: CSS styling and responsive design  
+- **Static Assets**: CSS styling and responsive design
 - **Configuration**: JSON-based site configuration
 - **Automatic Deployment**: CI/CD via GitHub Actions
+- **RSS Feed**: Automatic RSS 2.0 feed generation for blog posts
 - **Static Datasources**: JSON feeds for images and custom collectables
 
 ## Content Guidelines
