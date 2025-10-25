@@ -2,26 +2,6 @@
 
 This directory contains the source files for the Statik documentation website, which serves as both documentation and a live example of Statik's capabilities.
 
-## Structure
-
-```
-statik.github.io/
-├── config.json          # Site configuration
-├── content/             # Markdown content files
-│   ├── index.md         # Homepage
-│   └── getting-started.md
-├── templates/           # Handlebars templates
-│   ├── main.hbs        # Main layout
-│   └── partials/       # Template partials
-│       ├── header.hbs
-│       └── footer.hbs
-├── static/             # Static assets
-│   └── css/
-│       ├── style.css   # Main stylesheet
-│       └── syntax.css  # Code syntax highlighting
-└── docs/               # Generated output (created by Statik)
-```
-
 ## Building Locally
 
 To build and preview this site locally:
@@ -35,14 +15,7 @@ To build and preview this site locally:
    ```bash
    ./amper run --root-path=./statik.github.io
    ```
-
-3. **Serve locally** (optional):
-   ```bash
-   cd statik.github.io/docs
-   python -m http.server 8080
-   ```
-
-4. **Development with hot reload**:
+3. **Development with hot reload**:
    ```bash
    ./amper run --root-path=./statik.github.io --watch
    ```
