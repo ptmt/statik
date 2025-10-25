@@ -54,6 +54,28 @@ class BlogConfigTest {
         assertEquals("https://example.com", config.baseUrl)
         assertEquals("build", config.theme.output)
         assertEquals("articles", config.paths.posts)
+        assertEquals(3000, config.devServer.port)
+    }
+
+    @Test
+    fun `load overrides dev server port when provided`() {
+        val configJson = """
+            {
+              "siteName": "My Blog",
+              "baseUrl": "https://example.com",
+              "description": "Desc",
+              "author": "Author",
+              "devServer": {
+                "port": 4100
+              }
+            }
+        """.trimIndent()
+
+        (tempRoot / "config.json").writeText(configJson)
+
+        val config = BlogConfig.load(tempRoot.toString())
+
+        assertEquals(4100, config.devServer.port)
     }
 
     @Test
@@ -63,4 +85,3 @@ class BlogConfigTest {
         }
     }
 }
-

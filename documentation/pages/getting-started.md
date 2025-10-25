@@ -111,6 +111,9 @@ Create a `config.json` file in your project root:
   "paths": {
     "posts": "posts",
     "pages": "content"
+  },
+  "devServer": {
+    "port": 3000
   }
 }
 ```
@@ -125,6 +128,7 @@ Create a `config.json` file in your project root:
 - `theme.output`: Output directory (default: "build")
 - `paths.posts`: Blog posts directory (default: "posts")
 - `paths.pages`: Static pages directory (default: "content")
+- `devServer.port`: Development server port for `--watch` (default: `3000`)
 
 ## Writing Content
 

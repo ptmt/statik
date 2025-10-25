@@ -15,7 +15,8 @@ data class BlogConfig(
     val description: String,
     val author: String,
     val theme: ThemeConfig = ThemeConfig(),
-    val paths: PathConfig = PathConfig()
+    val paths: PathConfig = PathConfig(),
+    val devServer: DevServerConfig = DevServerConfig()
 ) {
     companion object {
         val json = Json {
@@ -60,4 +61,9 @@ data class ThemeConfig(
 data class PathConfig(
     val posts: String = "posts",
     val pages: String = "pages"
-) 
+)
+
+@Serializable
+data class DevServerConfig(
+    val port: Int = 3000
+)

@@ -1,5 +1,4 @@
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -22,8 +21,8 @@ class Hello : CliktCommand() {
     
     val port by option(
         "--port", "-p",
-        help = "Port for the HTTP server (only used with --watch)"
-    ).int().default(3000)
+        help = "Port for the HTTP server (only used with --watch). Overrides config.json when provided."
+    ).int()
 
     override fun run() {
         BlogEngine.run(rootPath.path, watch, port)

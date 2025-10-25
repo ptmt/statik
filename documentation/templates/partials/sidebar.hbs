@@ -1,0 +1,16 @@
+<aside class="sidebar">
+    <nav class="sidebar-nav">
+        <div class="sidebar-section">
+            <h3 class="sidebar-title">Documentation</h3>
+            <ul class="sidebar-menu">
+                {{#each pages}}
+                    {{#if path}}
+                    <li class="sidebar-item">
+                        <a href="{{../baseUrl}}{{path}}" class="sidebar-link">{{title}}</a>
+                    </li>
+                    {{/if}}
+                {{/each}}
+            </ul>
+        </div>
+    </nav>
+</aside>

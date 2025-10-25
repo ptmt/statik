@@ -129,6 +129,9 @@ Example `config.json`:
   "paths": {
     "posts": "posts",
     "pages": "content"
+  },
+  "devServer": {
+    "port": 3000
   }
 }
 ```
@@ -154,4 +157,3 @@ This is the correct way for static files to be declared in Ktor 3:
 ```kotlin
 staticFiles("/", Paths.get(rootPath, config.theme.output).toFile()) { }
 ```
-

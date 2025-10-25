@@ -1,8 +1,8 @@
 {
   "siteName": "Statik - Static Site Generator",
-  "description": "A powerful static site generator built with Kotlin, featuring Markdown processing, Handlebars templating, and live development server.",
+  "description": "A home-made and opinionated static site generator built with Kotlin.",
   "baseUrl": "https://potomushto.com/statik/",
-  "author": "Statik Contributors",
+  "author": "Dmitrii Loktev",
   "theme": {
     "templates": "templates",
     "assets": "static",

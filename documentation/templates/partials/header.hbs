@@ -1,24 +1,19 @@
 <header class="site-header">
-    <div class="container">
-        <div class="header-content">
-            <div class="logo">
-                <a href="{{baseUrl}}">
-                    <span class="logo-icon">⚡</span>
-                    <span class="logo-text">{{siteName}}</span>
-                </a>
-            </div>
-            <nav class="main-nav">
-                <a href="{{baseUrl}}" class="nav-link">Home</a>
-                {{#each pages}}
-                    {{#if path}}
-                        <a href="{{../baseUrl}}{{path}}" class="nav-link">{{title}}</a>
-                    {{/if}}
-                {{/each}}
-                <a href="https://github.com/ptmt/statik" class="nav-link" target="_blank">
-                    <span>GitHub</span>
-                    <span class="external-icon">↗</span>
-                </a>
-            </nav>
+    <div class="header-wrapper">
+        <div class="logo">
+            <a href="{{baseUrl}}">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Statik</span>
+            </a>
         </div>
+        <nav class="main-nav">
+            <a href="{{baseUrl}}" class="nav-link">Home</a>
+            <a href="{{baseUrl}}getting-started" class="nav-link">Getting Started</a>
+            <a href="{{baseUrl}}layouts" class="nav-link">Documentation</a>
+            <a href="https://github.com/ptmt/statik" class="nav-link nav-link-github" target="_blank">
+                <span>GitHub</span>
+                <span class="external-icon">↗</span>
+            </a>
+        </nav>
     </div>
 </header>

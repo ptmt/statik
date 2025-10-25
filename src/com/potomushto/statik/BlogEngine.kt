@@ -16,11 +16,12 @@ import kotlin.io.path.exists
 
 class BlogEngine {
     companion object {
-        fun run(path: String, watch: Boolean = false, port: Int = 3000) {
+        fun run(path: String, watch: Boolean = false, portOverride: Int? = null) {
             val config = BlogConfig.load(path)
+            val resolvedPort = portOverride ?: config.devServer.port
 
             // Override baseUrl for development mode
-            val devBaseUrl = if (watch) "http://localhost:$port/" else null
+            val devBaseUrl = if (watch) "http://localhost:$resolvedPort/" else null
             val generator = SiteGenerator(path, config, devBaseUrl)
 
             // Generate site initially
@@ -32,11 +33,11 @@ class BlogEngine {
 
             if (watch) {
                 // Start HTTP server and file watcher
-                startServer(path, config, port)
+                startServer(path, config, resolvedPort)
                 watchForChanges(path, config, generator)
             }
         }
-        
+
         private fun startServer(rootPath: String, config: BlogConfig, port: Int) {
             val server = embeddedServer(Netty, port = port) {
                 install(StatusPages) {
