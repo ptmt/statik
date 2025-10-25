@@ -174,6 +174,8 @@ Statik can emit JSON datasources alongside the generated HTML so client-side cod
 
 Each datasource entry includes its originating page/post metadata and the rendered HTML/text, making it simple to build interactive components.
 
+Read the full guide in [documentation/pages/static-datasources.md](documentation/pages/static-datasources.md).
+
 ### GitHub Actions Usage
 
 You can use this Docker image in GitHub Actions workflows:

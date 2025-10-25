@@ -200,6 +200,8 @@ When generation finishes, Statik can emit helper JSON files that you can consume
 
 This makes it easy to fuel interactive widgets (carousels, quotes, galleries) without a back end.
 
+For a deeper dive, see [Static Datasources](./static-datasources.md).
+
 ## Writing Content
 
 Statik supports multiple file formats: Markdown (`.md`), HTML (`.html`), and Handlebars templates (`.hbs`).
