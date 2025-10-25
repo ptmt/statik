@@ -11,6 +11,8 @@ Statik supports a hierarchical template system with layouts, allowing you to sha
 
 Layouts are base templates that define the overall HTML structure of your pages (doctype, head, body, etc.). They wrap around your content templates, eliminating duplication and making maintenance easier.
 
+Every layout receives the full rendering context, including the `datasource` bundle, so you can surface collected entities, images, or quotes directly in navigation elements or footers without hand-rolled JSON fetches.
+
 ### Creating a Layout
 
 Create a layout file in `templates/layouts/`:

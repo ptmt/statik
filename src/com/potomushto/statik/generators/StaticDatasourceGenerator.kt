@@ -26,46 +26,66 @@ class StaticDatasourceGenerator(
     private val configJson = Json { ignoreUnknownKeys = true }
     private val datasetDefinitions: List<DatasourceDatasetConfig> by lazy { loadDatasetDefinitions() }
 
-    fun generate(posts: List<BlogPost>, pages: List<SitePage>) {
-        if (!config.enabled) return
-
-        val datasourceRoot = outputRoot.resolve(config.outputDir)
-        var directoryEnsured = false
+    fun buildBundle(posts: List<BlogPost>, pages: List<SitePage>): StaticDatasourceBundle {
+        if (!config.enabled) {
+            return StaticDatasourceBundle.EMPTY
+        }
 
         val documents = collectDocuments(posts, pages)
-        if (documents.isNotEmpty()) {
-            datasourceRoot.createDirectories()
-            directoryEnsured = true
 
-            val images = collectImages(documents)
-            if (images.isNotEmpty()) {
-                val target = datasourceRoot.resolve(config.imagesFileName)
-                target.parent?.createDirectories()
-                Files.writeString(target, json.encodeToString(images))
-            }
-
-            val customAttribute = config.collectAttribute.trim()
-            if (customAttribute.isNotEmpty()) {
-                val collectables = collectCustomEntities(documents, customAttribute)
-                collectables.forEach { (type, items) ->
-                    if (items.isEmpty()) return@forEach
-                    val fileName = "${sanitizeType(type)}.json"
-                    val target = datasourceRoot.resolve(fileName)
-                    target.parent?.createDirectories()
-                    Files.writeString(target, json.encodeToString(items))
-                }
-            }
+        val images = if (documents.isEmpty()) {
+            emptyList()
+        } else {
+            collectImages(documents)
         }
 
-        val wroteDatasets = generateConfiguredDatasets(datasourceRoot, posts, pages) { created ->
-            if (!directoryEnsured && created) {
-                datasourceRoot.createDirectories()
-                directoryEnsured = true
-            }
+        val collectables = when {
+            documents.isEmpty() -> emptyMap()
+            config.collectAttribute.isBlank() -> emptyMap()
+            else -> collectCustomEntities(documents, config.collectAttribute.trim())
         }
 
-        if (!directoryEnsured && wroteDatasets) {
-            datasourceRoot.createDirectories()
+        val entityDatasets = datasetDefinitions.map { dataset ->
+            val fromFolder = collectEntitiesFromFolder(dataset)
+            val fromMetadata = collectEntitiesFromMetadata(dataset, posts, pages)
+            EntityDatasetResult(
+                name = dataset.name,
+                output = dataset.output,
+                items = (fromFolder + fromMetadata)
+            )
+        }
+
+        return StaticDatasourceBundle(
+            images = images,
+            collectables = collectables,
+            entityDatasets = entityDatasets
+        )
+    }
+
+    fun writeBundle(bundle: StaticDatasourceBundle) {
+        if (!config.enabled) return
+        if (bundle.isEmpty) return
+
+        val datasourceRoot = outputRoot.resolve(config.outputDir)
+        datasourceRoot.createDirectories()
+
+        if (bundle.images.isNotEmpty()) {
+            val target = datasourceRoot.resolve(config.imagesFileName)
+            Files.writeString(target, json.encodeToString(bundle.images))
+        }
+
+        bundle.collectables.forEach { (type, items) ->
+            if (items.isEmpty()) return@forEach
+            val fileName = "${sanitizeType(type)}.json"
+            val target = datasourceRoot.resolve(fileName)
+            Files.writeString(target, json.encodeToString(items))
+        }
+
+        bundle.entityDatasets.forEach { dataset ->
+            if (dataset.items.isEmpty()) return@forEach
+            val target = datasourceRoot.resolve(dataset.output)
+            target.parent?.createDirectories()
+            Files.writeString(target, json.encodeToString(dataset.items))
         }
     }
 
@@ -152,37 +172,6 @@ class StaticDatasourceGenerator(
         return byType
     }
 
-    private fun generateConfiguredDatasets(
-        datasourceRoot: Path,
-        posts: List<BlogPost>,
-        pages: List<SitePage>,
-        onFirstWrite: (Boolean) -> Unit
-    ): Boolean {
-        val datasets = datasetDefinitions
-        if (datasets.isEmpty()) return false
-
-        var wroteAny = false
-
-        datasets.forEach { dataset ->
-            val items = buildList {
-                addAll(collectEntitiesFromFolder(dataset))
-                addAll(collectEntitiesFromMetadata(dataset, posts, pages))
-            }
-
-            if (items.isNotEmpty()) {
-                if (!wroteAny) {
-                    onFirstWrite(true)
-                }
-                val target = datasourceRoot.resolve(dataset.output)
-                target.parent?.createDirectories()
-                Files.writeString(target, json.encodeToString(items))
-                wroteAny = true
-            }
-        }
-
-        return wroteAny
-    }
-
     private fun collectEntitiesFromFolder(dataset: DatasourceDatasetConfig): List<EntityDatasourceItem> {
         val folder = dataset.folder ?: return emptyList()
         val folderPath = rootPath.resolve(folder)
@@ -246,14 +235,14 @@ class StaticDatasourceGenerator(
         val key = dataset.metadataKey?.trim().orEmpty()
         if (key.isEmpty()) return emptyList()
 
-        val value = dataset.metadataValue?.trim()?.ifEmpty { null }
+        val expectedValue = dataset.metadataValue?.trim()?.ifEmpty { null }
         val sources = dataset.normalizedSources()
         val items = mutableListOf<EntityDatasourceItem>()
 
         if (sources.contains(DatasetSource.POSTS)) {
             posts.forEach { post ->
                 val metadataValue = post.metadata[key]?.trim() ?: return@forEach
-                if (value == null || metadataValue == value) {
+                if (expectedValue == null || metadataValue == expectedValue) {
                     items.add(
                         EntityDatasourceItem(
                             dataset = dataset.name,
@@ -276,7 +265,7 @@ class StaticDatasourceGenerator(
         if (sources.contains(DatasetSource.PAGES)) {
             pages.forEach { page ->
                 val metadataValue = page.metadata[key]?.trim() ?: return@forEach
-                if (value == null || metadataValue == value) {
+                if (expectedValue == null || metadataValue == expectedValue) {
                     items.add(
                         EntityDatasourceItem(
                             dataset = dataset.name,
@@ -336,6 +325,7 @@ class StaticDatasourceGenerator(
     }
 
     private fun String.toDatasourcePath(): String {
+        if (isEmpty()) return "/"
         val normalized = if (startsWith("/")) this else "/$this"
         return if (normalized.endsWith("/")) normalized else "$normalized/"
     }
@@ -419,3 +409,31 @@ data class DatasourceDatasetConfig(
     val metadataValue: String? = null,
     val includeSources: List<String> = listOf("posts", "pages")
 )
+
+data class EntityDatasetResult(
+    val name: String,
+    val output: String,
+    val items: List<EntityDatasourceItem>
+)
+
+data class StaticDatasourceBundle(
+    val images: List<ImageDatasourceItem> = emptyList(),
+    val collectables: Map<String, List<CollectableDatasourceItem>> = emptyMap(),
+    val entityDatasets: List<EntityDatasetResult> = emptyList()
+) {
+    val isEmpty: Boolean
+        get() = images.isEmpty() &&
+            collectables.values.all { it.isEmpty() } &&
+            entityDatasets.all { it.items.isEmpty() }
+
+    fun toTemplateContext(): Map<String, Any?> = mapOf(
+        "images" to images,
+        "collectables" to collectables,
+        "entities" to entityDatasets.associate { it.name to it.items },
+        "datasets" to entityDatasets
+    )
+
+    companion object {
+        val EMPTY = StaticDatasourceBundle()
+    }
+}

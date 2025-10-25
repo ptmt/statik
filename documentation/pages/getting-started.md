@@ -197,6 +197,7 @@ When generation finishes, Statik can emit helper JSON files that you can consume
 - **Images**: Every `<img>` found in Markdown or HTML content is added to `/<staticDatasource.outputDir>/<staticDatasource.imagesFileName>` along with its `alt`, `title`, and source page information.
 - **Custom entities**: Add the configured attribute (e.g. `data-collect="quotes"`) to any HTML block to gather it into `/<staticDatasource.outputDir>/quotes.json`. Any extra `data-*` attributes travel with the entity for richer metadata.
 - **Standalone datasets**: Describe additional collections in `datasource-config.json` to pull entries from dedicated folders (like `entities/`) or by tagging posts/pages with frontmatter metadata.
+- **Templates**: Access all of the above inside Handlebars layouts via `{{datasource}}` (for example, `{{datasource.images}}`).
 
 This makes it easy to fuel interactive widgets (carousels, quotes, galleries) without a back end.
 

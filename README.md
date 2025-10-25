@@ -173,6 +173,7 @@ Statik can emit JSON datasources alongside the generated HTML so client-side cod
 - Images referenced in Markdown and HTML content are exported automatically to `/<outputDir>/<imagesFileName>`.
 - Add `data-collect="quotes"` (or any value) to an element to collect it into `/<outputDir>/quotes.json`. Additional `data-*` attributes (e.g. `data-author`) are preserved in the JSON output.
 - Configure custom datasets in `datasource-config.json` to pull standalone entities from folders or tag existing posts/pages via metadata keys.
+- Access everything in templates through the `datasource` context (e.g. `{{datasource.images}}`, `{{datasource.entities.team}}`) for server-side rendering.
 
 Each datasource entry includes its originating page/post metadata and the rendered HTML/text, making it simple to build interactive components.
 

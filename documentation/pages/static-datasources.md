@@ -164,6 +164,35 @@ Say hello to the people behind the product.
 
 The entry will be appended to the same dataset, keeping `source.type` as `post` or `page` so you can distinguish the origin on the client side.
 
+## Using Datasources in Handlebars Templates
+
+The entire bundle is available during template rendering under the `datasource` key, making it easy to consume in layouts and partials:
+
+```hbs
+{{#with datasource}}
+  {{#each entities.team}}
+    <article class="team-member">
+      <h3>{{title}}</h3>
+      <p class="role">{{metadata.role}}</p>
+    </article>
+  {{/each}}
+
+  <section class="quotes">
+    {{#each collectables.quotes}}
+      <blockquote>{{text}}</blockquote>
+    {{/each}}
+  </section>
+
+  <ul class="images">
+    {{#each images}}
+      <li><img src="{{src}}" alt="{{alt}}"></li>
+    {{/each}}
+  </ul>
+{{/with}}
+```
+
+Each dataset is also exposed via `datasource.datasets`, which includes filenames for the generated JSON documents should you need to link directly to them.
+
 ## Consuming Datasources in JavaScript
 
 Because the datasources are static JSON files, you can fetch them with standard browser APIs:

@@ -311,6 +311,78 @@ class SiteGeneratorTest {
     }
 
     @Test
+    fun `generate exposes datasource to templates`() {
+        val config = BlogConfig(
+            siteName = "Datasource Template Site",
+            baseUrl = "https://datasource-template.example/",
+            description = "Datasource template demo",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            paths = PathConfig(posts = "posts", pages = "pages")
+        )
+
+        (tempRoot / "datasource-config.json").writeText(
+            """
+                {
+                  "datasets": [
+                    {
+                      "name": "team",
+                      "output": "entity-datasource.json",
+                      "folder": "entities",
+                      "metadataKey": "collectAs",
+                      "metadataValue": "team"
+                    }
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        createFile("entities/alice.md", """
+            ---
+            id: alice
+            title: Alice Doe
+            role: Engineer
+            ---
+            Alice keeps the CI green.
+        """.trimIndent())
+
+        createPost("posts/story.md", """
+            ---
+            title: Story
+            published: 2024-03-01T00:00:00
+            collectAs: team
+            ---
+            ![Hero](/media/hero.jpg)
+
+            <blockquote data-collect="quotes">First quote</blockquote>
+        """.trimIndent())
+
+        writeTemplate("templates/home.hbs", """
+            {{#with datasource}}
+              <div class="entity">{{entities.team.[0].title}}</div>
+              <div class="quote">{{collectables.quotes.[0].text}}</div>
+              <div class="image">{{images.[0].src}}</div>
+              <div class="dataset">{{datasets.[0].output}}</div>
+            {{/with}}
+        """.trimIndent())
+
+        writeTemplate("templates/layouts/default.hbs", """
+            <html>
+              <body>{{{content}}}</body>
+            </html>
+        """.trimIndent())
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val homeHtml = (tempRoot / "build" / "index.html").readText()
+        assertTrue(homeHtml.contains("Alice Doe"))
+        assertTrue(homeHtml.contains("First quote"))
+        assertTrue(homeHtml.contains("/media/hero.jpg"))
+        assertTrue(homeHtml.contains("entity-datasource.json"))
+    }
+
+    @Test
     fun `generate writes configured entity datasets`() {
         val config = BlogConfig(
             siteName = "Entity Site",

@@ -58,12 +58,15 @@ class SiteGenerator(private val rootPath: String,
         val posts = loadBlogPosts().sortedByDescending { it.date }
         val pages = loadPages().sortedWith(compareBy<SitePage> { it.navOrder ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
 
-        generateHomePage(posts, pages)
-        generateBlogPosts(posts, pages)
-        generatePages(pages)
+        val datasourceBundle = datasourceGenerator.buildBundle(posts, pages)
+        val datasourceContext = datasourceBundle.toTemplateContext()
+
+        generateHomePage(posts, pages, datasourceContext)
+        generateBlogPosts(posts, pages, datasourceContext)
+        generatePages(pages, datasourceContext)
         rssGenerator.generate(posts)
         copyStaticAssets()
-        datasourceGenerator.generate(posts, pages)
+        datasourceGenerator.writeBundle(datasourceBundle)
     }
 
     private fun loadBlogPosts(): List<BlogPost> {
@@ -122,47 +125,45 @@ class SiteGenerator(private val rootPath: String,
     }
 
 
-    private fun generateBlogPosts(posts: List<BlogPost>, pages: List<SitePage>) {
+    private fun generateBlogPosts(
+        posts: List<BlogPost>,
+        pages: List<SitePage>,
+        datasourceContext: Map<String, Any?>
+    ) {
         val templateContent = getTemplateContent("post", FallbackTemplates.POST_TEMPLATE)
 
         posts.forEach { post ->
-            val contentToRender = if (post.isTemplate) {
-                // For .hbs files, render the content as a template first
-                templateEngine.render(post.content, mapOf(
-                    "post" to post,
-                    "baseUrl" to effectiveBaseUrl,
-                    "siteName" to config.siteName,
-                    "pages" to pages
-                ))
-            } else {
-                post.content
-            }
-
             // Use the post template if not a template file, otherwise wrap in layout
             val html = if (post.isTemplate) {
                 // For template files, use layout if specified in metadata or default
                 val layout = post.metadata["layout"] ?: "default"
                 val description: String = post.metadata["description"] ?: post.title
-                templateEngine.renderWithLayout(post.content, mapOf(
-                    "post" to post,
-                    "baseUrl" to effectiveBaseUrl,
-                    "siteName" to config.siteName,
-                    "pages" to pages,
-                    "title" to post.title,
-                    "description" to description,
-                    "layout" to layout
-                ))
+                templateEngine.renderWithLayout(
+                    post.content,
+                    mapOf(
+                        "post" to post,
+                        "baseUrl" to effectiveBaseUrl,
+                        "siteName" to config.siteName,
+                        "pages" to pages,
+                        "title" to post.title,
+                        "description" to description,
+                        "layout" to layout
+                    ).withDatasource(datasourceContext)
+                )
             } else {
                 val layout = post.metadata["layout"] ?: "default"
-                templateEngine.renderWithLayout(templateContent, mapOf(
-                    "post" to post,
-                    "baseUrl" to effectiveBaseUrl,
-                    "siteName" to config.siteName,
-                    "pages" to pages,
-                    "title" to post.title,
-                    "description" to post.content.take(160),
-                    "layout" to layout
-                ))
+                templateEngine.renderWithLayout(
+                    templateContent,
+                    mapOf(
+                        "post" to post,
+                        "baseUrl" to effectiveBaseUrl,
+                        "siteName" to config.siteName,
+                        "pages" to pages,
+                        "title" to post.title,
+                        "description" to post.content.take(160),
+                        "layout" to layout
+                    ).withDatasource(datasourceContext)
+                )
             }
 
             val outputPath = Paths.get(rootPath, config.theme.output, post.path, "index.html")
@@ -171,25 +172,35 @@ class SiteGenerator(private val rootPath: String,
         }
     }
 
-    private fun generateHomePage(posts: List<BlogPost>, pages: List<SitePage>) {
+    private fun generateHomePage(
+        posts: List<BlogPost>,
+        pages: List<SitePage>,
+        datasourceContext: Map<String, Any?>
+    ) {
         val templateContent = getTemplateContent("home", FallbackTemplates.HOME_TEMPLATE)
 
-        val html = templateEngine.renderWithLayout(templateContent, mapOf(
-            "posts" to posts,
-            "siteName" to config.siteName,
-            "description" to config.description,
-            "baseUrl" to effectiveBaseUrl,
-            "pages" to pages,
-            "featuredPage" to pages.firstOrNull { it.path.isNotEmpty() },
-            "layout" to "default"
-        ))
+        val html = templateEngine.renderWithLayout(
+            templateContent,
+            mapOf(
+                "posts" to posts,
+                "siteName" to config.siteName,
+                "description" to config.description,
+                "baseUrl" to effectiveBaseUrl,
+                "pages" to pages,
+                "featuredPage" to pages.firstOrNull { it.path.isNotEmpty() },
+                "layout" to "default"
+            ).withDatasource(datasourceContext)
+        )
 
         val outputPath = Paths.get(rootPath, config.theme.output, "index.html")
         outputPath.parent.createDirectories()
         Files.writeString(outputPath, html)
     }
 
-    private fun generatePages(pages: List<SitePage>) {
+    private fun generatePages(
+        pages: List<SitePage>,
+        datasourceContext: Map<String, Any?>
+    ) {
         val templateContent = getTemplateContent("page", FallbackTemplates.PAGE_TEMPLATE)
 
         val outputRoot = Paths.get(rootPath, config.theme.output)
@@ -199,7 +210,8 @@ class SiteGenerator(private val rootPath: String,
                 // For template files, render directly with layout
                 val layout = page.metadata["layout"] ?: "default"
                 val description: String = page.metadata["description"] ?: config.description
-                templateEngine.renderWithLayout(page.content,
+                templateEngine.renderWithLayout(
+                    page.content,
                     mapOf(
                         "page" to page,
                         "pages" to pages,
@@ -208,11 +220,12 @@ class SiteGenerator(private val rootPath: String,
                         "description" to description,
                         "title" to page.title,
                         "layout" to layout
-                    )
+                    ).withDatasource(datasourceContext)
                 )
             } else {
                 val layout = page.metadata["layout"] ?: "default"
-                templateEngine.renderWithLayout(templateContent,
+                templateEngine.renderWithLayout(
+                    templateContent,
                     mapOf(
                         "page" to page,
                         "pages" to pages,
@@ -221,7 +234,7 @@ class SiteGenerator(private val rootPath: String,
                         "description" to config.description,
                         "title" to page.title,
                         "layout" to layout
-                    )
+                    ).withDatasource(datasourceContext)
                 )
             }
 
@@ -237,5 +250,8 @@ class SiteGenerator(private val rootPath: String,
             Files.writeString(outputPath, html)
         }
     }
+
+    private fun Map<String, Any?>.withDatasource(datasource: Map<String, Any?>): Map<String, Any?> =
+        this + ("datasource" to datasource)
 
 }

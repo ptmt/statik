@@ -242,6 +242,16 @@ Include partials:
 {{include "partials/sidebar.hbs"}}
 ```
 
+### `datasource`
+
+All templates receive a `datasource` object that mirrors the generated JSON files, so you can render galleries, quote blocks, or entity lists during server-side rendering without additional fetches:
+
+```handlebars
+{{#each datasource.images}}
+  <img src="{{src}}" alt="{{alt}}">
+{{/each}}
+```
+
 ### `eq` (equality)
 
 Conditional comparison:
