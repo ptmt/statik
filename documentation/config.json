@@ -5,7 +5,7 @@
   "author": "Dmitrii Loktev",
   "theme": {
     "templates": "templates",
-    "assets": "static",
+    "assets": ["static"],
     "output": "docs"
   },
   "paths": {

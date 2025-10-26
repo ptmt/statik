@@ -92,9 +92,11 @@ class BlogEngine {
             val templatesDir = rootDir.resolve(config.theme.templates)
             if (templatesDir.exists()) pathsToWatch.add(templatesDir)
             
-            // Add assets directory to watch
-            val assetsDir = rootDir.resolve(config.theme.assets)
-            if (assetsDir.exists()) pathsToWatch.add(assetsDir)
+            // Add assets directories to watch
+            config.theme.assets.forEach { assetPath ->
+                val assetsDir = rootDir.resolve(assetPath)
+                if (assetsDir.exists()) pathsToWatch.add(assetsDir)
+            }
             
             // Register all directories for watching
             val watchKeys = pathsToWatch.associateWith { path ->

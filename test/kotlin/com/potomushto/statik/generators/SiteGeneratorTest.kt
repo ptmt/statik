@@ -46,7 +46,7 @@ class SiteGeneratorTest {
             baseUrl = "https://example.com/",
             description = "Sample description",
             author = "Author",
-            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -161,7 +161,7 @@ class SiteGeneratorTest {
             baseUrl = "https://fallback.example/",
             description = "Fallback description",
             author = "Author",
-            theme = ThemeConfig(templates = "missing-templates", assets = "assets", output = "build"),
+            theme = ThemeConfig(templates = "missing-templates", assets = listOf("assets"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -207,7 +207,7 @@ class SiteGeneratorTest {
             baseUrl = "https://html.example/",
             description = "Test HTML files",
             author = "Author",
-            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -256,7 +256,7 @@ class SiteGeneratorTest {
             baseUrl = "https://datasource.example/",
             description = "Datasource demo",
             author = "Author",
-            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -317,7 +317,7 @@ class SiteGeneratorTest {
             baseUrl = "https://datasource-template.example/",
             description = "Datasource template demo",
             author = "Author",
-            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -389,7 +389,7 @@ class SiteGeneratorTest {
             baseUrl = "https://entity.example/",
             description = "Entity demo",
             author = "Author",
-            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -478,7 +478,7 @@ class SiteGeneratorTest {
             baseUrl = "https://hbs.example/",
             description = "Test HBS files",
             author = "Author",
-            theme = ThemeConfig(templates = "templates", assets = "static", output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
