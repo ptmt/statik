@@ -3,12 +3,11 @@ title: config.json reference
 nav_order: 2
 ---
 
-Every Statik project is driven by a `config.json` file located at the project root. This document describes each configuration option available.
+<p>Every Statik project is driven by a <code>config.json</code> file located at the project root. This document describes each configuration option available.</p>
 
-## Example `config.json`
+<h2>Example <code>config.json</code></h2>
 
-```json
-{
+<pre><code class="language-json">{
   "siteName": "My Website",
   "description": "A website built with Statik",
   "baseUrl": "https://mysite.com",
@@ -42,9 +41,9 @@ Every Statik project is driven by a `config.json` file located at the project ro
     "includeFullContent": true
   }
 }
-```
+</code></pre>
 
-## Configuration Options
+<h2>Configuration Options</h2>
 
 {{#each (groupBy (sortBy datasource.entities.api "order") "category")}}
 <div class="config-category">
@@ -65,19 +64,29 @@ Every Statik project is driven by a `config.json` file located at the project ro
     </dl>
     <div class="api-description">
       {{{content}}}
-      {{#unless (eq metadata.link "null")}}
-      <p><a href="{{metadata.link}}" class="api-link-out">Learn more →</a></p>
-      {{/unless}}
+      {{!-- Only show links for staticDatasource configs and theme.templates --}}
+      {{#eq metadata.category "staticDatasource"}}
+        {{#if metadata.link}}
+        <p><a href="{{metadata.link}}" class="api-link-out">Learn more →</a></p>
+        {{/if}}
+      {{/eq}}
+      {{#eq title "theme.templates"}}
+        {{#if metadata.link}}
+        <p><a href="{{metadata.link}}" class="api-link-out">Learn more →</a></p>
+        {{/if}}
+      {{/eq}}
     </div>
   </div>
   {{/each}}
 </div>
 {{/each}}
 
-## Tips
+<h2>Tips</h2>
 
-- Keep `baseUrl` consistent with the published site to avoid broken canonical links.
-- Commit `config.json` to version control so environments stay in sync.
-- When experimenting, the JSON serializer ignores unknown keys, so adding future settings is safe.
+<ul>
+<li>Keep <code>baseUrl</code> consistent with the published site to avoid broken canonical links.</li>
+<li>Commit <code>config.json</code> to version control so environments stay in sync.</li>
+<li>When experimenting, the JSON serializer ignores unknown keys, so adding future settings is safe.</li>
+</ul>
 
-With a configured `config.json`, the rest of Statik (content folders, templates, and assets) falls naturally into place.
+<p>With a configured <code>config.json</code>, the rest of Statik (content folders, templates, and assets) falls naturally into place.</p>
