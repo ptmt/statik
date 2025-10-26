@@ -25,7 +25,7 @@ class HandlebarsTemplateEngineTest {
     fun `substring helper extracts substring with start and end indices`() {
         val template = "{{substring name 0 5}}"
         val data = mapOf("name" to "John Doe")
-        val expected = "John"
+        val expected = "John "
         val actual = engine.render(template, data)
         assertEquals(expected, actual)
     }
@@ -34,7 +34,7 @@ class HandlebarsTemplateEngineTest {
     fun `substring helper extracts substring from start to end of string`() {
         val template = "{{substring name 5}}"
         val data = mapOf("name" to "John Doe")
-        val expected = " Doe"
+        val expected = "Doe"
         val actual = engine.render(template, data)
         assertEquals(expected, actual)
     }
@@ -79,7 +79,7 @@ class HandlebarsTemplateEngineTest {
     fun `substring helper handles negative indices gracefully`() {
         val template = "{{substring name -2 5}}"
         val data = mapOf("name" to "John Doe")
-        val expected = "John"
+        val expected = "John "
         val actual = engine.render(template, data)
         assertEquals(expected, actual)
     }

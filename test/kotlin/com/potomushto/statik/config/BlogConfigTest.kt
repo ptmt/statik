@@ -36,7 +36,7 @@ class BlogConfigTest {
               "author": "Author",
               "theme": {
                 "templates": "tpl",
-                "assets": "assets",
+                "assets": ["assets"],
                 "output": "build"
               },
               "paths": {
