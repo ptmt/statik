@@ -11,7 +11,7 @@ import kotlin.io.path.readText
 class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     override val extension = "hbs"
 
-    private val handlebars: Handlebars = Handlebars()
+    private val handlebars: Handlebars = Handlebars().prettyPrint(true)
     private val layoutCache = mutableMapOf<String, String>()
 
     fun registerHelper(name: String, helper: Helper<*>) {
