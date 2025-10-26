@@ -13,11 +13,11 @@ To build and preview this site locally:
 
 2. **Generate the site**:
    ```bash
-   ./amper run --root-path=./statik.github.io
+   ./amper run -- --root-path=./documentation
    ```
 3. **Development with hot reload**:
    ```bash
-   ./amper run --root-path=./statik.github.io --watch
+   ./amper run -- --root-path=./documentation --watch
    ```
 
 ## Deployment

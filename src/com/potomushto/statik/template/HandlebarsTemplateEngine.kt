@@ -181,7 +181,6 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
 
         registerHelper("sortBy", object: Helper<Any> {
             override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any? {
-                println("SortBy called with context type: ${context?.javaClass?.name}, value: $context")
 
                 val contextList = when (context) {
                     is List<*> -> context
@@ -193,7 +192,6 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                 }
 
                 if (contextList.isEmpty()) {
-                    println("SortBy: empty list")
                     return emptyList<Any>()
                 }
 
@@ -215,7 +213,6 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                     }
                 }
 
-                println("SortBy result: ${sorted.size} items")
                 return sorted
             }
         })
