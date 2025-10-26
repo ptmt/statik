@@ -114,41 +114,93 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
             }
         })
 
-        registerHelper("groupBy", object: Helper<List<*>> {
-            override fun apply(context: List<*>?, options: com.github.jknack.handlebars.Options?): Any? {
-                if (context == null) return emptyList<Map<String, Any>>()
+        registerHelper("groupBy", object: Helper<Any> {
+            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any? {
+                println("GroupBy called with context type: ${context?.javaClass?.name}")
 
-                val key = options?.param<String>(0) ?: return context
-
-                // Group items by the specified metadata key
-                val grouped = context.groupBy { item ->
-                    when (item) {
-                        is Map<*, *> -> {
-                            val metadata = item["metadata"] as? Map<*, *>
-                            metadata?.get(key) as? String ?: ""
-                        }
-                        else -> ""
+                val contextList = when (context) {
+                    is List<*> -> context
+                    else -> {
+                        println("GroupBy: unexpected context type")
+                        return emptyList<Map<String, Any?>>()
                     }
                 }
 
-                // Return list of groups with name and items
-                return grouped.map { (groupName, items) ->
-                    mapOf(
-                        "name" to groupName,
-                        "items" to items
-                    )
+                if (contextList.isEmpty()) {
+                    println("GroupBy: empty list")
+                    return emptyList<Map<String, Any?>>()
                 }
+
+                val key = options?.param<String>(0) ?: return contextList
+
+                // Group items by the specified metadata key
+                val grouped = contextList.groupBy { item ->
+                    val metadata = when (item) {
+                        is Map<*, *> -> item["metadata"] as? Map<*, *>
+                        else -> {
+                            // Try to access metadata field via reflection for data classes
+                            try {
+                                val metadataField = item?.javaClass?.getMethod("getMetadata")
+                                metadataField?.invoke(item) as? Map<*, *>
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                    }
+                    metadata?.get(key) as? String ?: ""
+                }
+
+                println("GroupBy grouped into ${grouped.size} groups: ${grouped.keys}")
+
+                // Return list of groups with name and items
+                // Sort by a predefined category order
+                val categoryOrder = mapOf(
+                    "core" to 1,
+                    "theme" to 2,
+                    "paths" to 3,
+                    "devServer" to 4,
+                    "staticDatasource" to 5,
+                    "rss" to 6
+                )
+
+                val result = grouped.entries
+                    .sortedBy { categoryOrder[it.key] ?: 999 }
+                    .map { (groupName, items) ->
+                        val group = mutableMapOf<String, Any?>()
+                        group["name"] = groupName
+                        group["items"] = items
+                        println("Group created: name='$groupName', items=${items.size}")
+                        group as Map<String, Any?>
+                    }
+
+                println("GroupBy result: ${result.size} groups")
+
+                return result
             }
         })
 
-        registerHelper("sortBy", object: Helper<List<*>> {
-            override fun apply(context: List<*>?, options: com.github.jknack.handlebars.Options?): Any? {
-                if (context == null) return emptyList<Any>()
+        registerHelper("sortBy", object: Helper<Any> {
+            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any? {
+                println("SortBy called with context type: ${context?.javaClass?.name}, value: $context")
 
-                val key = options?.param<String>(0) ?: return context
+                val contextList = when (context) {
+                    is List<*> -> context
+                    is Map<*, *> -> context.values.toList()
+                    else -> {
+                        println("SortBy: unexpected context type, returning as-is")
+                        return context
+                    }
+                }
+
+                if (contextList.isEmpty()) {
+                    println("SortBy: empty list")
+                    return emptyList<Any>()
+                }
+
+                val key = options?.param<String>(0) ?: return contextList
 
                 // Sort items by the specified metadata key
-                return context.sortedBy { item ->
+                val sorted = contextList.sortedBy { item ->
                     when (item) {
                         is Map<*, *> -> {
                             val metadata = item["metadata"] as? Map<*, *>
@@ -162,6 +214,9 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                         else -> 0
                     }
                 }
+
+                println("SortBy result: ${sorted.size} items")
+                return sorted
             }
         })
     }

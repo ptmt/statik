@@ -55,21 +55,21 @@ Every Statik project is driven by a `config.json` file located at the project ro
   <div class="api-item" id="{{title}}">
     <h4>
       <code>{{title}}</code>
-      {{#if metadata.required}}<span class="badge required">required</span>{{/if}}
+      {{#eq metadata.required "true"}}<span class="badge required">required</span>{{/eq}}
     </h4>
     <dl class="api-meta">
       <dt>Type:</dt>
       <dd><code>{{metadata.type}}</code></dd>
-      {{#unless metadata.required}}
+      {{#eq metadata.required "false"}}
       <dt>Default:</dt>
-      <dd>{{#if metadata.default}}<code>{{metadata.default}}</code>{{else}}<em>none</em>{{/if}}</dd>
-      {{/unless}}
+      <dd>{{#unless (eq metadata.default "null")}}<code>{{metadata.default}}</code>{{else}}<em>none</em>{{/unless}}</dd>
+      {{/eq}}
     </dl>
     <div class="api-description">
       {{{content}}}
-      {{#if metadata.link}}
+      {{#unless (eq metadata.link "null")}}
       <p><a href="{{metadata.link}}" class="api-link-out">Learn more →</a></p>
-      {{/if}}
+      {{/unless}}
     </div>
   </div>
   {{/each}}

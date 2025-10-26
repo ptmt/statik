@@ -12,7 +12,7 @@
                         {{#eq title "config.json reference"}}
                             {{#eq path ../../page.path}}
                                 <ul class="api-submenu">
-                                    {{#each ../../datasource.entities.api}}
+                                    {{#each (sortBy ../../datasource.entities.api "order")}}
                                         <li class="api-submenu-item">
                                             <a href="#{{title}}" class="api-link" data-api="{{title}}">
                                                 {{title}}
