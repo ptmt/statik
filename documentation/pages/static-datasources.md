@@ -3,12 +3,19 @@ title: Static Datasources
 nav_order: 5
 ---
 
-Static datasources let you ship machine-friendly JSON alongside the generated HTML so your front-end code can power dynamic widgets without needing a live API. Statik currently supports two datasource types:
+Static datasources let you ship machine-friendly JSON alongside the generated HTML so your front-end code can power dynamic widgets without needing a live API. Think of it as **generating your own API at build time**—all the benefits of structured data endpoints without running a server.
 
-- `images.json`: Every `<img>` encountered in Markdown or HTML content.
-- `<type>.json`: Any element that carries the configured collectable attribute (defaults to `data-collect`).
+The JSON files are written to a dedicated folder (by default `/datasource` in your build output) and can be fetched by JavaScript, used during template rendering, or even version-controlled as part of your static site. This pattern is particularly powerful for building searchable documentation, filterable galleries, or any feature that benefits from structured data access.
 
-Each datasource entry includes metadata about the originating page or post, making it easy to build galleries, quote rotators, or other interactive components in plain JavaScript.
+> **Real-world example**: This very documentation site uses static datasources. The `/api` folder contains markdown files describing configuration options, which are automatically collected into `api-reference.json` and rendered as an interactive API reference—no backend required.
+
+Statik currently supports three datasource types:
+
+- **`images.json`**: Every `<img>` encountered in Markdown or HTML content.
+- **`<type>.json`**: Any element that carries the configured collectable attribute (defaults to `data-collect`).
+- **Custom datasets**: Entity folders or metadata-tagged posts/pages defined in `datasource-config.json`.
+
+Each datasource entry includes metadata about the originating page or post, making it easy to build galleries, quote rotators, searchable indexes, or other interactive components in plain JavaScript.
 
 ## Enabling or Disabling Datasources
 
@@ -109,6 +116,39 @@ To expose bespoke datasets, describe them in `datasource-config.json` (relative 
 
 You can define multiple datasets in the same configuration file.
 
+### Real Example: The `/api` Folder Pattern
+
+This documentation site demonstrates a practical use case. The project includes:
+
+**`datasource-config.json`:**
+```json
+{
+  "datasets": [
+    {
+      "name": "api",
+      "output": "api-reference.json",
+      "folder": "api",
+      "includeSources": []
+    }
+  ]
+}
+```
+
+**`api/siteName.md`:**
+```markdown
+---
+title: siteName
+type: string
+required: true
+category: core
+order: 1
+---
+
+Display name used across templates and metadata.
+```
+
+This generates `/datasource/api-reference.json` containing all configuration options with their metadata, which powers the searchable API reference on this site. The pattern works beautifully for documentation, component libraries, or any structured content that benefits from programmatic access.
+
 ## Standalone Entity Folders
 
 Place Markdown or HTML files in the configured `folder` to create self-contained entities with free-form metadata:
@@ -195,7 +235,7 @@ Each dataset is also exposed via `datasource.datasets`, which includes filenames
 
 ## Consuming Datasources in JavaScript
 
-Because the datasources are static JSON files, you can fetch them with standard browser APIs:
+Because the datasources are static JSON files in the `/datasource` folder (or your configured `outputDir`), you can fetch them with standard browser APIs:
 
 ```javascript
 async function loadQuotes() {
@@ -215,12 +255,17 @@ loadQuotes().then(quotes => {
 });
 ```
 
+For more complex examples, check how this documentation site uses `/datasource/api-reference.json` to build its interactive configuration reference. The JSON is fetched client-side and filtered/searched without any backend infrastructure.
+
 This approach works whether your site is served statically or behind a CDN—there is no server-side processing required.
 
 ## Tips and Best Practices
 
+- **Think of datasources as build-time APIs**: The `/datasource` folder effectively becomes your API endpoint directory—plan your JSON structure accordingly.
+- **Use entity folders for structured content**: The `/api` folder pattern (demonstrated in this docs site) is ideal for configuration references, component libraries, glossaries, or any content that benefits from consistent structure.
 - Keep `collectAttribute` values simple (letters, numbers, dashes) for friendly filenames.
 - Use additional `data-*` attributes to attach metadata such as author, category, or rating.
 - Datasources are regenerated on each build, so their contents always reflect the latest site content.
+- **Combine with client-side filtering**: Since datasources are just JSON arrays, they work beautifully with search libraries, filters, and interactive widgets—no database required.
 
-Static datasources give you the convenience of an API without leaving the static site workflow.
+Static datasources give you the convenience of an API without leaving the static site workflow. Whether you're building documentation (like the `/api` reference here), a photo gallery, a team directory, or product catalog, this pattern lets you maintain content as markdown while exposing it as structured JSON for dynamic features.
