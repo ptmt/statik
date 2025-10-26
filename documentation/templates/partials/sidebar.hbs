@@ -9,14 +9,21 @@
                         <a href="{{../baseUrl}}{{path}}" class="sidebar-link{{#eq path ../../page.path}} active{{/eq}}">{{title}}</a>
 
                         {{!-- Show API submenu when on config.json reference page --}}
-                        {{#eq title "config.json reference"}}
-                            {{#eq path ../../page.path}}
+                        {{#eq path ../page.path}}
+                            {{#eq title "config.json reference"}}
                                 <ul class="api-submenu">
-                                    {{#each (sortBy ../../datasource.entities.api "order")}}
-                                        <li class="api-submenu-item">
-                                            <a href="#{{title}}" class="api-link" data-api="{{title}}">
-                                                {{title}}
-                                            </a>
+                                    {{#each (groupBy (sortBy @root.datasource.entities.api "order") "category")}}
+                                        <li class="api-category-item">
+                                            <span class="api-category-label">{{name}}</span>
+                                            <ul class="api-category-list">
+                                                {{#each items}}
+                                                    <li class="api-submenu-item">
+                                                        <a href="#{{title}}" class="api-link" data-api="{{title}}">
+                                                            {{title}}
+                                                        </a>
+                                                    </li>
+                                                {{/each}}
+                                            </ul>
                                         </li>
                                     {{/each}}
                                 </ul>
