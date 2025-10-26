@@ -114,14 +114,16 @@ class SiteGenerator(private val rootPath: String,
     }
 
     private fun copyStaticAssets() {
-        val assetsRoot = Paths.get(rootPath, config.theme.assets)
-        fileWalker.walkStaticFiles(config.theme.assets)
-            .forEach { source ->
-                val relativePath = assetsRoot.relativize(source)
-                val destination = Paths.get(rootPath, config.theme.output).resolve(relativePath)
-                Files.createDirectories(destination.parent)
-                Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING)
-            }
+        config.theme.assets.forEach { assetPath ->
+            val assetsRoot = Paths.get(rootPath, assetPath)
+            fileWalker.walkStaticFiles(assetPath)
+                .forEach { source ->
+                    val relativePath = assetsRoot.relativize(source)
+                    val destination = Paths.get(rootPath, config.theme.output).resolve(relativePath)
+                    Files.createDirectories(destination.parent)
+                    Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING)
+                }
+        }
     }
 
 

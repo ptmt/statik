@@ -55,7 +55,7 @@ data class BlogConfig(
 @Serializable
 data class ThemeConfig(
     val templates: String = "templates",
-    val assets: String = "assets",
+    val assets: List<String> = listOf("assets"),
     val output: String = "build"
 )
 
