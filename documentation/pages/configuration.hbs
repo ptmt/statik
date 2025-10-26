@@ -1,0 +1,85 @@
+---
+title: config.json reference
+nav_order: 2
+---
+
+# Configuration Reference
+
+Every Statik project is driven by a `config.json` file located at the project root. This document describes each configuration option available.
+
+## Example `config.json`
+
+```json
+{
+  "siteName": "My Website",
+  "description": "A website built with Statik",
+  "baseUrl": "https://mysite.com",
+  "author": "Your Name",
+  "theme": {
+    "templates": "templates",
+    "assets": "static",
+    "output": "build"
+  },
+  "paths": {
+    "posts": "posts",
+    "pages": "content"
+  },
+  "devServer": {
+    "port": 3000
+  },
+  "staticDatasource": {
+    "enabled": true,
+    "outputDir": "datasource",
+    "collectAttribute": "data-collect",
+    "imagesFileName": "images.json",
+    "configFile": "datasource-config.json"
+  },
+  "rss": {
+    "enabled": true,
+    "fileName": "feed.xml",
+    "title": "My Website RSS Feed",
+    "description": "Latest posts from my website",
+    "language": "en-us",
+    "maxItems": 20,
+    "includeFullContent": true
+  }
+}
+```
+
+## Configuration Options
+
+{{#each (groupBy (sortBy datasource.entities.api "order") "category")}}
+<div class="config-category">
+  <h3 class="category-title">{{name}}</h3>
+  {{#each items}}
+  <div class="api-item" id="{{title}}">
+    <h4>
+      <code>{{title}}</code>
+      {{#if metadata.required}}<span class="badge required">required</span>{{/if}}
+    </h4>
+    <dl class="api-meta">
+      <dt>Type:</dt>
+      <dd><code>{{metadata.type}}</code></dd>
+      {{#unless metadata.required}}
+      <dt>Default:</dt>
+      <dd>{{#if metadata.default}}<code>{{metadata.default}}</code>{{else}}<em>none</em>{{/if}}</dd>
+      {{/unless}}
+    </dl>
+    <div class="api-description">
+      {{{content}}}
+      {{#if metadata.link}}
+      <p><a href="{{metadata.link}}" class="api-link-out">Learn more →</a></p>
+      {{/if}}
+    </div>
+  </div>
+  {{/each}}
+</div>
+{{/each}}
+
+## Tips
+
+- Keep `baseUrl` consistent with the published site to avoid broken canonical links.
+- Commit `config.json` to version control so environments stay in sync.
+- When experimenting, the JSON serializer ignores unknown keys, so adding future settings is safe.
+
+With a configured `config.json`, the rest of Statik (content folders, templates, and assets) falls naturally into place.

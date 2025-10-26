@@ -113,6 +113,57 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                 }
             }
         })
+
+        registerHelper("groupBy", object: Helper<List<*>> {
+            override fun apply(context: List<*>?, options: com.github.jknack.handlebars.Options?): Any? {
+                if (context == null) return emptyList<Map<String, Any>>()
+
+                val key = options?.param<String>(0) ?: return context
+
+                // Group items by the specified metadata key
+                val grouped = context.groupBy { item ->
+                    when (item) {
+                        is Map<*, *> -> {
+                            val metadata = item["metadata"] as? Map<*, *>
+                            metadata?.get(key) as? String ?: ""
+                        }
+                        else -> ""
+                    }
+                }
+
+                // Return list of groups with name and items
+                return grouped.map { (groupName, items) ->
+                    mapOf(
+                        "name" to groupName,
+                        "items" to items
+                    )
+                }
+            }
+        })
+
+        registerHelper("sortBy", object: Helper<List<*>> {
+            override fun apply(context: List<*>?, options: com.github.jknack.handlebars.Options?): Any? {
+                if (context == null) return emptyList<Any>()
+
+                val key = options?.param<String>(0) ?: return context
+
+                // Sort items by the specified metadata key
+                return context.sortedBy { item ->
+                    when (item) {
+                        is Map<*, *> -> {
+                            val metadata = item["metadata"] as? Map<*, *>
+                            val value = metadata?.get(key)
+                            when (value) {
+                                is Number -> value.toInt()
+                                is String -> value.toIntOrNull() ?: 0
+                                else -> 0
+                            }
+                        }
+                        else -> 0
+                    }
+                }
+            }
+        })
     }
 
     override fun compile(template: String): (Map<String, Any?>) -> String {

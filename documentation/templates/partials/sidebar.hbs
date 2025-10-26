@@ -7,6 +7,21 @@
                     {{#if path}}
                     <li class="sidebar-item">
                         <a href="{{../baseUrl}}{{path}}" class="sidebar-link{{#eq path ../../page.path}} active{{/eq}}">{{title}}</a>
+
+                        {{!-- Show API submenu when on config.json reference page --}}
+                        {{#eq title "config.json reference"}}
+                            {{#eq path ../../page.path}}
+                                <ul class="api-submenu">
+                                    {{#each ../../datasource.entities.api}}
+                                        <li class="api-submenu-item">
+                                            <a href="#{{title}}" class="api-link" data-api="{{title}}">
+                                                {{title}}
+                                            </a>
+                                        </li>
+                                    {{/each}}
+                                </ul>
+                            {{/eq}}
+                        {{/eq}}
                     </li>
                     {{/if}}
                 {{/each}}

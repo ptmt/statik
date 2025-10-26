@@ -1,0 +1,10 @@
+{
+  "datasets": [
+    {
+      "name": "api",
+      "output": "api-reference.json",
+      "folder": "api",
+      "includeSources": []
+    }
+  ]
+}
