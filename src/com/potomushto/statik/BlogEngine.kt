@@ -143,13 +143,28 @@ class BlogEngine {
                     if (path != null) {
                         val events = key.pollEvents()
                         if (events.isNotEmpty()) {
+                            // Collect changed files
+                            val changedFiles = events
+                                .mapNotNull { event ->
+                                    val context = event.context()
+                                    if (context is Path) {
+                                        path.resolve(context)
+                                    } else null
+                                }
+                                .filter { Files.isRegularFile(it) || !Files.exists(it) } // Include deleted files
+
+                            if (changedFiles.isEmpty()) {
+                                key.reset()
+                                continue
+                            }
+
                             // Cancel previous task if it hasn't started yet
                             regenerationFuture?.cancel(true)
 
                             val runnable = Runnable {
                                 Thread.sleep(200) // Debounce time
-                                logger.info("File changes detected: $path. Regenerating site...")
-                                generator.generate()
+                                logger.info("File changes detected: ${changedFiles.size} file(s). Regenerating site...")
+                                generator.regenerate(changedFiles)
                                 logger.info("Site regenerated. Watching for more changes...")
                             }
                             regenerationFuture = executorService.submit(runnable)
