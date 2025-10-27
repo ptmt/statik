@@ -5,7 +5,7 @@ required: false
 default: images.json
 category: staticDatasource
 order: 4
-link: /pages/static-datasources
+link: /static-datasources
 ---
 
-Filename for the auto-generated images datasource. See [Static Datasources](/pages/static-datasources) for image collection details.
+Filename for the auto-generated images datasource. See [Static Datasources](/static-datasources) for image collection details.

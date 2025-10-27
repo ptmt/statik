@@ -5,7 +5,7 @@ required: false
 default: datasource
 category: staticDatasource
 order: 2
-link: /pages/static-datasources
+link: /static-datasources
 ---
 
-Folder inside the build directory where datasource JSON files are written. See [Static Datasources](/pages/static-datasources).
+Folder inside the build directory where datasource JSON files are written. See [Static Datasources](/static-datasources).

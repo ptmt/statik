@@ -5,7 +5,7 @@ required: false
 default: data-collect
 category: staticDatasource
 order: 3
-link: /pages/static-datasources
+link: /static-datasources
 ---
 
-HTML attribute marking custom collectable elements in content. See [Static Datasources](/pages/static-datasources) for collection patterns.
+HTML attribute marking custom collectable elements in content. See [Static Datasources](/static-datasources) for collection patterns.

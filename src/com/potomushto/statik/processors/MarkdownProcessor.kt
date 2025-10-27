@@ -1,6 +1,7 @@
 package com.potomushto.statik.processors
 
 import com.vladsch.flexmark.ast.AutoLink
+import com.vladsch.flexmark.ast.Link
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension
@@ -8,9 +9,15 @@ import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.tables.TablesExtension
 import com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor
 import com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension
-
+import com.vladsch.flexmark.html.AttributeProvider
+import com.vladsch.flexmark.html.AttributeProviderFactory
 import com.vladsch.flexmark.html.HtmlRenderer
+import com.vladsch.flexmark.html.IndependentAttributeProviderFactory
+import com.vladsch.flexmark.html.renderer.AttributablePart
+import com.vladsch.flexmark.html.renderer.LinkResolverContext
 import com.vladsch.flexmark.parser.Parser
+import com.vladsch.flexmark.util.ast.Node
+import com.vladsch.flexmark.util.html.MutableAttributes
 
 class MarkdownProcessor {
     private val parser = Parser.builder()
@@ -33,6 +40,7 @@ class MarkdownProcessor {
             StrikethroughExtension.create(),
             // CustomHtmlExtension.create()
         ))
+        .attributeProviderFactory(LinkRewriterAttributeProvider.Factory())
         .build()
 
 
@@ -78,3 +86,26 @@ class ParsedPost(
     val content: String,
     val metadata: Map<String, String>
 )
+
+/**
+ * AttributeProvider that rewrites internal links to remove /pages/ prefix
+ * Converts /pages/foo to /foo for proper internal navigation
+ */
+class LinkRewriterAttributeProvider : AttributeProvider {
+    override fun setAttributes(node: Node, part: AttributablePart, attributes: MutableAttributes) {
+        if (node is Link && part == AttributablePart.LINK) {
+            val href = attributes.getValue("href")
+            if (href != null && href.startsWith("/pages/")) {
+                // Rewrite /pages/foo to /foo
+                val newHref = href.removePrefix("/pages")
+                attributes.replaceValue("href", newHref)
+            }
+        }
+    }
+
+    class Factory : IndependentAttributeProviderFactory() {
+        override fun apply(context: LinkResolverContext): AttributeProvider {
+            return LinkRewriterAttributeProvider()
+        }
+    }
+}
