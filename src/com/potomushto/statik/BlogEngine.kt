@@ -88,7 +88,13 @@ class BlogEngine {
 
             // Add templates directory to watch
             val templatesDir = rootDir.resolve(config.theme.templates)
-            if (templatesDir.exists()) pathsToWatch.add(templatesDir)
+            if (templatesDir.exists()) {
+                pathsToWatch.add(templatesDir)
+                // Recursively add all subdirectories
+                Files.walk(templatesDir)
+                    .filter { Files.isDirectory(it) && it != templatesDir }
+                    .forEach { pathsToWatch.add(it) }
+            }
 
             // Add assets directories to watch
             config.theme.assets.forEach { assetPath ->
