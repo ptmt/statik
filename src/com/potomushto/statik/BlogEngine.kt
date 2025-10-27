@@ -2,6 +2,7 @@ package com.potomushto.statik
 
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.SiteGenerator
+import com.potomushto.statik.logging.LoggerFactory
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -16,6 +17,8 @@ import kotlin.io.path.exists
 
 class BlogEngine {
     companion object {
+        private val logger = LoggerFactory.getLogger(BlogEngine::class.java)
+
         fun run(path: String, watch: Boolean = false, portOverride: Int? = null) {
             val config = BlogConfig.load(path)
             val resolvedPort = portOverride ?: config.devServer.port
@@ -25,9 +28,9 @@ class BlogEngine {
             val generator = SiteGenerator(path, config, devBaseUrl)
 
             // Generate site initially
-            println("Generating site...")
+            logger.info("Generating site...")
             if (devBaseUrl != null) {
-                println("Development mode: using baseUrl=$devBaseUrl (overriding ${config.baseUrl})")
+                logger.info("Development mode: using baseUrl=$devBaseUrl (overriding ${config.baseUrl})")
             }
             generator.generate()
 
@@ -51,15 +54,17 @@ class BlogEngine {
                         call.respondText(text = "404: Page Not Found", status = HttpStatusCode.NotFound)
                     }
                 }
-                
+
                 routing {
-                    staticFiles("/",
-                        Paths.get(rootPath, config.theme.output).toFile()) {
+                    staticFiles(
+                        "/",
+                        Paths.get(rootPath, config.theme.output).toFile()
+                    ) {
 
                     }
                 }
             }
-            
+
             // Start server in a separate thread
             Thread {
                 server.start(wait = true)
@@ -67,10 +72,10 @@ class BlogEngine {
                 isDaemon = true
                 start()
             }
-            
-            println("HTTP server started at http://localhost:$port")
+
+            logger.info("HTTP server started at http://localhost:$port")
         }
-        
+
         private fun watchForChanges(rootPath: String, config: BlogConfig, generator: SiteGenerator) {
             val watchService = FileSystems.getDefault().newWatchService()
             val pathsToWatch = mutableSetOf<Path>()
@@ -103,17 +108,17 @@ class BlogEngine {
             }
 
             // Print what's being watched
-            println("\nWatching for file changes in:")
-            println("  • Posts: ${config.paths.posts}/")
-            println("  • Pages: ${config.paths.pages}/")
-            println("  • Templates: ${config.theme.templates}/")
+            logger.info("Watching for file changes in:")
+            logger.info("  • Posts: ${config.paths.posts}/")
+            logger.info("  • Pages: ${config.paths.pages}/")
+            logger.info("  • Templates: ${config.theme.templates}/")
             if (config.theme.assets.size == 1) {
-                println("  • Assets: ${config.theme.assets[0]}/")
+                logger.info("  • Assets: ${config.theme.assets[0]}/")
             } else {
-                println("  • Assets: ${config.theme.assets.joinToString(", ") { "$it/" }}")
+                logger.info("  • Assets: ${config.theme.assets.joinToString(", ") { "$it/" }}")
             }
-            println("  • Config: config.json")
-            println("\nPress Ctrl+C to stop...")
+            logger.info("  • Config: config.json")
+            logger.info("Press Ctrl+C to stop...")
 
             // Register all directories for watching
             val watchKeys = pathsToWatch.associateWith { path ->
@@ -124,33 +129,33 @@ class BlogEngine {
                     StandardWatchEventKinds.ENTRY_DELETE
                 )
             }
-            
+
             // Use executor service for debouncing
             val executorService = Executors.newSingleThreadExecutor()
             var regenerationFuture: java.util.concurrent.Future<*>? = null
-            
+
             // Start watching loop
             try {
                 while (true) {
                     val key = watchService.take()
                     val path = watchKeys.entries.find { it.value == key }?.key
-                    
+
                     if (path != null) {
                         val events = key.pollEvents()
                         if (events.isNotEmpty()) {
                             // Cancel previous task if it hasn't started yet
                             regenerationFuture?.cancel(true)
-                            
+
                             val runnable = Runnable {
                                 Thread.sleep(200) // Debounce time
-                                println("\nFile changes detected. Regenerating site...")
+                                logger.info("File changes detected: $path. Regenerating site...")
                                 generator.generate()
-                                println("Site regenerated. Watching for more changes...")
+                                logger.info("Site regenerated. Watching for more changes...")
                             }
                             regenerationFuture = executorService.submit(runnable)
                         }
                     }
-                    
+
                     // Reset the key to receive further events
                     val valid = key.reset()
                     if (!valid) {
@@ -158,7 +163,7 @@ class BlogEngine {
                     }
                 }
             } catch (e: Exception) {
-                println("Watching stopped: ${e.message}")
+                logger.error("Watching stopped", e)
             } finally {
                 watchService.close()
                 executorService.shutdown()

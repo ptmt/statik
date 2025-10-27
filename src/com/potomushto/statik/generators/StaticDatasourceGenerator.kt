@@ -1,6 +1,7 @@
 package com.potomushto.statik.generators
 
 import com.potomushto.statik.config.StaticDatasourceConfig
+import com.potomushto.statik.logging.LoggerFactory
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
 import com.potomushto.statik.processors.ContentProcessor
@@ -21,6 +22,7 @@ class StaticDatasourceGenerator(
     private val config: StaticDatasourceConfig,
     private val contentProcessor: ContentProcessor
 ) {
+    private val logger = LoggerFactory.getLogger(StaticDatasourceGenerator::class.java)
 
     private val json = Json { prettyPrint = true }
     private val configJson = Json { ignoreUnknownKeys = true }
@@ -188,7 +190,7 @@ class StaticDatasourceGenerator(
                     val parsed = try {
                         contentProcessor.process(file)
                     } catch (e: IllegalArgumentException) {
-                        println("Skipping unsupported entity file: ${file.toAbsolutePath()} (${e.message})")
+                        logger.warn { "Skipping unsupported entity file: ${file.toAbsolutePath()} (${e.message})" }
                         return@forEach
                     }
 
@@ -310,10 +312,10 @@ class StaticDatasourceGenerator(
             val parsed = configJson.decodeFromString(DatasourceConfig.serializer(), content)
             parsed.datasets
         } catch (ex: IOException) {
-            println("Unable to read ${configPath.toAbsolutePath()}: ${ex.message}")
+            logger.error("Unable to read ${configPath.toAbsolutePath()}", ex)
             emptyList()
         } catch (ex: Exception) {
-            println("Unable to parse ${configPath.toAbsolutePath()}: ${ex.message}")
+            logger.error("Unable to parse ${configPath.toAbsolutePath()}", ex)
             emptyList()
         }
     }

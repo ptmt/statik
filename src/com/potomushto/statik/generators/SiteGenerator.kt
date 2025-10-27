@@ -1,10 +1,9 @@
 package com.potomushto.statik.generators
 
+import com.potomushto.statik.config.BlogConfig
+import com.potomushto.statik.logging.LoggerFactory
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
-import kotlin.io.path.readText
-import kotlin.io.path.extension
-import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.processors.MarkdownProcessor
 import com.potomushto.statik.processors.ContentProcessor
 import com.potomushto.statik.template.HandlebarsTemplateEngine
@@ -15,11 +14,14 @@ import java.nio.file.StandardCopyOption
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.io.path.createDirectories
+import kotlin.io.path.extension
 import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.readText
 
 class SiteGenerator(private val rootPath: String,
                     private val config: BlogConfig,
                     private val baseUrlOverride: String? = null) {
+    private val logger = LoggerFactory.getLogger(SiteGenerator::class.java)
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
     private val contentProcessor = ContentProcessor(markdownProcessor)
@@ -49,7 +51,7 @@ class SiteGenerator(private val rootPath: String,
         return if (Files.exists(templateFile)) {
             templateFile.readText()
         } else {
-            println("Template $templateName.${templateEngine.extension} not found, using built-in fallback")
+            logger.warn { "Template $templateName.${templateEngine.extension} not found, using built-in fallback" }
             fallbackTemplate
         }
     }

@@ -1,5 +1,6 @@
 package com.potomushto.statik.processors
 
+import com.potomushto.statik.logging.LoggerFactory
 import com.vladsch.flexmark.ast.AutoLink
 import com.vladsch.flexmark.ast.Link
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
@@ -18,6 +19,8 @@ import com.vladsch.flexmark.html.renderer.LinkResolverContext
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
 import com.vladsch.flexmark.util.html.MutableAttributes
+
+private val logger = LoggerFactory.getLogger(MarkdownProcessor::class.java)
 
 class MarkdownProcessor {
     private val parser = Parser.builder()
@@ -49,12 +52,7 @@ class MarkdownProcessor {
     fun process(content: String): ParsedPost {
         val document = parser.parse(content)
         yamlVisitor.visit(document)
-        
-        // Debug output
-        yamlVisitor.data.forEach { (key, value) ->
-            println("YAML: $key: $value")
-        }
-        
+
         // Convert the YAML visitor data to a Map<String, String>
         // The visitor returns List<String> for each key, we take the first value
         val metadata = yamlVisitor.data.mapValues { (_, values) ->

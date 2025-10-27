@@ -2,11 +2,14 @@ package com.potomushto.statik.template
 
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
+import com.potomushto.statik.logging.LoggerFactory
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
 import kotlin.io.path.readText
+
+private val logger = LoggerFactory.getLogger(HandlebarsTemplateEngine::class.java)
 
 class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     override val extension = "hbs"
@@ -116,18 +119,18 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
 
         registerHelper("groupBy", object: Helper<Any> {
             override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any? {
-                println("GroupBy called with context type: ${context?.javaClass?.name}")
+                logger.debug { "GroupBy called with context type: ${context?.javaClass?.name}" }
 
                 val contextList = when (context) {
                     is List<*> -> context
                     else -> {
-                        println("GroupBy: unexpected context type")
+                        logger.warn("GroupBy: unexpected context type")
                         return emptyList<Map<String, Any?>>()
                     }
                 }
 
                 if (contextList.isEmpty()) {
-                    println("GroupBy: empty list")
+                    logger.debug { "GroupBy: empty list" }
                     return emptyList<Map<String, Any?>>()
                 }
 
@@ -150,7 +153,7 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                     metadata?.get(key) as? String ?: ""
                 }
 
-                println("GroupBy grouped into ${grouped.size} groups: ${grouped.keys}")
+                logger.debug { "GroupBy grouped into ${grouped.size} groups: ${grouped.keys}" }
 
                 // Return list of groups with name and items
                 // Sort by a predefined category order
@@ -169,11 +172,11 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                         val group = mutableMapOf<String, Any?>()
                         group["name"] = groupName
                         group["items"] = items
-                        println("Group created: name='$groupName', items=${items.size}")
+                        logger.debug { "Group created: name='$groupName', items=${items.size}" }
                         group as Map<String, Any?>
                     }
 
-                println("GroupBy result: ${result.size} groups")
+                logger.debug { "GroupBy result: ${result.size} groups" }
 
                 return result
             }
@@ -186,7 +189,7 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
                     is List<*> -> context
                     is Map<*, *> -> context.values.toList()
                     else -> {
-                        println("SortBy: unexpected context type, returning as-is")
+                        logger.warn("SortBy: unexpected context type, returning as-is")
                         return context
                     }
                 }
@@ -267,7 +270,7 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
 
         // If layout not found and it's not already "default", try falling back to default
         if (layoutTemplate == null && layoutName != "default") {
-            println("Layout '$layoutName' not found, falling back to 'default' layout")
+            logger.warn("Layout '$layoutName' not found, falling back to 'default' layout")
             layoutTemplate = loadLayout("default")
         }
 
