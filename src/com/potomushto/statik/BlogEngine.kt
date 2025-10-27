@@ -72,15 +72,13 @@ class BlogEngine {
         }
         
         private fun watchForChanges(rootPath: String, config: BlogConfig, generator: SiteGenerator) {
-            println("Watching for file changes. Press Ctrl+C to stop...")
-            
             val watchService = FileSystems.getDefault().newWatchService()
             val pathsToWatch = mutableSetOf<Path>()
-            
+
             // Add root directory to watch
             val rootDir = Paths.get(rootPath)
             pathsToWatch.add(rootDir)
-            
+
             // Add posts directory to watch
             val postsDir = rootDir.resolve(config.paths.posts)
             if (postsDir.exists()) pathsToWatch.add(postsDir)
@@ -91,13 +89,26 @@ class BlogEngine {
             // Add templates directory to watch
             val templatesDir = rootDir.resolve(config.theme.templates)
             if (templatesDir.exists()) pathsToWatch.add(templatesDir)
-            
+
             // Add assets directories to watch
             config.theme.assets.forEach { assetPath ->
                 val assetsDir = rootDir.resolve(assetPath)
                 if (assetsDir.exists()) pathsToWatch.add(assetsDir)
             }
-            
+
+            // Print what's being watched
+            println("\nWatching for file changes in:")
+            println("  • Posts: ${config.paths.posts}/")
+            println("  • Pages: ${config.paths.pages}/")
+            println("  • Templates: ${config.theme.templates}/")
+            if (config.theme.assets.size == 1) {
+                println("  • Assets: ${config.theme.assets[0]}/")
+            } else {
+                println("  • Assets: ${config.theme.assets.joinToString(", ") { "$it/" }}")
+            }
+            println("  • Config: config.json")
+            println("\nPress Ctrl+C to stop...")
+
             // Register all directories for watching
             val watchKeys = pathsToWatch.associateWith { path ->
                 path.register(
