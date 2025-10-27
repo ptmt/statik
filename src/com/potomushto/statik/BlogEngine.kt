@@ -104,7 +104,13 @@ class BlogEngine {
             // Add assets directories to watch
             config.theme.assets.forEach { assetPath ->
                 val assetsDir = rootDir.resolve(assetPath)
-                if (assetsDir.exists()) pathsToWatch.add(assetsDir)
+                if (assetsDir.exists()) {
+                    pathsToWatch.add(assetsDir)
+                    // Recursively add all subdirectories
+                    Files.walk(assetsDir)
+                        .filter { Files.isDirectory(it) && it != assetsDir }
+                        .forEach { pathsToWatch.add(it) }
+                }
             }
 
             // Print what's being watched
