@@ -124,6 +124,41 @@ class TemplateRenderer(
     }
 
     /**
+     * Render the posts listing page to HTML
+     */
+    fun renderPostsPage(posts: List<BlogPost>, pages: List<SitePage>, datasourceContext: Map<String, Any?>, filterTags: String? = null): String {
+        val templateContent = getTemplateContent("posts", FallbackTemplates.POSTS_TEMPLATE)
+
+        val filteredPosts = if (filterTags != null) {
+            val requestedTags = filterTags.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+
+            posts.filter { post ->
+                val postTags = post.tags
+                requestedTags.any { tag -> postTags.contains(tag) }
+            }
+        } else {
+            posts
+        }
+
+        return templateEngine.renderWithLayout(
+            templateContent,
+            mapOf(
+                "posts" to filteredPosts,
+                "total" to filteredPosts.size,
+                "filterTags" to filterTags,
+                "siteName" to config.siteName,
+                "title" to "All Posts",
+                "description" to "Browse all blog posts",
+                "baseUrl" to effectiveBaseUrl,
+                "pages" to pages,
+                "layout" to "default"
+            ).withDatasource(datasourceContext)
+        )
+    }
+
+    /**
      * Gets template content, falling back to built-in template if file doesn't exist
      */
     private fun getTemplateContent(templateName: String, fallbackTemplate: String): String {

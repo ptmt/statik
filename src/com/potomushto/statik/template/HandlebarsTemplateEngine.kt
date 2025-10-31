@@ -233,6 +233,7 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
 
     /**
      * Load a layout template from the layouts directory
+     * Falls back to FallbackTemplates.DEFAULT_LAYOUT if not found
      */
     private fun loadLayout(layoutName: String): String? {
         if (layoutCache.containsKey(layoutName)) {
@@ -240,13 +241,21 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
         }
 
         val layoutPath = templatesPath.resolve("layouts").resolve("$layoutName.$extension")
-        return if (Files.exists(layoutPath)) {
-            val content = layoutPath.readText()
-            layoutCache[layoutName] = content
-            content
+        val content = if (Files.exists(layoutPath)) {
+            layoutPath.readText()
+        } else if (layoutName == "default") {
+            // Use fallback default layout when user doesn't have one
+            logger.debug { "Using fallback default layout from resources" }
+            FallbackTemplates.DEFAULT_LAYOUT
         } else {
             null
         }
+
+        if (content != null) {
+            layoutCache[layoutName] = content
+        }
+
+        return content
     }
 
     /**

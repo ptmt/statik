@@ -1,0 +1,16 @@
+<h1>Posts from {{year}}</h1>
+<p class="archive-description">{{postCount}} {{#if (eq postCount 1)}}post{{else}}posts{{/if}} published in {{year}}</p>
+
+{{#if posts}}
+<ul class="post-list">
+    {{#each posts}}
+    <li class="post-item">
+        <h3 class="post-title"><a href="{{../baseUrl}}{{path}}/">{{title}}</a></h3>
+        <div class="post-date">{{date}}</div>
+        <div class="post-excerpt">{{{content}}}</div>
+    </li>
+    {{/each}}
+</ul>
+{{else}}
+<p>No posts found for {{year}}.</p>
+{{/if}}

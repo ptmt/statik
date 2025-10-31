@@ -1,0 +1,23 @@
+<h1>All Posts</h1>
+{{#if filterTags}}<p class="filter-info">Filtered by tags: {{filterTags}}</p>{{/if}}
+<p class="post-count">{{total}} posts</p>
+
+{{#if posts}}
+<ul class="post-list">
+    {{#each posts}}
+    <li class="post-item">
+        <h3 class="post-title"><a href="{{../baseUrl}}{{path}}/">{{title}}</a></h3>
+        <div class="post-date">{{date}}</div>
+        {{#if tags}}
+        <div class="post-tags">
+            {{#each tags}}
+            <span class="tag">{{this}}</span>
+            {{/each}}
+        </div>
+        {{/if}}
+    </li>
+    {{/each}}
+</ul>
+{{else}}
+<p>No posts found.</p>
+{{/if}}

@@ -2,188 +2,43 @@ package com.potomushto.statik.template
 
 /**
  * Provides minimal fallback templates when user templates are missing.
- * These templates render content as basic HTML without styling.
- * Note: Fallback templates include full HTML as they don't use layouts.
+ * Templates are content-only and use the default layout.
+ *
+ * Templates are loaded from resources/fallback-templates/ directory.
  */
 object FallbackTemplates {
 
-    val HOME_TEMPLATE = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{{siteName}}</title>
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                h1 { color: #333; }
-                .post-list { list-style: none; padding: 0; }
-                .post-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-                .post-title { margin: 0 0 10px 0; }
-                .post-date { color: #666; font-size: 0.9em; }
-                .pages-nav { margin: 20px 0; }
-                .pages-nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
-            </style>
-        </head>
-        <body>
-            <header>
-                <h1>{{siteName}}</h1>
-                {{#if description}}<p>{{description}}</p>{{/if}}
-                {{#if pages}}
-                <nav class="pages-nav">
-                    {{#each pages}}
-                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
-                    {{/each}}
-                </nav>
-                {{/if}}
-            </header>
+    /**
+     * Load a template from resources
+     */
+    private fun loadTemplate(name: String): String {
+        val resourcePath = "/fallback-templates/$name.hbs"
+        return FallbackTemplates::class.java.getResourceAsStream(resourcePath)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            ?: error("Fallback template not found: $resourcePath")
+    }
 
-            <main>
-                {{#if posts}}
-                <h2>Recent Posts</h2>
-                <ul class="post-list">
-                    {{#each posts}}
-                    <li class="post-item">
-                        <h3 class="post-title"><a href="{{../baseUrl}}{{path}}/">{{title}}</a></h3>
-                        <div class="post-date">{{date}}</div>
-                        <div class="post-excerpt">{{{content}}}</div>
-                    </li>
-                    {{/each}}
-                </ul>
-                {{else}}
-                <p>No posts yet. Create some Markdown files in your posts directory!</p>
-                {{/if}}
-            </main>
-        </body>
-        </html>
-    """.trimIndent()
+    /**
+     * Load a layout template from resources
+     */
+    private fun loadLayout(name: String): String {
+        val resourcePath = "/fallback-templates/layouts/$name.hbs"
+        return FallbackTemplates::class.java.getResourceAsStream(resourcePath)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            ?: error("Fallback layout not found: $resourcePath")
+    }
 
-    val POST_TEMPLATE = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{{post.title}} - {{siteName}}</title>
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                h1 { color: #333; }
-                .post-meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
-                .pages-nav { margin: 20px 0; }
-                .pages-nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
-                .content { line-height: 1.6; }
-            </style>
-        </head>
-        <body>
-            <header>
-                <h1><a href="{{baseUrl}}" style="text-decoration: none; color: inherit;">{{siteName}}</a></h1>
-                {{#if pages}}
-                <nav class="pages-nav">
-                    {{#each pages}}
-                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
-                    {{/each}}
-                </nav>
-                {{/if}}
-            </header>
+    val HOME_TEMPLATE: String by lazy { loadTemplate("home") }
 
-            <main>
-                <article>
-                    <h1>{{post.title}}</h1>
-                    <div class="post-meta">{{post.date}}</div>
-                    <div class="content">{{{post.content}}}</div>
-                </article>
-            </main>
-        </body>
-        </html>
-    """.trimIndent()
+    val POST_TEMPLATE: String by lazy { loadTemplate("post") }
 
-    val PAGE_TEMPLATE = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{{page.title}} - {{siteName}}</title>
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                h1 { color: #333; }
-                .pages-nav { margin: 20px 0; }
-                .pages-nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
-                .content { line-height: 1.6; }
-            </style>
-        </head>
-        <body>
-            <header>
-                <h1><a href="{{baseUrl}}" style="text-decoration: none; color: inherit;">{{siteName}}</a></h1>
-                {{#if pages}}
-                <nav class="pages-nav">
-                    {{#each pages}}
-                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
-                    {{/each}}
-                </nav>
-                {{/if}}
-            </header>
+    val PAGE_TEMPLATE: String by lazy { loadTemplate("page") }
 
-            <main>
-                <article>
-                    <h1>{{page.title}}</h1>
-                    <div class="content">{{{page.content}}}</div>
-                </article>
-            </main>
-        </body>
-        </html>
-    """.trimIndent()
+    val YEAR_TEMPLATE: String by lazy { loadTemplate("year") }
 
-    val YEAR_TEMPLATE = """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Posts from {{year}} - {{siteName}}</title>
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                h1 { color: #333; }
-                .post-list { list-style: none; padding: 0; }
-                .post-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-                .post-title { margin: 0 0 10px 0; }
-                .post-date { color: #666; font-size: 0.9em; }
-                .pages-nav { margin: 20px 0; }
-                .pages-nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
-                .archive-description { color: #666; }
-            </style>
-        </head>
-        <body>
-            <header>
-                <h1><a href="{{baseUrl}}" style="text-decoration: none; color: inherit;">{{siteName}}</a></h1>
-                {{#if pages}}
-                <nav class="pages-nav">
-                    {{#each pages}}
-                    <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
-                    {{/each}}
-                </nav>
-                {{/if}}
-            </header>
+    val POSTS_TEMPLATE: String by lazy { loadTemplate("posts") }
 
-            <main>
-                <h1>Posts from {{year}}</h1>
-                <p class="archive-description">{{postCount}} {{#if (eq postCount 1)}}post{{else}}posts{{/if}} published in {{year}}</p>
-
-                {{#if posts}}
-                <ul class="post-list">
-                    {{#each posts}}
-                    <li class="post-item">
-                        <h3 class="post-title"><a href="{{../baseUrl}}{{path}}/">{{title}}</a></h3>
-                        <div class="post-date">{{date}}</div>
-                        <div class="post-excerpt">{{{content}}}</div>
-                    </li>
-                    {{/each}}
-                </ul>
-                {{else}}
-                <p>No posts found for {{year}}.</p>
-                {{/if}}
-            </main>
-        </body>
-        </html>
-    """.trimIndent()
+    val DEFAULT_LAYOUT: String by lazy { loadLayout("default") }
 }

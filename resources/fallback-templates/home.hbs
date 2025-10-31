@@ -1,0 +1,16 @@
+{{#if description}}<p>{{description}}</p>{{/if}}
+
+{{#if posts}}
+<h2>Recent Posts</h2>
+<ul class="post-list">
+    {{#each posts}}
+    <li class="post-item">
+        <h3 class="post-title"><a href="{{../baseUrl}}{{path}}/">{{title}}</a></h3>
+        <div class="post-date">{{date}}</div>
+        <div class="post-excerpt">{{{content}}}</div>
+    </li>
+    {{/each}}
+</ul>
+{{else}}
+<p>No posts yet. Create some Markdown files in your posts directory!</p>
+{{/if}}

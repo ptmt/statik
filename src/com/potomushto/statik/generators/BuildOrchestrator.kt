@@ -44,6 +44,7 @@ class BuildOrchestrator(
 
         // Generate all pages
         buildHomePage(context)
+        buildPostsPage(context)
         buildAllPosts(context)
         buildAllPages(context)
 
@@ -193,6 +194,18 @@ class BuildOrchestrator(
         Files.writeString(outputFile, html)
 
         logger.debug { "Built home page" }
+    }
+
+    /**
+     * Build the posts listing page
+     */
+    fun buildPostsPage(context: BuildContext) {
+        val html = templateRenderer.renderPostsPage(context.posts, context.pages, context.datasourceContext)
+        val outputFile = outputPath.resolve("posts").resolve("index.html")
+        outputFile.parent.createDirectories()
+        Files.writeString(outputFile, html)
+
+        logger.debug { "Built posts page" }
     }
 
     /**

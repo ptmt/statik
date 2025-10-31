@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{#if title}}{{title}} - {{/if}}{{siteName}}</title>
+    <meta name="description" content="{{#if description}}{{description}}{{else}}{{siteName}}{{/if}}">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; }
+        .post-list { list-style: none; padding: 0; }
+        .post-item { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .post-title { margin: 0 0 10px 0; }
+        .post-date { color: #666; font-size: 0.9em; }
+        .post-meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
+        .post-tags { margin-top: 10px; }
+        .tag { display: inline-block; padding: 3px 8px; margin: 2px; background: #e0e0e0; border-radius: 3px; font-size: 0.85em; }
+        .pages-nav { margin: 20px 0; }
+        .pages-nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
+        .content { line-height: 1.6; }
+        .archive-description { color: #666; }
+        .filter-info { color: #666; font-style: italic; }
+        .post-count { color: #666; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="{{baseUrl}}" style="text-decoration: none; color: inherit;">{{siteName}}</a></h1>
+        {{#if pages}}
+        <nav class="pages-nav">
+            {{#each pages}}
+            <a href="{{../baseUrl}}{{path}}/">{{title}}</a>
+            {{/each}}
+        </nav>
+        {{/if}}
+    </header>
+
+    <main>
+        {{{content}}}
+    </main>
+</body>
+</html>

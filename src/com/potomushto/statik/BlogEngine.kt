@@ -63,43 +63,9 @@ class BlogEngine {
                 }
 
                 routing {
-                    // API endpoint for posts
+                    // Posts listing page - handle both /posts and /posts/
                     get("/posts") {
-                        val tagsParam = call.request.queryParameters["tags"]
-                        val repository = generator.getContentRepository()
-                        val posts = repository.loadAllPosts(useCache = true)
-
-                        val filteredPosts = if (tagsParam != null) {
-                            val requestedTags = tagsParam.split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-
-                            posts.filter { post ->
-                                val postTags = post.tags
-                                requestedTags.any { tag -> postTags.contains(tag) }
-                            }
-                        } else {
-                            posts
-                        }
-
-                        val response = PostsResponse(
-                            posts = filteredPosts.map { post ->
-                                PostSummary(
-                                    id = post.id,
-                                    title = post.title,
-                                    date = post.date.toString(),
-                                    path = post.path,
-                                    tags = post.tags,
-                                    metadata = post.metadata
-                                )
-                            },
-                            total = filteredPosts.size
-                        )
-
-                        call.respondText(
-                            json.encodeToString(PostsResponse.serializer(), response),
-                            ContentType.Application.Json
-                        )
+                        call.respondRedirect("/posts/", permanent = false)
                     }
 
                     staticFiles(
