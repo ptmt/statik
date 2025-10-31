@@ -11,6 +11,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.http.*
 import io.ktor.server.http.content.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.nio.file.*
 import java.util.concurrent.Executors
 import kotlin.io.path.exists
@@ -36,12 +38,17 @@ class BlogEngine {
 
             if (watch) {
                 // Start HTTP server and file watcher
-                startServer(path, config, resolvedPort)
+                startServer(path, config, resolvedPort, generator)
                 watchForChanges(path, config, generator)
             }
         }
 
-        private fun startServer(rootPath: String, config: BlogConfig, port: Int) {
+        private fun startServer(rootPath: String, config: BlogConfig, port: Int, generator: SiteGenerator) {
+            val json = Json {
+                prettyPrint = true
+                ignoreUnknownKeys = true
+            }
+
             val server = embeddedServer(Netty, port = port) {
                 install(StatusPages) {
                     exception<Throwable> { call, cause ->
@@ -56,6 +63,45 @@ class BlogEngine {
                 }
 
                 routing {
+                    // API endpoint for posts
+                    get("/posts") {
+                        val tagsParam = call.request.queryParameters["tags"]
+                        val repository = generator.getContentRepository()
+                        val posts = repository.loadAllPosts(useCache = true)
+
+                        val filteredPosts = if (tagsParam != null) {
+                            val requestedTags = tagsParam.split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+
+                            posts.filter { post ->
+                                val postTags = post.tags
+                                requestedTags.any { tag -> postTags.contains(tag) }
+                            }
+                        } else {
+                            posts
+                        }
+
+                        val response = PostsResponse(
+                            posts = filteredPosts.map { post ->
+                                PostSummary(
+                                    id = post.id,
+                                    title = post.title,
+                                    date = post.date.toString(),
+                                    path = post.path,
+                                    tags = post.tags,
+                                    metadata = post.metadata
+                                )
+                            },
+                            total = filteredPosts.size
+                        )
+
+                        call.respondText(
+                            json.encodeToString(PostsResponse.serializer(), response),
+                            ContentType.Application.Json
+                        )
+                    }
+
                     staticFiles(
                         "/",
                         Paths.get(rootPath, config.theme.output).toFile()
@@ -192,3 +238,25 @@ class BlogEngine {
         }
     }
 }
+
+/**
+ * Response model for the /posts endpoint
+ */
+@Serializable
+data class PostsResponse(
+    val posts: List<PostSummary>,
+    val total: Int
+)
+
+/**
+ * Summary of a blog post for the API
+ */
+@Serializable
+data class PostSummary(
+    val id: String,
+    val title: String,
+    val date: String,
+    val path: String,
+    val tags: List<String>,
+    val metadata: Map<String, String>
+)

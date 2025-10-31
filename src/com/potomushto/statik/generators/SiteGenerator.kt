@@ -79,4 +79,9 @@ class SiteGenerator(
     fun regenerate(changedFiles: List<Path>) {
         orchestrator.buildIncremental(changedFiles)
     }
+
+    /**
+     * Get the content repository for accessing posts and pages
+     */
+    fun getContentRepository(): ContentRepository = contentRepository
 }
