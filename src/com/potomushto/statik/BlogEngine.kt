@@ -271,7 +271,14 @@ class BlogEngine {
                     val valid = key.reset()
                     if (!valid) {
                         logger.warn("Watch key no longer valid for: $watchedPath")
-                        break
+                        watchKeys.remove(key)
+
+                        if (watchKeys.isEmpty()) {
+                            logger.warn("No directories left to watch; stopping watcher loop")
+                            break
+                        }
+
+                        continue
                     }
                 }
             } catch (e: Exception) {

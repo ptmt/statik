@@ -17,6 +17,7 @@ class AssetManager(
 ) {
     private val logger = LoggerFactory.getLogger(AssetManager::class.java)
     private val outputPath = Paths.get(rootPath, config.theme.output)
+    private val assetDirectories = config.theme.assets.map { it to Paths.get(rootPath, it) }
 
     /**
      * Copy all static assets from configured asset directories
@@ -33,17 +34,17 @@ class AssetManager(
      */
     fun copySingleAsset(assetFile: Path) {
         // Determine which asset directory this file belongs to
-        val assetDir = config.theme.assets
-            .map { Paths.get(rootPath, it) }
-            .firstOrNull { assetFile.startsWith(it) }
+        val assetEntry = assetDirectories
+            .firstOrNull { (_, directory) -> assetFile.startsWith(directory) }
 
-        if (assetDir == null) {
+        if (assetEntry == null) {
             logger.warn { "Asset file $assetFile does not belong to any configured asset directory" }
             return
         }
 
+        val (assetPath, assetDir) = assetEntry
         val relativePath = assetDir.relativize(assetFile)
-        val destination = outputPath.resolve(relativePath)
+        val destination = resolveDestination(assetPath, relativePath)
 
         Files.createDirectories(destination.parent)
         Files.copy(assetFile, destination, StandardCopyOption.REPLACE_EXISTING)
@@ -63,9 +64,24 @@ class AssetManager(
         fileWalker.walkStaticFiles(assetPath)
             .forEach { source ->
                 val relativePath = assetsRoot.relativize(source)
-                val destination = outputPath.resolve(relativePath)
+                val destination = resolveDestination(assetPath, relativePath)
                 Files.createDirectories(destination.parent)
                 Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING)
             }
+    }
+
+    private fun resolveDestination(assetPath: String, relativePath: Path): Path {
+        val destinationRoot = if (shouldFlatten(assetPath)) {
+            outputPath
+        } else {
+            outputPath.resolve(Paths.get(assetPath))
+        }
+
+        return destinationRoot.resolve(relativePath)
+    }
+
+    private fun shouldFlatten(assetPath: String): Boolean {
+        val lastSegment = Paths.get(assetPath).fileName?.toString() ?: assetPath
+        return lastSegment == "public"
     }
 }

@@ -36,7 +36,7 @@ class BuildOrchestratorTest {
             baseUrl = "https://example.com/",
             description = "Test description",
             author = "Test Author",
-            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
+            theme = ThemeConfig(templates = "templates", assets = listOf("static", "public"), output = "build"),
             paths = PathConfig(posts = "posts", pages = "pages")
         )
 
@@ -135,6 +135,7 @@ class BuildOrchestratorTest {
         """.trimIndent())
 
         createAsset("static/style.css", "body { margin: 0; }")
+        createAsset("public/robots.txt", "User-agent: *\nDisallow:")
 
         orchestrator.buildFull()
 
@@ -158,8 +159,13 @@ class BuildOrchestratorTest {
         assertTrue(pageHtml.contains("About"))
 
         // Check asset
-        assertTrue((buildDir / "style.css").exists(), "Asset should be copied")
-        assertEquals("body { margin: 0; }", (buildDir / "style.css").readText())
+        val staticCss = buildDir / "static" / "style.css"
+        assertTrue(staticCss.exists(), "Non-public assets should be copied under their directory")
+        assertEquals("body { margin: 0; }", staticCss.readText())
+
+        val robots = buildDir / "robots.txt"
+        assertTrue(robots.exists(), "Public assets should be flattened to the build root")
+        assertEquals("User-agent: *\nDisallow:", robots.readText())
 
         // Check RSS (default filename is feed.xml)
         assertTrue((buildDir / "feed.xml").exists(), "RSS feed should exist")
@@ -313,10 +319,11 @@ class BuildOrchestratorTest {
         orchestrator.buildIncremental(changedFiles)
 
         // Updated asset should have new content
-        assertEquals("body { margin: 10px; }", (buildDir / "style.css").readText())
+        val staticDir = buildDir / "static"
+        assertEquals("body { margin: 10px; }", (staticDir / "style.css").readText())
 
         // Other asset should still exist
-        assertTrue((buildDir / "script.js").exists())
+        assertTrue((staticDir / "script.js").exists())
     }
 
     @Test
@@ -566,7 +573,7 @@ class BuildOrchestratorTest {
         val aboutHtml = (buildDir / "about" / "index.html").readText()
         assertTrue(aboutHtml.contains("About Updated"))
 
-        val css = (buildDir / "style.css").readText()
+        val css = (buildDir / "static" / "style.css").readText()
         assertEquals("body { margin: 10px; }", css)
     }
 
