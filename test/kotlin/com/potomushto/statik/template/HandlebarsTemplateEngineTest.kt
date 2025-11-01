@@ -92,4 +92,31 @@ class HandlebarsTemplateEngineTest {
         val actual = engine.render(template, data)
         assertEquals(expected, actual)
     }
+
+    @Test
+    fun `eq helper compares equal strings`() {
+        val template = "{{#if (eq lang \"en\")}}English{{else}}Other{{/if}}"
+        val data = mapOf("lang" to "en")
+        val expected = "English"
+        val actual = engine.render(template, data)
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `eq helper compares unequal strings`() {
+        val template = "{{#if (eq lang \"en\")}}English{{else}}Other{{/if}}"
+        val data = mapOf("lang" to "fr")
+        val expected = "Other"
+        val actual = engine.render(template, data)
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `eq helper with nested metadata access`() {
+        val template = "{{#if (eq metadata.lang \"en\")}}English{{else}}Other{{/if}}"
+        val data = mapOf("metadata" to mapOf("lang" to "en"))
+        val expected = "English"
+        val actual = engine.render(template, data)
+        assertEquals(expected, actual)
+    }
 }

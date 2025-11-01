@@ -81,13 +81,9 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
         })
 
         registerHelper("eq", object: Helper<Any> {
-            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): CharSequence {
+            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any {
                 val param = options?.param<Any>(0)
-                return if (context == param) {
-                    options?.fn() ?: ""
-                } else {
-                    options?.inverse() ?: ""
-                }
+                return context == param
             }
         })
 
