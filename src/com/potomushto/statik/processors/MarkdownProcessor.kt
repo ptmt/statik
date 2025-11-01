@@ -46,11 +46,9 @@ class MarkdownProcessor {
         .attributeProviderFactory(LinkRewriterAttributeProvider.Factory())
         .build()
 
-
-    val yamlVisitor = AbstractYamlFrontMatterVisitor()
-
     fun process(content: String): ParsedPost {
         val document = parser.parse(content)
+        val yamlVisitor = AbstractYamlFrontMatterVisitor()
         yamlVisitor.visit(document)
 
         // Convert the YAML visitor data to a Map<String, String>

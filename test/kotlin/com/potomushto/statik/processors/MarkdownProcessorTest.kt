@@ -2,10 +2,10 @@ package com.potomushto.statik.processors
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MarkdownProcessorTest {
-
     private val processor = MarkdownProcessor()
 
     @Test
@@ -48,5 +48,31 @@ class MarkdownProcessorTest {
         assertTrue(result.content.contains("Plain Markdown"))
         assertTrue(result.content.contains("<p"))
         assertTrue(result.content.contains("Text without metadata."))
+    }
+
+    @Test
+    fun `metadata for different documents stays independent`() {
+        val first = """
+            ---
+            title: First Post
+            description: First description
+            ---
+            # Hello
+        """.trimIndent()
+
+        val second = """
+            ---
+            title: Second Post
+            ---
+            # Hello again
+        """.trimIndent()
+
+        processor.process(first)
+        val secondMetadata = processor.process(second).metadata
+
+        assertNull(
+            secondMetadata["description"],
+            "Second markdown file should not inherit description from previous one"
+        )
     }
 }
