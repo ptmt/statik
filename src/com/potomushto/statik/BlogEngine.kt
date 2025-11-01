@@ -27,7 +27,7 @@ class BlogEngine {
 
             // Override baseUrl for development mode
             val devBaseUrl = if (watch) "http://localhost:$resolvedPort/" else null
-            val generator = SiteGenerator(path, config, devBaseUrl)
+            val generator = SiteGenerator(path, config, devBaseUrl, enableLiveReload = watch)
 
             // Generate site initially
             logger.info("Generating site...")
@@ -37,13 +37,22 @@ class BlogEngine {
             generator.generate()
 
             if (watch) {
+                // Initialize live reload state
+                val liveReloadState = LiveReloadState()
+
                 // Start HTTP server and file watcher
-                startServer(path, config, resolvedPort, generator)
-                watchForChanges(path, config, generator)
+                startServer(path, config, resolvedPort, generator, liveReloadState)
+                watchForChanges(path, config, generator, liveReloadState)
             }
         }
 
-        private fun startServer(rootPath: String, config: BlogConfig, port: Int, generator: SiteGenerator) {
+        private fun startServer(
+            rootPath: String,
+            config: BlogConfig,
+            port: Int,
+            generator: SiteGenerator,
+            liveReloadState: LiveReloadState
+        ) {
             val json = Json {
                 prettyPrint = true
                 ignoreUnknownKeys = true
@@ -63,6 +72,25 @@ class BlogEngine {
                 }
 
                 routing {
+                    // Live reload API endpoint
+                    get("/__statik__/reload") {
+                        call.respondText(
+                            text = json.encodeToString(
+                                ReloadResponse.serializer(),
+                                liveReloadState.getReloadResponse()
+                            ),
+                            contentType = ContentType.Application.Json
+                        )
+                    }
+
+                    // Live reload client script
+                    get("/__statik__/livereload.js") {
+                        call.respondText(
+                            text = LIVE_RELOAD_SCRIPT,
+                            contentType = ContentType.Text.JavaScript
+                        )
+                    }
+
                     // Posts listing page - handle both /posts and /posts/
                     get("/posts") {
                         call.respondRedirect("/posts/", permanent = false)
@@ -88,65 +116,86 @@ class BlogEngine {
             logger.info("HTTP server started at http://localhost:$port")
         }
 
-        private fun watchForChanges(rootPath: String, config: BlogConfig, generator: SiteGenerator) {
+        private fun watchForChanges(
+            rootPath: String,
+            config: BlogConfig,
+            generator: SiteGenerator,
+            liveReloadState: LiveReloadState
+        ) {
             val watchService = FileSystems.getDefault().newWatchService()
-            val pathsToWatch = mutableSetOf<Path>()
+            val watchKeys = mutableMapOf<WatchKey, Path>()
 
-            // Add root directory to watch
-            val rootDir = Paths.get(rootPath)
-            pathsToWatch.add(rootDir)
-
-            // Add posts directory to watch
-            val postsDir = rootDir.resolve(config.paths.posts)
-            if (postsDir.exists()) pathsToWatch.add(postsDir)
-
-            val pagesDir = rootDir.resolve(config.paths.pages)
-            if (pagesDir.exists()) pathsToWatch.add(pagesDir)
-
-            // Add templates directory to watch
-            val templatesDir = rootDir.resolve(config.theme.templates)
-            if (templatesDir.exists()) {
-                pathsToWatch.add(templatesDir)
-                // Recursively add all subdirectories
-                Files.walk(templatesDir)
-                    .filter { Files.isDirectory(it) && it != templatesDir }
-                    .forEach { pathsToWatch.add(it) }
+            fun registerDirectory(path: Path) {
+                if (!Files.isDirectory(path)) return
+                try {
+                    val key = path.register(
+                        watchService,
+                        StandardWatchEventKinds.ENTRY_CREATE,
+                        StandardWatchEventKinds.ENTRY_MODIFY,
+                        StandardWatchEventKinds.ENTRY_DELETE
+                    )
+                    watchKeys[key] = path
+                    logger.debug { "Registered watch for: $path" }
+                } catch (e: Exception) {
+                    logger.warn("Failed to register watch for $path: ${e.message}")
+                }
             }
 
-            // Add assets directories to watch
+            fun registerDirectoryRecursively(path: Path) {
+                if (!Files.exists(path)) return
+                Files.walk(path)
+                    .filter { Files.isDirectory(it) }
+                    .forEach { registerDirectory(it) }
+            }
+
+            val rootDir = Paths.get(rootPath)
+
+            // Register root directory
+            registerDirectory(rootDir)
+
+            // Register posts directory and subdirectories
+            val postsDir = rootDir.resolve(config.paths.posts)
+            if (postsDir.exists()) {
+                registerDirectoryRecursively(postsDir)
+            }
+
+            // Register pages directory and subdirectories
+            val pagesDir = rootDir.resolve(config.paths.pages)
+            if (pagesDir.exists()) {
+                registerDirectoryRecursively(pagesDir)
+            }
+
+            // Register templates directory and subdirectories
+            val templatesDir = rootDir.resolve(config.theme.templates)
+            if (templatesDir.exists()) {
+                registerDirectoryRecursively(templatesDir)
+            }
+
+            // Register assets directories and subdirectories
             config.theme.assets.forEach { assetPath ->
                 val assetsDir = rootDir.resolve(assetPath)
                 if (assetsDir.exists()) {
-                    pathsToWatch.add(assetsDir)
-                    // Recursively add all subdirectories
-                    Files.walk(assetsDir)
-                        .filter { Files.isDirectory(it) && it != assetsDir }
-                        .forEach { pathsToWatch.add(it) }
+                    registerDirectoryRecursively(assetsDir)
                 }
             }
 
             // Print what's being watched
             logger.info("Watching for file changes in:")
-            logger.info("  • Posts: ${config.paths.posts}/")
-            logger.info("  • Pages: ${config.paths.pages}/")
-            logger.info("  • Templates: ${config.theme.templates}/")
+            logger.info("  • Posts: ${config.paths.posts}/ (${countSubdirectories(postsDir)} subdirectories)")
+            logger.info("  • Pages: ${config.paths.pages}/ (${countSubdirectories(pagesDir)} subdirectories)")
+            logger.info("  • Templates: ${config.theme.templates}/ (${countSubdirectories(templatesDir)} subdirectories)")
             if (config.theme.assets.size == 1) {
-                logger.info("  • Assets: ${config.theme.assets[0]}/")
+                val assetsDir = rootDir.resolve(config.theme.assets[0])
+                logger.info("  • Assets: ${config.theme.assets[0]}/ (${countSubdirectories(assetsDir)} subdirectories)")
             } else {
-                logger.info("  • Assets: ${config.theme.assets.joinToString(", ") { "$it/" }}")
+                config.theme.assets.forEach { assetPath ->
+                    val assetsDir = rootDir.resolve(assetPath)
+                    logger.info("  • Assets: $assetPath/ (${countSubdirectories(assetsDir)} subdirectories)")
+                }
             }
             logger.info("  • Config: config.json")
+            logger.info("Total: ${watchKeys.size} directories registered for watching")
             logger.info("Press Ctrl+C to stop...")
-
-            // Register all directories for watching
-            val watchKeys = pathsToWatch.associateWith { path ->
-                path.register(
-                    watchService,
-                    StandardWatchEventKinds.ENTRY_CREATE,
-                    StandardWatchEventKinds.ENTRY_MODIFY,
-                    StandardWatchEventKinds.ENTRY_DELETE
-                )
-            }
 
             // Use executor service for debouncing
             val executorService = Executors.newSingleThreadExecutor()
@@ -156,20 +205,44 @@ class BlogEngine {
             try {
                 while (true) {
                     val key = watchService.take()
-                    val path = watchKeys.entries.find { it.value == key }?.key
+                    val watchedPath = watchKeys[key]
 
-                    if (path != null) {
+                    if (watchedPath != null) {
                         val events = key.pollEvents()
                         if (events.isNotEmpty()) {
-                            // Collect changed files
-                            val changedFiles = events
-                                .mapNotNull { event ->
-                                    val context = event.context()
-                                    if (context is Path) {
-                                        path.resolve(context)
-                                    } else null
+                            val changedFiles = mutableListOf<Path>()
+
+                            events.forEach { event ->
+                                val context = event.context()
+                                if (context is Path) {
+                                    val fullPath = watchedPath.resolve(context)
+                                    val kind = event.kind()
+
+                                    // Log the specific change
+                                    when (kind) {
+                                        StandardWatchEventKinds.ENTRY_CREATE -> {
+                                            logger.debug { "Created: $fullPath" }
+                                            // If a new directory is created, register it for watching
+                                            if (Files.isDirectory(fullPath)) {
+                                                logger.info("New directory detected: $fullPath - registering for watching")
+                                                registerDirectoryRecursively(fullPath)
+                                            } else {
+                                                changedFiles.add(fullPath)
+                                            }
+                                        }
+                                        StandardWatchEventKinds.ENTRY_MODIFY -> {
+                                            logger.debug { "Modified: $fullPath" }
+                                            if (Files.isRegularFile(fullPath)) {
+                                                changedFiles.add(fullPath)
+                                            }
+                                        }
+                                        StandardWatchEventKinds.ENTRY_DELETE -> {
+                                            logger.debug { "Deleted: $fullPath" }
+                                            changedFiles.add(fullPath)
+                                        }
+                                    }
                                 }
-                                .filter { Files.isRegularFile(it) || !Files.exists(it) } // Include deleted files
+                            }
 
                             if (changedFiles.isEmpty()) {
                                 key.reset()
@@ -181,9 +254,14 @@ class BlogEngine {
 
                             val runnable = Runnable {
                                 Thread.sleep(200) // Debounce time
-                                logger.info("File changes detected: ${changedFiles.size} file(s). Regenerating site...")
+                                logger.info("Changes detected:")
+                                changedFiles.forEach { file ->
+                                    logger.info("  → ${rootDir.relativize(file)}")
+                                }
+                                logger.info("Regenerating site...")
                                 generator.regenerate(changedFiles)
-                                logger.info("Site regenerated. Watching for more changes...")
+                                liveReloadState.markRebuilt()
+                                logger.info("Site regenerated successfully. Watching for more changes...")
                             }
                             regenerationFuture = executorService.submit(runnable)
                         }
@@ -192,6 +270,7 @@ class BlogEngine {
                     // Reset the key to receive further events
                     val valid = key.reset()
                     if (!valid) {
+                        logger.warn("Watch key no longer valid for: $watchedPath")
                         break
                     }
                 }
@@ -202,6 +281,46 @@ class BlogEngine {
                 executorService.shutdown()
             }
         }
+
+        private fun countSubdirectories(path: Path): Int {
+            if (!Files.exists(path)) return 0
+            return Files.walk(path)
+                .filter { Files.isDirectory(it) && it != path }
+                .count()
+                .toInt()
+        }
+
+        private const val LIVE_RELOAD_SCRIPT = """
+(function() {
+    console.log('[Statik Live Reload] Initializing...');
+
+    let lastTimestamp = null;
+    const pollInterval = 1000; // Poll every second
+
+    function checkForUpdates() {
+        fetch('/__statik__/reload')
+            .then(response => response.json())
+            .then(data => {
+                if (lastTimestamp === null) {
+                    // First poll, just store the timestamp
+                    lastTimestamp = data.timestamp;
+                    console.log('[Statik Live Reload] Connected. Watching for changes...');
+                } else if (data.timestamp > lastTimestamp) {
+                    // Site was rebuilt, reload the page
+                    console.log('[Statik Live Reload] Changes detected, reloading page...');
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('[Statik Live Reload] Error checking for updates:', error);
+            });
+    }
+
+    // Start polling
+    setInterval(checkForUpdates, pollInterval);
+    checkForUpdates(); // Initial check
+})();
+"""
     }
 }
 

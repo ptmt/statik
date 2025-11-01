@@ -14,7 +14,8 @@ import java.nio.file.Paths
 class SiteGenerator(
     private val rootPath: String,
     private val config: BlogConfig,
-    private val baseUrlOverride: String? = null
+    private val baseUrlOverride: String? = null,
+    private val enableLiveReload: Boolean = false
 ) {
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
@@ -63,7 +64,8 @@ class SiteGenerator(
         templateRenderer,
         assetManager,
         rssGenerator,
-        datasourceGenerator
+        datasourceGenerator,
+        injectLiveReload = enableLiveReload
     )
 
     /**

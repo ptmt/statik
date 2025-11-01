@@ -21,10 +21,15 @@ class BuildOrchestrator(
     private val templateRenderer: TemplateRenderer,
     private val assetManager: AssetManager,
     private val rssGenerator: RssGenerator,
-    private val datasourceGenerator: StaticDatasourceGenerator
+    private val datasourceGenerator: StaticDatasourceGenerator,
+    private val injectLiveReload: Boolean = false
 ) {
     private val logger = LoggerFactory.getLogger(BuildOrchestrator::class.java)
     private val outputPath = Paths.get(rootPath, config.theme.output)
+
+    private val liveReloadScript = """
+        <script src="/__statik__/livereload.js"></script>
+    """.trimIndent()
 
     /**
      * Perform a full site build
@@ -152,9 +157,10 @@ class BuildOrchestrator(
         }
 
         val html = templateRenderer.renderPost(post, context.pages, context.datasourceContext)
+        val finalHtml = injectLiveReloadIfNeeded(html)
         val outputFile = outputPath.resolve(post.path).resolve("index.html")
         outputFile.parent.createDirectories()
-        Files.writeString(outputFile, html)
+        Files.writeString(outputFile, finalHtml)
 
         logger.debug { "Built post: $postId -> ${post.path}" }
     }
@@ -170,6 +176,7 @@ class BuildOrchestrator(
         }
 
         val html = templateRenderer.renderPage(page, context.pages, context.datasourceContext)
+        val finalHtml = injectLiveReloadIfNeeded(html)
 
         val pageOutputDir = if (page.path.isNotEmpty()) {
             outputPath.resolve(page.path)
@@ -179,7 +186,7 @@ class BuildOrchestrator(
 
         val outputFile = pageOutputDir.resolve("index.html")
         outputFile.parent.createDirectories()
-        Files.writeString(outputFile, html)
+        Files.writeString(outputFile, finalHtml)
 
         logger.debug { "Built page: $pageId -> ${page.path}" }
     }
@@ -189,9 +196,10 @@ class BuildOrchestrator(
      */
     fun buildHomePage(context: BuildContext) {
         val html = templateRenderer.renderHomePage(context.posts, context.pages, context.datasourceContext)
+        val finalHtml = injectLiveReloadIfNeeded(html)
         val outputFile = outputPath.resolve("index.html")
         outputFile.parent.createDirectories()
-        Files.writeString(outputFile, html)
+        Files.writeString(outputFile, finalHtml)
 
         logger.debug { "Built home page" }
     }
@@ -201,9 +209,10 @@ class BuildOrchestrator(
      */
     fun buildPostsPage(context: BuildContext) {
         val html = templateRenderer.renderPostsPage(context.posts, context.pages, context.datasourceContext)
+        val finalHtml = injectLiveReloadIfNeeded(html)
         val outputFile = outputPath.resolve("posts").resolve("index.html")
         outputFile.parent.createDirectories()
-        Files.writeString(outputFile, html)
+        Files.writeString(outputFile, finalHtml)
 
         logger.debug { "Built posts page" }
     }
@@ -265,6 +274,20 @@ class BuildOrchestrator(
     private fun isContentFile(file: Path): Boolean {
         val ext = file.extension.lowercase()
         return ext in setOf("md", "html", "hbs")
+    }
+
+    /**
+     * Inject live reload script into HTML if in development mode
+     */
+    private fun injectLiveReloadIfNeeded(html: String): String {
+        if (!injectLiveReload) return html
+
+        // Inject before closing </body> tag, or at the end if no body tag
+        return if (html.contains("</body>", ignoreCase = true)) {
+            html.replace(Regex("</body>", RegexOption.IGNORE_CASE), "$liveReloadScript\n</body>")
+        } else {
+            html + "\n$liveReloadScript"
+        }
     }
 
     private data class FileChanges(
