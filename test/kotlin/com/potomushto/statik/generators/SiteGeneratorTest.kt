@@ -133,7 +133,11 @@ class SiteGeneratorTest {
 
         assertTrue((buildRoot / "index.html").exists())
         assertTrue(homeHtml.contains("Test Site"))
-        assertTrue(homeHtml.indexOf("Latest Post") < homeHtml.indexOf("Older Post"))
+        val latestIndex = homeHtml.indexOf("Latest Post")
+        val olderIndex = homeHtml.indexOf("Older Post")
+        assertTrue(latestIndex >= 0, "Home page should list Latest Post")
+        assertTrue(olderIndex >= 0, "Home page should list Older Post")
+        assertTrue(latestIndex < olderIndex, "Latest Post should appear before Older Post")
         assertTrue(homeHtml.indexOf("About") < homeHtml.indexOf("Docs"))
 
         val postHtml = (buildRoot / "2024" / "latest" / "index.html").readText()
@@ -149,7 +153,7 @@ class SiteGeneratorTest {
         val docsHtml = (buildRoot / "docs" / "index.html").readText()
         assertTrue(docsHtml.contains("Documentation landing page."))
 
-        val assetPath = buildRoot / "css" / "site.css"
+        val assetPath = buildRoot / "static" / "css" / "site.css"
         assertTrue(assetPath.exists())
         assertEquals("body { color: #222; }", assetPath.readText())
     }
@@ -195,7 +199,7 @@ class SiteGeneratorTest {
         val pageHtml = (tempRoot / "build" / "about" / "index.html").readText()
         assertTrue(pageHtml.contains("About Fallback"))
 
-        val assetPath = tempRoot / "build" / "logo.txt"
+        val assetPath = tempRoot / "build" / "assets" / "logo.txt"
         assertTrue(assetPath.exists())
         assertEquals("logo", assetPath.readText())
     }

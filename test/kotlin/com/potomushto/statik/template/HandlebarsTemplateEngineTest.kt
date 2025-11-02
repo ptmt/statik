@@ -15,11 +15,14 @@ class HandlebarsTemplateEngineTest {
     @TempDir
     lateinit var tempDir: Path
 
+    private lateinit var templatesDir: Path
     private lateinit var engine: HandlebarsTemplateEngine
 
     @BeforeEach
     fun setUp() {
-        engine = HandlebarsTemplateEngine(tempDir)
+        templatesDir = tempDir.resolve("templates")
+        Files.createDirectories(templatesDir)
+        engine = HandlebarsTemplateEngine(templatesDir)
     }
 
     @Test
@@ -123,13 +126,13 @@ class HandlebarsTemplateEngineTest {
 
     @Test
     fun `content helper injects overrides into layout blocks`() {
-        val layout = tempDir.resolve("templates/layouts/default.hbs")
+        val layout = templatesDir.resolve("layouts/default.hbs")
         Files.createDirectories(layout.parent)
         Files.writeString(
             layout,
             """
             <html>
-              <head>{{#block "head"}}<meta charset=\"utf-8\">{{/block}}</head>
+              <head>{{#block "head"}}<meta charset="utf-8">{{/block}}</head>
               <body>
                 {{{content}}}
                 {{#block "scripts"}}{{/block}}
@@ -141,7 +144,7 @@ class HandlebarsTemplateEngineTest {
         val template = """
             {{#content "head"}}<title>{{title}}</title>{{/content}}
             <main>{{body}}</main>
-            {{#content "scripts"}}<script src=\"/app.js\"></script>{{/content}}
+            {{#content "scripts"}}<script src="/app.js"></script>{{/content}}
         """.trimIndent()
 
         val html = engine.renderWithLayout(template, mapOf(
@@ -150,21 +153,22 @@ class HandlebarsTemplateEngineTest {
             "body" to "Content"
         ))
 
-        assertTrue(html.contains("<title>Hello</title>"))
-        assertTrue(html.contains("<script src=\"/app.js\"></script>"))
-        assertTrue(html.contains("<main>Content</main>"))
-        assertFalse(html.contains("<meta charset=\"utf-8\">"))
+        val normalizedHtml = html.normalizeQuotes()
+        assertTrue(normalizedHtml.contains("<title>Hello</title>"))
+        assertTrue(normalizedHtml.contains("<script src=\"/app.js\"></script>"))
+        assertTrue(normalizedHtml.contains("<main>Content</main>"))
+        assertFalse(normalizedHtml.contains("<meta charset=\"utf-8\">"))
     }
 
     @Test
     fun `block helper falls back to default content when not overridden`() {
-        val layout = tempDir.resolve("templates/layouts/default.hbs")
+        val layout = templatesDir.resolve("layouts/default.hbs")
         Files.createDirectories(layout.parent)
         Files.writeString(
             layout,
             """
             <html>
-              <head>{{#block "head"}}<meta charset=\"utf-8\">{{/block}}</head>
+              <head>{{#block "head"}}<meta charset="utf-8">{{/block}}</head>
               <body>{{{content}}}</body>
             </html>
             """.trimIndent()
@@ -179,7 +183,10 @@ class HandlebarsTemplateEngineTest {
             "body" to "Fallback"
         ))
 
-        assertTrue(html.contains("<meta charset=\"utf-8\">"))
-        assertTrue(html.contains("<main>Fallback</main>"))
+        val normalizedHtml = html.normalizeQuotes()
+        assertTrue(normalizedHtml.contains("<meta charset=\"utf-8\">"))
+        assertTrue(normalizedHtml.contains("<main>Fallback</main>"))
     }
+
+    private fun String.normalizeQuotes(): String = this.replace("\\\"", "\"")
 }
