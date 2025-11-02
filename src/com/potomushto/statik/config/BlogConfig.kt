@@ -18,7 +18,8 @@ data class BlogConfig(
     val paths: PathConfig = PathConfig(),
     val devServer: DevServerConfig = DevServerConfig(),
     val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig(),
-    val rss: RssConfig = RssConfig()
+    val rss: RssConfig = RssConfig(),
+    val html: HtmlConfig = HtmlConfig()
 ) {
     companion object {
         val json = Json {
@@ -89,3 +90,16 @@ data class RssConfig(
     val maxItems: Int = 20,
     val includeFullContent: Boolean = true
 )
+
+@Serializable
+data class HtmlConfig(
+    val format: HtmlFormat = HtmlFormat.DEFAULT,
+    val indentSize: Int = 2
+)
+
+@Serializable
+enum class HtmlFormat {
+    DEFAULT,    // No processing, keeps Handlebars prettyPrint output
+    MINIFY,     // Minified HTML with no extra whitespace
+    BEAUTIFY    // Formatted HTML with proper indentation
+}

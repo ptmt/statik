@@ -11,10 +11,13 @@ import kotlin.io.path.readText
 import java.util.ServiceLoader
 
 private val logger = LoggerFactory.getLogger(HandlebarsTemplateEngine::class.java)
-class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
+class HandlebarsTemplateEngine(
+    val templatesPath: Path,
+    private val htmlProcessor: HtmlProcessor = NoOpHtmlProcessor()
+) : TemplateEngine {
     override val extension = "hbs"
 
-    private val handlebars: Handlebars = Handlebars().prettyPrint(true)
+    private val handlebars: Handlebars = Handlebars().prettyPrint(false)
     private val layoutCache = mutableMapOf<String, String>()
     private val blockRegistry = ThreadLocal<MutableMap<String, MutableList<CharSequence>>?>()
     private val helperContext = HelperRegistrationContext(templatesPath, blockRegistry)
@@ -111,7 +114,9 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
             val layoutData = data.toMutableMap()
             layoutData["content"] = contentHtml
             val renderedLayout = try {
-                render(layoutTemplate, layoutData)
+                val html = render(layoutTemplate, layoutData)
+                // Apply HTML processing (minification/beautification)
+                htmlProcessor.process(html)
             } finally {
                 recoverPreviousBlocks(previousBlocks)
             }
@@ -120,7 +125,8 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
 
         // If no layout found at all, return content without layout
         recoverPreviousBlocks(previousBlocks)
-        return contentHtml
+        // Apply HTML processing even for content without layout
+        return htmlProcessor.process(contentHtml)
     }
 
     private fun recoverPreviousBlocks(previous: MutableMap<String, MutableList<CharSequence>>?) {

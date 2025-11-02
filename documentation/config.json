@@ -1,6 +1,6 @@
 {
   "siteName": "Statik - Static Site Generator",
-  "description": "A home-made and opinionated static site generator built with Kotlin.",
+  "description": "A home-made and opinionated. Built with Kotlin with the goal to be low maintained.",
   "baseUrl": "https://potomushto.com/statik/",
   "author": "Dmitrii Loktev",
   "theme": {
@@ -16,5 +16,9 @@
     "outputDir": "datasource",
     "collectAttribute": "data-collect",
     "imagesFileName": "images.json"
+  },
+  "html": {
+    "format": "MINIFY",
+    "indentSize": 2
   }
 }
