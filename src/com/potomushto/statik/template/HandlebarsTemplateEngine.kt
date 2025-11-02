@@ -3,19 +3,21 @@ package com.potomushto.statik.template
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
 import com.potomushto.statik.logging.LoggerFactory
-import java.io.File
+import com.potomushto.statik.template.helpers.HandlebarsHelperRegistrar
+import com.potomushto.statik.template.helpers.HelperRegistrationContext
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.LocalDateTime
 import kotlin.io.path.readText
+import java.util.ServiceLoader
 
 private val logger = LoggerFactory.getLogger(HandlebarsTemplateEngine::class.java)
-
 class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     override val extension = "hbs"
 
     private val handlebars: Handlebars = Handlebars().prettyPrint(true)
     private val layoutCache = mutableMapOf<String, String>()
+    private val blockRegistry = ThreadLocal<MutableMap<String, MutableList<CharSequence>>?>()
+    private val helperContext = HelperRegistrationContext(templatesPath, blockRegistry)
 
     fun registerHelper(name: String, helper: Helper<*>) {
         handlebars.registerHelper(name, helper)
@@ -27,194 +29,10 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     }
 
     init {
-        registerHelper("formatDate", object: Helper<LocalDateTime> {
-            override fun apply(context: LocalDateTime?, options: com.github.jknack.handlebars.Options?): Any? {
-                return context?.let {
-                    val formatter = options?.hash?.get("format") as? String ?: "MMMM dd, yyyy"
-                    val dateTimeFormatter = java.time.format.DateTimeFormatter.ofPattern(formatter)
-                    context.format(dateTimeFormatter)
-                }
+        ServiceLoader.load(HandlebarsHelperRegistrar::class.java, javaClass.classLoader)
+            .forEach { registrar ->
+                registrar.register(handlebars, helperContext)
             }
-        })
-        registerHelper("excerpt", object: Helper<String> {
-            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): Any? {
-                if (context == null) return ""
-                
-                // Strip HTML tags but preserve content
-                val plainText = context.replace(Regex("<h[1-6].*?>(.*?)</h[1-6]>"), "$1 ")
-                    .replace(Regex("<[^>]*>"), "")
-                    .replace(Regex("\\s+"), " ")
-                    .trim()
-                
-                val words = options?.hash?.get("words") as? Int ?: 30
-                return plainText.split(" ")
-                    .take(words)
-                    .joinToString(" ")
-                    .plus(if (plainText.split(" ").size > words) "..." else "")
-            }
-        })
-        
-        // Add a helper to render HTML content safely
-        registerHelper("safe", object: Helper<String> {
-            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): Any? {
-                return context?.let {
-                    com.github.jknack.handlebars.Handlebars.SafeString(it)
-                } ?: ""
-            }
-        })
-
-        registerHelper("include", object: Helper<String> {
-            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): CharSequence {
-                try {
-                    val fileName = context ?: error("missing template name")
-                    val file = templatesPath.resolve(fileName).toFile()
-                    return if (file.exists()) {
-                        val template = handlebars.compileInline(file.readText())
-                        Handlebars.SafeString(template.apply(options!!.context))
-                    } else {
-                        Handlebars.SafeString("<!-- File not found: $fileName -->")
-                    }
-                } catch (e: Exception) {
-                    return Handlebars.SafeString("<!-- Error including file: ${e.message} -->")
-                }
-            }
-        })
-
-        registerHelper("eq", object: Helper<Any> {
-            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any {
-                val param = options?.param<Any>(0)
-                return context == param
-            }
-        })
-
-        registerHelper("substring", object: Helper<String> {
-            override fun apply(context: String?, options: com.github.jknack.handlebars.Options?): Any? {
-                if (context == null) return ""
-
-                return try {
-                    val start = options?.param<Int>(0) ?: 0
-                    val end = if (options != null && options.params.size > 1) {
-                        options.param<Int>(1)
-                    } else {
-                        context.length
-                    }
-
-                    val safeStart = start.coerceIn(0, context.length)
-                    val safeEnd = end.coerceIn(0, context.length)
-
-                    if (safeStart >= safeEnd) {
-                        ""
-                    } else {
-                        context.substring(safeStart, safeEnd)
-                    }
-                } catch (e: Exception) {
-                    ""
-                }
-            }
-        })
-
-        registerHelper("groupBy", object: Helper<Any> {
-            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any? {
-                logger.debug { "GroupBy called with context type: ${context?.javaClass?.name}" }
-
-                val contextList = when (context) {
-                    is List<*> -> context
-                    else -> {
-                        logger.warn("GroupBy: unexpected context type")
-                        return emptyList<Map<String, Any?>>()
-                    }
-                }
-
-                if (contextList.isEmpty()) {
-                    logger.debug { "GroupBy: empty list" }
-                    return emptyList<Map<String, Any?>>()
-                }
-
-                val key = options?.param<String>(0) ?: return contextList
-
-                // Group items by the specified metadata key
-                val grouped = contextList.groupBy { item ->
-                    val metadata = when (item) {
-                        is Map<*, *> -> item["metadata"] as? Map<*, *>
-                        else -> {
-                            // Try to access metadata field via reflection for data classes
-                            try {
-                                val metadataField = item?.javaClass?.getMethod("getMetadata")
-                                metadataField?.invoke(item) as? Map<*, *>
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                    }
-                    metadata?.get(key) as? String ?: ""
-                }
-
-                logger.debug { "GroupBy grouped into ${grouped.size} groups: ${grouped.keys}" }
-
-                // Return list of groups with name and items
-                // Sort by a predefined category order
-                val categoryOrder = mapOf(
-                    "core" to 1,
-                    "theme" to 2,
-                    "paths" to 3,
-                    "devServer" to 4,
-                    "staticDatasource" to 5,
-                    "rss" to 6
-                )
-
-                val result = grouped.entries
-                    .sortedBy { categoryOrder[it.key] ?: 999 }
-                    .map { (groupName, items) ->
-                        val group = mutableMapOf<String, Any?>()
-                        group["name"] = groupName
-                        group["items"] = items
-                        logger.debug { "Group created: name='$groupName', items=${items.size}" }
-                        group as Map<String, Any?>
-                    }
-
-                logger.debug { "GroupBy result: ${result.size} groups" }
-
-                return result
-            }
-        })
-
-        registerHelper("sortBy", object: Helper<Any> {
-            override fun apply(context: Any?, options: com.github.jknack.handlebars.Options?): Any? {
-
-                val contextList = when (context) {
-                    is List<*> -> context
-                    is Map<*, *> -> context.values.toList()
-                    else -> {
-                        logger.warn("SortBy: unexpected context type, returning as-is")
-                        return context
-                    }
-                }
-
-                if (contextList.isEmpty()) {
-                    return emptyList<Any>()
-                }
-
-                val key = options?.param<String>(0) ?: return contextList
-
-                // Sort items by the specified metadata key
-                val sorted = contextList.sortedBy { item ->
-                    when (item) {
-                        is Map<*, *> -> {
-                            val metadata = item["metadata"] as? Map<*, *>
-                            val value = metadata?.get(key)
-                            when (value) {
-                                is Number -> value.toInt()
-                                is String -> value.toIntOrNull() ?: 0
-                                else -> 0
-                            }
-                        }
-                        else -> 0
-                    }
-                }
-
-                return sorted
-            }
-        })
     }
 
     override fun compile(template: String): (Map<String, Any?>) -> String {
@@ -262,11 +80,20 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
     override fun renderWithLayout(template: String, data: Map<String, Any?>): String {
         val layoutName = data["layout"] as? String
 
-        // First, render the content template
-        val contentHtml = render(template, data)
+        val previousBlocks = blockRegistry.get()
+        val collectedBlocks = mutableMapOf<String, MutableList<CharSequence>>()
+        blockRegistry.set(collectedBlocks)
+
+        val contentHtml = try {
+            render(template, data)
+        } catch (ex: Exception) {
+            recoverPreviousBlocks(previousBlocks)
+            throw ex
+        }
 
         // If no layout specified, return content as-is
         if (layoutName == null) {
+            recoverPreviousBlocks(previousBlocks)
             return contentHtml
         }
 
@@ -283,10 +110,24 @@ class HandlebarsTemplateEngine(val templatesPath: Path) : TemplateEngine {
             // Create new data map with content injected
             val layoutData = data.toMutableMap()
             layoutData["content"] = contentHtml
-            return render(layoutTemplate, layoutData)
+            val renderedLayout = try {
+                render(layoutTemplate, layoutData)
+            } finally {
+                recoverPreviousBlocks(previousBlocks)
+            }
+            return renderedLayout
         }
 
         // If no layout found at all, return content without layout
+        recoverPreviousBlocks(previousBlocks)
         return contentHtml
     }
-} 
+
+    private fun recoverPreviousBlocks(previous: MutableMap<String, MutableList<CharSequence>>?) {
+        if (previous != null) {
+            blockRegistry.set(previous)
+        } else {
+            blockRegistry.remove()
+        }
+    }
+}

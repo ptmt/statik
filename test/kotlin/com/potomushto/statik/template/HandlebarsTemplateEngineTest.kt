@@ -1,7 +1,8 @@
 package com.potomushto.statik.template
 
-import com.github.jknack.handlebars.Helper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -118,5 +119,67 @@ class HandlebarsTemplateEngineTest {
         val expected = "English"
         val actual = engine.render(template, data)
         assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `content helper injects overrides into layout blocks`() {
+        val layout = tempDir.resolve("templates/layouts/default.hbs")
+        Files.createDirectories(layout.parent)
+        Files.writeString(
+            layout,
+            """
+            <html>
+              <head>{{#block "head"}}<meta charset=\"utf-8\">{{/block}}</head>
+              <body>
+                {{{content}}}
+                {{#block "scripts"}}{{/block}}
+              </body>
+            </html>
+            """.trimIndent()
+        )
+
+        val template = """
+            {{#content "head"}}<title>{{title}}</title>{{/content}}
+            <main>{{body}}</main>
+            {{#content "scripts"}}<script src=\"/app.js\"></script>{{/content}}
+        """.trimIndent()
+
+        val html = engine.renderWithLayout(template, mapOf(
+            "layout" to "default",
+            "title" to "Hello",
+            "body" to "Content"
+        ))
+
+        assertTrue(html.contains("<title>Hello</title>"))
+        assertTrue(html.contains("<script src=\"/app.js\"></script>"))
+        assertTrue(html.contains("<main>Content</main>"))
+        assertFalse(html.contains("<meta charset=\"utf-8\">"))
+    }
+
+    @Test
+    fun `block helper falls back to default content when not overridden`() {
+        val layout = tempDir.resolve("templates/layouts/default.hbs")
+        Files.createDirectories(layout.parent)
+        Files.writeString(
+            layout,
+            """
+            <html>
+              <head>{{#block "head"}}<meta charset=\"utf-8\">{{/block}}</head>
+              <body>{{{content}}}</body>
+            </html>
+            """.trimIndent()
+        )
+
+        val template = """
+            <main>{{body}}</main>
+        """.trimIndent()
+
+        val html = engine.renderWithLayout(template, mapOf(
+            "layout" to "default",
+            "body" to "Fallback"
+        ))
+
+        assertTrue(html.contains("<meta charset=\"utf-8\">"))
+        assertTrue(html.contains("<main>Fallback</main>"))
     }
 }
