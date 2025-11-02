@@ -153,7 +153,7 @@ class SiteGeneratorTest {
         val docsHtml = (buildRoot / "docs" / "index.html").readText()
         assertTrue(docsHtml.contains("Documentation landing page."))
 
-        val assetPath = buildRoot / "static" / "css" / "site.css"
+        val assetPath = buildRoot / "css" / "site.css"
         assertTrue(assetPath.exists())
         assertEquals("body { color: #222; }", assetPath.readText())
     }

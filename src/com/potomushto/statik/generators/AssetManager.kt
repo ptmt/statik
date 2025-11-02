@@ -81,7 +81,8 @@ class AssetManager(
     }
 
     private fun shouldFlatten(assetPath: String): Boolean {
-        val lastSegment = Paths.get(assetPath).fileName?.toString() ?: assetPath
-        return lastSegment in setOf("public", "static")
+        val normalized = assetPath.trimEnd('/', '\\')
+        val lastSegment = Paths.get(normalized).fileName?.toString() ?: normalized
+        return lastSegment == "public" || lastSegment == "static"
     }
 }

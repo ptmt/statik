@@ -12,16 +12,19 @@ class BlockHelperRegistrar : HandlebarsHelperRegistrar {
                 is CharSequence -> name.toString()
                 null -> null
                 else -> name.toString()
-            } ?: return@Helper options.fn() ?: ""
-            val overrides = blocks?.get(blockName)?.takeIf { it.isNotEmpty() }
-                ?.joinToString(separator = "") { it.toString() }
+            } ?: return@Helper options.fn(options.context) ?: ""
 
-            if (overrides != null) {
-                return@Helper Handlebars.SafeString(overrides)
+            val overrideContent = blocks?.get(blockName)
+                ?.filter { it.isNotBlank() }
+                ?.takeIf { it.isNotEmpty() }
+                ?.joinToString(separator = "") { it }
+
+            if (overrideContent != null) {
+                return@Helper Handlebars.SafeString(overrideContent)
             }
 
-            val renderedFallback = options.fn() ?: ""
-            Handlebars.SafeString(renderedFallback)
+            val fallback = options.fn(options.context) ?: ""
+            Handlebars.SafeString(fallback)
         })
     }
 }

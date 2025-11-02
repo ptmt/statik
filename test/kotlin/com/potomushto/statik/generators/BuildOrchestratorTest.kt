@@ -159,8 +159,8 @@ class BuildOrchestratorTest {
         assertTrue(pageHtml.contains("About"))
 
         // Check asset
-        val staticCss = buildDir / "static" / "style.css"
-        assertTrue(staticCss.exists(), "Non-public assets should be copied under their directory")
+        val staticCss = buildDir / "style.css"
+        assertTrue(staticCss.exists(), "Static assets should be copied to build root")
         assertEquals("body { margin: 0; }", staticCss.readText())
 
         val robots = buildDir / "robots.txt"
@@ -319,11 +319,10 @@ class BuildOrchestratorTest {
         orchestrator.buildIncremental(changedFiles)
 
         // Updated asset should have new content
-        val staticDir = buildDir / "static"
-        assertEquals("body { margin: 10px; }", (staticDir / "style.css").readText())
+        assertEquals("body { margin: 10px; }", (buildDir / "style.css").readText())
 
         // Other asset should still exist
-        assertTrue((staticDir / "script.js").exists())
+        assertTrue((buildDir / "script.js").exists())
     }
 
     @Test
@@ -573,7 +572,7 @@ class BuildOrchestratorTest {
         val aboutHtml = (buildDir / "about" / "index.html").readText()
         assertTrue(aboutHtml.contains("About Updated"))
 
-        val css = (buildDir / "static" / "style.css").readText()
+        val css = (buildDir / "style.css").readText()
         assertEquals("body { margin: 10px; }", css)
     }
 
