@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.potomushto.statik.BlogEngine
 
-class Hello : CliktCommand() {
+class MainCommand : CliktCommand() {
     val rootPath by option(help = "Path to the root of the site").file(
         mustExist = true,
         canBeFile = false,
@@ -29,4 +29,4 @@ class Hello : CliktCommand() {
     }
 }
 
-fun main(args: Array<String>) = Hello().main(args)
+fun main(args: Array<String>) = MainCommand().main(args)

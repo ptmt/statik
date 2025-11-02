@@ -1,75 +1,83 @@
 package com.potomushto.statik.template
 
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
+import org.jsoup.nodes.TextNode
+
 /**
- * Lightweight HTML minifier that reduces whitespace and removes unnecessary characters.
- * No external dependencies required - pure Kotlin implementation.
+ * HTML minifier that uses jsoup for proper HTML parsing and minification.
+ * Much safer than regex-based approaches as it understands HTML structure.
  *
  * Features:
- * - Removes comments (except IE conditional comments)
- * - Collapses whitespace between tags
- * - Preserves whitespace in <pre>, <code>, <textarea>, and <script> tags
- * - Removes leading/trailing whitespace in block elements
+ * - Properly parses HTML using jsoup's DOM parser
+ * - Removes unnecessary whitespace between elements
+ * - Preserves whitespace in <pre>, <code>, <textarea>, <script>, and <style> tags
+ * - Handles edge cases like inline event handlers and CDATA sections correctly
  */
 class HtmlMinifier : HtmlProcessor {
 
-    private val whitespacePreservingTags = setOf("pre", "code", "textarea", "script", "style")
-
     override fun process(html: String): String {
-        var result = html
+        // Parse the HTML with jsoup
+        val document = Jsoup.parse(html)
 
-        // Remove HTML comments (but preserve IE conditional comments)
-        result = result.replace(Regex("<!--(?!\\[if).*?-->", RegexOption.DOT_MATCHES_ALL), "")
+        // Configure output settings for minification
+        document.outputSettings()
+            .prettyPrint(false)           // Disable pretty printing
+            .indentAmount(0)              // No indentation
+            .outline(false)               // Don't add extra newlines
 
-        // Process the HTML while respecting whitespace-preserving tags
-        result = minifyWithPreservation(result)
+        // Collapse whitespace in text nodes (except in pre/code/textarea/script/style)
+        collapseWhitespace(document)
 
-        return result
+        return document.html()
     }
 
-    private fun minifyWithPreservation(html: String): String {
-        val result = StringBuilder()
-        var currentPos = 0
+    /**
+     * Collapse excessive whitespace in text nodes while preserving
+     * whitespace in certain tags where it's semantically important
+     */
+    private fun collapseWhitespace(document: Document) {
+        val whitespacePreservingTags = setOf("pre", "code", "textarea", "script", "style")
 
-        // Find all whitespace-preserving tags
-        val preserveRegex = Regex("<(${whitespacePreservingTags.joinToString("|")})(?:\\s[^>]*)?>.*?</\\1>",
-            setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        val body = document.body()
+        if (body != null) {
+            val textNodes = mutableListOf<TextNode>()
 
-        val matches = preserveRegex.findAll(html).toList()
+            // Collect all text nodes first
+            body.traverse { node, _ ->
+                if (node is TextNode) {
+                    textNodes.add(node)
+                }
+            }
 
-        for (match in matches) {
-            // Minify the content before this preserved block
-            val beforeContent = html.substring(currentPos, match.range.first)
-            result.append(minifyContent(beforeContent))
+            // Process each text node
+            for (textNode in textNodes) {
+                // Check if this text node is inside a whitespace-preserving tag
+                var parent = textNode.parent()
+                var preserveWhitespace = false
 
-            // Append the preserved content as-is
-            result.append(match.value)
+                while (parent != null) {
+                    if (parent is Element && whitespacePreservingTags.contains(parent.tagName().lowercase())) {
+                        preserveWhitespace = true
+                        break
+                    }
+                    parent = parent.parent()
+                }
 
-            currentPos = match.range.last + 1
+                if (preserveWhitespace.not()) {
+                    // Collapse multiple whitespace characters to single space
+                    val text = textNode.wholeText
+                    val collapsed = text.replace(Regex("\\s+"), " ")
+
+                    // If the text is only whitespace between tags, remove it entirely
+                    if (collapsed.trim().isEmpty()) {
+                        textNode.text("")
+                    } else {
+                        textNode.text(collapsed)
+                    }
+                }
+            }
         }
-
-        // Minify any remaining content after the last preserved block
-        if (currentPos < html.length) {
-            result.append(minifyContent(html.substring(currentPos)))
-        }
-
-        return result.toString()
-    }
-
-    private fun minifyContent(content: String): String {
-        var result = content
-
-        // Collapse multiple whitespace characters into a single space
-        result = result.replace(Regex("\\s+"), " ")
-
-        // Remove whitespace between tags
-        result = result.replace(Regex(">\\s+<"), "><")
-
-        // Remove whitespace at the start of content after opening tag
-        result = result.replace(Regex(">\\s+"), ">")
-
-        // Remove whitespace at the end of content before closing tag
-        result = result.replace(Regex("\\s+<"), "<")
-
-        return result
     }
 }
