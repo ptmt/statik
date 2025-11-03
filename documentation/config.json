@@ -10,7 +10,7 @@
   },
   "paths": {
     "posts": "posts",
-    "pages": "pages"
+    "pages": ["pages"]
   },
   "staticDatasource": {
     "outputDir": "datasource",

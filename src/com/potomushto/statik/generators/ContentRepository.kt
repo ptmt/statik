@@ -49,7 +49,7 @@ class ContentRepository(
             return pagesCache!!
         }
 
-        logger.debug { "Loading all pages from ${config.paths.pages}" }
+        logger.debug { "Loading all pages from ${config.paths.pages.joinToString(", ")}" }
         val pages = loadPagesFromDisk()
         pagesCache = pages
         return pages
@@ -131,24 +131,26 @@ class ContentRepository(
     }
 
     private fun loadPagesFromDisk(): List<SitePage> {
-        val pagesDirectory = config.paths.pages
-        return fileWalker.walkMarkdownFiles(pagesDirectory)
-            .map { file ->
-                val parsedPage = contentProcessor.process(file)
-                val title = parsedPage.metadata["title"] ?: file.nameWithoutExtension
-                val navOrder = parsedPage.metadata["nav_order"]?.toIntOrNull()
-                    ?: parsedPage.metadata["navOrder"]?.toIntOrNull()
+        val pagesDirectories = config.paths.pages
+        return pagesDirectories.flatMap { pagesDirectory ->
+            fileWalker.walkMarkdownFiles(pagesDirectory)
+                .map { file ->
+                    val parsedPage = contentProcessor.process(file)
+                    val title = parsedPage.metadata["title"] ?: file.nameWithoutExtension
+                    val navOrder = parsedPage.metadata["nav_order"]?.toIntOrNull()
+                        ?: parsedPage.metadata["navOrder"]?.toIntOrNull()
 
-                SitePage(
-                    id = file.nameWithoutExtension,
-                    title = title,
-                    content = parsedPage.content,
-                    metadata = parsedPage.metadata,
-                    outputPath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true),
-                    navOrder = navOrder,
-                    isTemplate = file.extension.lowercase() == "hbs"
-                )
-            }
+                    SitePage(
+                        id = file.nameWithoutExtension,
+                        title = title,
+                        content = parsedPage.content,
+                        metadata = parsedPage.metadata,
+                        outputPath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true),
+                        navOrder = navOrder,
+                        isTemplate = file.extension.lowercase() == "hbs"
+                    )
+                }
+        }
             .sortedWith(compareBy<SitePage> { it.navOrder ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
             .toList()
     }

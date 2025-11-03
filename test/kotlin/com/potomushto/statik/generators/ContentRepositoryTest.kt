@@ -36,7 +36,7 @@ class ContentRepositoryTest {
             description = "Test description",
             author = "Test Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         val fileWalker = FileWalker(tempRoot.toString())

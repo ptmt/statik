@@ -37,7 +37,7 @@ class BuildOrchestratorTest {
             description = "Test description",
             author = "Test Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static", "public"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         // Set up components

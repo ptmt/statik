@@ -41,7 +41,7 @@ class BlogConfigTest {
               },
               "paths": {
                 "posts": "articles",
-                "pages": "content"
+                "pages": ["content"]
               }
             }
         """.trimIndent()

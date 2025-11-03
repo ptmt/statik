@@ -241,7 +241,7 @@ class BuildOrchestrator(
     private fun classifyChanges(changedFiles: List<Path>): FileChanges {
         val rootDir = Paths.get(rootPath)
         val postsDir = rootDir.resolve(config.paths.posts)
-        val pagesDir = rootDir.resolve(config.paths.pages)
+        val pageDirs = config.paths.pages.map { rootDir.resolve(it) }
         val templatesDir = rootDir.resolve(config.theme.templates)
         val assetDirs = config.theme.assets.map { rootDir.resolve(it) }
 
@@ -255,7 +255,7 @@ class BuildOrchestrator(
             when {
                 file.fileName.toString() == "config.json" -> configChanged = true
                 file.startsWith(postsDir) && isContentFile(file) -> postFiles.add(file)
-                file.startsWith(pagesDir) && isContentFile(file) -> pageFiles.add(file)
+                pageDirs.any { file.startsWith(it) } && isContentFile(file) -> pageFiles.add(file)
                 file.startsWith(templatesDir) -> templateFiles.add(file)
                 assetDirs.any { file.startsWith(it) } -> assetFiles.add(file)
                 else -> logger.debug { "Unclassified change: $file" }

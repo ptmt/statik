@@ -63,7 +63,7 @@ data class ThemeConfig(
 @Serializable
 data class PathConfig(
     val posts: String = "posts",
-    val pages: String = "pages"
+    val pages: List<String> = listOf("pages")
 )
 
 @Serializable

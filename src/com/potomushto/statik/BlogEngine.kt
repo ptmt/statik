@@ -159,10 +159,12 @@ class BlogEngine {
                 registerDirectoryRecursively(postsDir)
             }
 
-            // Register pages directory and subdirectories
-            val pagesDir = rootDir.resolve(config.paths.pages)
-            if (pagesDir.exists()) {
-                registerDirectoryRecursively(pagesDir)
+            // Register pages directories and subdirectories
+            config.paths.pages.forEach { pagesPath ->
+                val pagesDir = rootDir.resolve(pagesPath)
+                if (pagesDir.exists()) {
+                    registerDirectoryRecursively(pagesDir)
+                }
             }
 
             // Register templates directory and subdirectories
@@ -182,7 +184,15 @@ class BlogEngine {
             // Print what's being watched
             logger.info("Watching for file changes in:")
             logger.info("  • Posts: ${config.paths.posts}/ (${countSubdirectories(postsDir)} subdirectories)")
-            logger.info("  • Pages: ${config.paths.pages}/ (${countSubdirectories(pagesDir)} subdirectories)")
+            if (config.paths.pages.size == 1) {
+                val pagesDir = rootDir.resolve(config.paths.pages[0])
+                logger.info("  • Pages: ${config.paths.pages[0]}/ (${countSubdirectories(pagesDir)} subdirectories)")
+            } else {
+                config.paths.pages.forEach { pagesPath ->
+                    val pagesDir = rootDir.resolve(pagesPath)
+                    logger.info("  • Pages: $pagesPath/ (${countSubdirectories(pagesDir)} subdirectories)")
+                }
+            }
             logger.info("  • Templates: ${config.theme.templates}/ (${countSubdirectories(templatesDir)} subdirectories)")
             if (config.theme.assets.size == 1) {
                 val assetsDir = rootDir.resolve(config.theme.assets[0])

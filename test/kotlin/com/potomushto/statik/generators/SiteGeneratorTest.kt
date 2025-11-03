@@ -47,7 +47,7 @@ class SiteGeneratorTest {
             description = "Sample description",
             author = "Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         createPost("posts/2024/latest.md", """
@@ -166,7 +166,7 @@ class SiteGeneratorTest {
             description = "Fallback description",
             author = "Author",
             theme = ThemeConfig(templates = "missing-templates", assets = listOf("assets"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         createPost("posts/post.md", """
@@ -212,7 +212,7 @@ class SiteGeneratorTest {
             description = "Test HTML files",
             author = "Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         // Create an HTML post with frontmatter
@@ -261,7 +261,7 @@ class SiteGeneratorTest {
             description = "Datasource demo",
             author = "Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         createPost("posts/gallery.md", """
@@ -322,7 +322,7 @@ class SiteGeneratorTest {
             description = "Datasource template demo",
             author = "Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         (tempRoot / "datasource-config.json").writeText(
@@ -394,7 +394,7 @@ class SiteGeneratorTest {
             description = "Entity demo",
             author = "Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         (tempRoot / "datasource-config.json").writeText(
@@ -483,7 +483,7 @@ class SiteGeneratorTest {
             description = "Test HBS files",
             author = "Author",
             theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
-            paths = PathConfig(posts = "posts", pages = "pages")
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
         )
 
         // Create an HBS post with frontmatter and template variables
