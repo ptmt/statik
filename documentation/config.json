@@ -18,7 +18,12 @@
     "imagesFileName": "images.json"
   },
   "html": {
-    "format": "MINIFY",
+    "format": "BEAUTIFY",
     "indentSize": 2
+  },
+  "debug": {
+    "enabled": true,
+    "includeMetadata": true,
+    "includeRenderTrace": true
   }
 }

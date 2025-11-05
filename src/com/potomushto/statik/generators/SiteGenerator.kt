@@ -28,7 +28,7 @@ class SiteGenerator(
         HtmlFormat.DEFAULT -> NoOpHtmlProcessor()
     }
 
-    private val templateEngine = HandlebarsTemplateEngine(templatesPath, htmlProcessor)
+    private val templateEngine = HandlebarsTemplateEngine(templatesPath, htmlProcessor, config.debug.enabled)
     private val fileWalker = FileWalker(rootPath)
 
     // Initialize components

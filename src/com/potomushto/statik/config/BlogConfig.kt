@@ -19,7 +19,9 @@ data class BlogConfig(
     val devServer: DevServerConfig = DevServerConfig(),
     val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig(),
     val rss: RssConfig = RssConfig(),
-    val html: HtmlConfig = HtmlConfig()
+
+    val html: HtmlConfig = HtmlConfig(),
+    val debug: DebugConfig = DebugConfig()
 ) {
     companion object {
         val json = Json {
@@ -103,3 +105,10 @@ enum class HtmlFormat {
     MINIFY,     // Minified HTML with no extra whitespace
     BEAUTIFY    // Formatted HTML with proper indentation
 }
+
+@Serializable
+data class DebugConfig(
+    val enabled: Boolean = false,
+    val includeMetadata: Boolean = true,
+    val includeRenderTrace: Boolean = true
+)

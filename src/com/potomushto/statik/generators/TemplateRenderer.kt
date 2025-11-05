@@ -25,6 +25,18 @@ class TemplateRenderer(
     private val effectiveBaseUrl: String
         get() = baseUrlOverride ?: config.baseUrl
 
+    private fun createRenderTrace(type: String, id: String? = null, additional: Map<String, String> = emptyMap()): String {
+        return buildString {
+            appendLine("  Type: $type")
+            if (id != null) {
+                appendLine("  ID: $id")
+            }
+            additional.forEach { (key, value) ->
+                appendLine("  $key: $value")
+            }
+        }
+    }
+
     /**
      * Render a single blog post to HTML
      */
@@ -44,7 +56,16 @@ class TemplateRenderer(
                     "pages" to allPages,
                     "title" to post.title,
                     "description" to description,
-                    "layout" to layout
+                    "layout" to layout,
+                    "__renderTrace" to createRenderTrace(
+                        "Post",
+                        post.id,
+                        mapOf(
+                            "Template" to "Content is HBS template",
+                            "Path" to post.path,
+                            "Date" to post.date.toString()
+                        )
+                    )
                 ).withDatasource(datasourceContext)
             )
         } else {
@@ -58,7 +79,16 @@ class TemplateRenderer(
                     "pages" to allPages,
                     "title" to post.title,
                     "description" to post.content.take(160),
-                    "layout" to layout
+                    "layout" to layout,
+                    "__renderTrace" to createRenderTrace(
+                        "Post",
+                        post.id,
+                        mapOf(
+                            "Template" to "post.hbs",
+                            "Path" to post.path,
+                            "Date" to post.date.toString()
+                        )
+                    )
                 ).withDatasource(datasourceContext)
             )
         }
@@ -83,7 +113,16 @@ class TemplateRenderer(
                     "siteName" to config.siteName,
                     "description" to description,
                     "title" to page.title,
-                    "layout" to layout
+                    "layout" to layout,
+                    "__renderTrace" to createRenderTrace(
+                        "Page",
+                        page.id,
+                        mapOf(
+                            "Template" to "Content is HBS template",
+                            "Path" to page.path,
+                            "Nav Order" to (page.navOrder?.toString() ?: "none")
+                        )
+                    )
                 ).withDatasource(datasourceContext)
             )
         } else {
@@ -97,7 +136,16 @@ class TemplateRenderer(
                     "siteName" to config.siteName,
                     "description" to config.description,
                     "title" to page.title,
-                    "layout" to layout
+                    "layout" to layout,
+                    "__renderTrace" to createRenderTrace(
+                        "Page",
+                        page.id,
+                        mapOf(
+                            "Template" to "page.hbs",
+                            "Path" to page.path,
+                            "Nav Order" to (page.navOrder?.toString() ?: "none")
+                        )
+                    )
                 ).withDatasource(datasourceContext)
             )
         }
@@ -118,7 +166,16 @@ class TemplateRenderer(
                 "baseUrl" to effectiveBaseUrl,
                 "pages" to pages,
                 "featuredPage" to pages.firstOrNull { it.path.isNotEmpty() },
-                "layout" to "default"
+                "layout" to "default",
+                "__renderTrace" to createRenderTrace(
+                    "Home",
+                    null,
+                    mapOf(
+                        "Template" to "home.hbs",
+                        "Posts Count" to posts.size.toString(),
+                        "Pages Count" to pages.size.toString()
+                    )
+                )
             ).withDatasource(datasourceContext)
         )
     }
@@ -153,7 +210,16 @@ class TemplateRenderer(
                 "description" to "Browse all blog posts",
                 "baseUrl" to effectiveBaseUrl,
                 "pages" to pages,
-                "layout" to "default"
+                "layout" to "default",
+                "__renderTrace" to createRenderTrace(
+                    "Posts Listing",
+                    null,
+                    mapOf(
+                        "Template" to "posts.hbs",
+                        "Total Posts" to filteredPosts.size.toString(),
+                        "Filter Tags" to (filterTags ?: "none")
+                    )
+                )
             ).withDatasource(datasourceContext)
         )
     }

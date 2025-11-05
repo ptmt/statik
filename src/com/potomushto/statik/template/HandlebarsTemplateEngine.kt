@@ -7,13 +7,16 @@ import com.potomushto.statik.template.helpers.HandlebarsHelperRegistrar
 import com.potomushto.statik.template.helpers.HelperRegistrationContext
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.io.path.readText
 import java.util.ServiceLoader
 
 private val logger = LoggerFactory.getLogger(HandlebarsTemplateEngine::class.java)
 class HandlebarsTemplateEngine(
     val templatesPath: Path,
-    private val htmlProcessor: HtmlProcessor = NoOpHtmlProcessor()
+    private val htmlProcessor: HtmlProcessor = NoOpHtmlProcessor(),
+    private val debugEnabled: Boolean = false
 ) : TemplateEngine {
     override val extension = "hbs"
 
@@ -97,7 +100,7 @@ class HandlebarsTemplateEngine(
         // If no layout specified, return content as-is
         if (layoutName == null) {
             recoverPreviousBlocks(previousBlocks)
-            return contentHtml
+            return injectDebugMetadata(contentHtml, data, null)
         }
 
         // Load and apply layout
@@ -116,7 +119,9 @@ class HandlebarsTemplateEngine(
             val renderedLayout = try {
                 val html = render(layoutTemplate, layoutData)
                 // Apply HTML processing (minification/beautification)
-                htmlProcessor.process(html)
+                val processed = htmlProcessor.process(html)
+                // Inject debug metadata after HTML processing
+                injectDebugMetadata(processed, data, layoutName)
             } finally {
                 recoverPreviousBlocks(previousBlocks)
             }
@@ -126,7 +131,7 @@ class HandlebarsTemplateEngine(
         // If no layout found at all, return content without layout
         recoverPreviousBlocks(previousBlocks)
         // Apply HTML processing even for content without layout
-        return htmlProcessor.process(contentHtml)
+        return injectDebugMetadata(htmlProcessor.process(contentHtml), data, null)
     }
 
     private fun recoverPreviousBlocks(previous: MutableMap<String, MutableList<CharSequence>>?) {
@@ -134,6 +139,92 @@ class HandlebarsTemplateEngine(
             blockRegistry.set(previous)
         } else {
             blockRegistry.remove()
+        }
+    }
+
+    /**
+     * Inject debug metadata as HTML comment at the bottom of the page
+     */
+    private fun injectDebugMetadata(html: String, data: Map<String, Any?>, layoutName: String?): String {
+        if (!debugEnabled) {
+            return html
+        }
+
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        val debugComment = buildString {
+            appendLine()
+            appendLine("<!--")
+            appendLine("═══════════════════════════════════════════════════════════════════")
+            appendLine("  Statik Debug Information")
+            appendLine("  Generated: $timestamp")
+            appendLine("═══════════════════════════════════════════════════════════════════")
+            appendLine()
+
+            // Render trace
+            val renderTrace = data["__renderTrace"] as? String
+            if (renderTrace != null) {
+                appendLine("Render Trace:")
+                appendLine(renderTrace)
+                appendLine()
+            }
+
+            // Layout information
+            appendLine("Layout:")
+            appendLine("  Name: ${layoutName ?: "none"}")
+            appendLine()
+
+            // Template context (filtered to show only useful data)
+            appendLine("Template Context:")
+            data.forEach { (key, value) ->
+                // Skip internal keys and large objects
+                if (key.startsWith("__") || key == "datasource" || key == "content") {
+                    appendLine("  $key: [omitted]")
+                } else {
+                    when (value) {
+                        is String -> appendLine("  $key: \"$value\"")
+                        is Number -> appendLine("  $key: $value")
+                        is Boolean -> appendLine("  $key: $value")
+                        is List<*> -> appendLine("  $key: [${value.size} items]")
+                        is Map<*, *> -> {
+                            appendLine("  $key: {")
+                            // Show first level of map
+                            value.entries.take(5).forEach { entry ->
+                                appendLine("    ${entry.key}: ${summarizeValue(entry.value)}")
+                            }
+                            if (value.size > 5) {
+                                appendLine("    ... (${value.size - 5} more)")
+                            }
+                            appendLine("  }")
+                        }
+                        null -> appendLine("  $key: null")
+                        else -> appendLine("  $key: [${value::class.simpleName}]")
+                    }
+                }
+            }
+
+            appendLine()
+            appendLine("═══════════════════════════════════════════════════════════════════")
+            append("-->")
+        }
+
+        // Insert before closing </body> tag if exists, otherwise append to end
+        val bodyCloseIndex = html.lastIndexOf("</body>", ignoreCase = true)
+        return if (bodyCloseIndex != -1) {
+            html.substring(0, bodyCloseIndex) + debugComment + "\n" + html.substring(bodyCloseIndex)
+        } else {
+            html + debugComment
+        }
+    }
+
+    private fun summarizeValue(value: Any?): String {
+        return when (value) {
+            is String -> if (value.length > 50) "\"${value.take(50)}...\"" else "\"$value\""
+            is Number -> value.toString()
+            is Boolean -> value.toString()
+            is List<*> -> "[${value.size} items]"
+            is Map<*, *> -> "{${value.size} entries}"
+            null -> "null"
+            else -> "[${value::class.simpleName}]"
         }
     }
 }
