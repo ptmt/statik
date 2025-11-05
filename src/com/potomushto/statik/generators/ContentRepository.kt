@@ -140,12 +140,24 @@ class ContentRepository(
                     val navOrder = parsedPage.metadata["nav_order"]?.toIntOrNull()
                         ?: parsedPage.metadata["navOrder"]?.toIntOrNull()
 
+                    val basePath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true)
+
+                    // Preserve directory name as prefix for non-"pages" directories
+                    // e.g., garage/index.hbs should become "garage" not ""
+                    val outputPath = if (basePath.isEmpty() && pagesDirectory != "pages") {
+                        pagesDirectory
+                    } else if (pagesDirectory != "pages" && !basePath.startsWith("$pagesDirectory/")) {
+                        "$pagesDirectory/$basePath"
+                    } else {
+                        basePath
+                    }
+
                     SitePage(
                         id = file.nameWithoutExtension,
                         title = title,
                         content = parsedPage.content,
                         metadata = parsedPage.metadata,
-                        outputPath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true),
+                        outputPath = outputPath,
                         navOrder = navOrder,
                         isTemplate = file.extension.lowercase() == "hbs"
                     )

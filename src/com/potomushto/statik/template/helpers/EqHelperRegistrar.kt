@@ -13,14 +13,14 @@ class EqHelperRegistrar : HandlebarsHelperRegistrar {
             // Check tagType to determine if this is a block helper or subexpression
             // SECTION = block helper like {{#eq}}...{{/eq}}
             // VAR = inline/subexpression like {{eq}} or {{#if (eq ...)}}
-            val isBlockHelper = options.tagType.toString() == "SECTION"
+            val isBlockHelper = options?.tagType?.toString() == "SECTION"
 
             if (isBlockHelper) {
                 // Block helper mode: {{#eq value param}}content{{else}}alt{{/eq}}
                 if (isEqual) {
-                    options.fn()
+                    options?.fn()
                 } else {
-                    options.inverse()
+                    options?.inverse()
                 }
             } else {
                 // Inline/subexpression mode: {{#if (eq value param)}}
