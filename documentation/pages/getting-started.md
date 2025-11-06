@@ -6,9 +6,9 @@ nav_order: 1
 
 This guide will help you set up and use Statik to create your own static website.
 
-## Quick Start (No Templates Needed!)
+## Quick Start
 
-Statik now works out of the box with built-in templates. Just create content and go!
+Statik works out of the box with built-in templates. Just create content and go!
 
 1. **Create a config.json**
    ```json
