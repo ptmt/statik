@@ -19,7 +19,8 @@ class ContentRepository(
     private val rootPath: String,
     private val config: BlogConfig,
     private val fileWalker: FileWalker,
-    private val contentProcessor: ContentProcessor
+    private val contentProcessor: ContentProcessor,
+    private val isDevelopment: Boolean = false
 ) {
     private val logger = LoggerFactory.getLogger(ContentRepository::class.java)
 
@@ -125,6 +126,16 @@ class ContentRepository(
                     outputPath = fileWalker.generatePath(file, postsDirectory),
                     isTemplate = file.extension.lowercase() == "hbs"
                 )
+            }
+            .filter { post ->
+                // Filter out draft posts unless in development mode
+                val isDraft = post.metadata["draft"]?.lowercase() in setOf("true", "yes", "1")
+                if (isDraft && !isDevelopment) {
+                    logger.debug { "Skipping draft post: ${post.id}" }
+                    false
+                } else {
+                    true
+                }
             }
             .sortedByDescending { it.date }
             .toList()

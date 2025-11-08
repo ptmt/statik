@@ -16,7 +16,8 @@ class SiteGenerator(
     private val rootPath: String,
     private val config: BlogConfig,
     private val baseUrlOverride: String? = null,
-    private val enableLiveReload: Boolean = false
+    private val enableLiveReload: Boolean = false,
+    private val isDevelopment: Boolean = false
 ) {
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
@@ -36,7 +37,8 @@ class SiteGenerator(
         rootPath,
         config,
         fileWalker,
-        contentProcessor
+        contentProcessor,
+        isDevelopment
     )
 
     private val templateRenderer = TemplateRenderer(

@@ -27,7 +27,7 @@ class BlogEngine {
 
             // Override baseUrl for development mode
             val devBaseUrl = if (watch) "http://localhost:$resolvedPort/" else null
-            val generator = SiteGenerator(path, config, devBaseUrl, enableLiveReload = watch)
+            val generator = SiteGenerator(path, config, devBaseUrl, enableLiveReload = watch, isDevelopment = watch)
 
             // Generate site initially
             logger.info("Generating site...")
