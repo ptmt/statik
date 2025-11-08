@@ -433,6 +433,112 @@ class ContentRepositoryTest {
         createFile(relative, content)
     }
 
+    @Test
+    fun `loadAllPosts excludes drafts in production mode`() {
+        createPost("posts/published.md", """
+            ---
+            title: Published Post
+            published: 2024-01-01T00:00:00
+            ---
+            Published content.
+        """.trimIndent())
+
+        createPost("posts/draft-true.md", """
+            ---
+            title: Draft Post (true)
+            draft: true
+            published: 2024-02-01T00:00:00
+            ---
+            Draft content.
+        """.trimIndent())
+
+        createPost("posts/draft-yes.md", """
+            ---
+            title: Draft Post (yes)
+            draft: yes
+            published: 2024-03-01T00:00:00
+            ---
+            Draft content.
+        """.trimIndent())
+
+        createPost("posts/draft-1.md", """
+            ---
+            title: Draft Post (1)
+            draft: 1
+            published: 2024-04-01T00:00:00
+            ---
+            Draft content.
+        """.trimIndent())
+
+        val fileWalker = FileWalker(tempRoot.toString())
+        val contentProcessor = ContentProcessor(MarkdownProcessor())
+        val prodRepository = ContentRepository(tempRoot.toString(), config, fileWalker, contentProcessor, isDevelopment = false)
+
+        val posts = prodRepository.loadAllPosts(useCache = false)
+
+        assertEquals(1, posts.size)
+        assertEquals("Published Post", posts[0].title)
+    }
+
+    @Test
+    fun `loadAllPosts includes drafts in development mode`() {
+        createPost("posts/published.md", """
+            ---
+            title: Published Post
+            published: 2024-01-01T00:00:00
+            ---
+            Published content.
+        """.trimIndent())
+
+        createPost("posts/draft.md", """
+            ---
+            title: Draft Post
+            draft: true
+            published: 2024-02-01T00:00:00
+            ---
+            Draft content.
+        """.trimIndent())
+
+        val fileWalker = FileWalker(tempRoot.toString())
+        val contentProcessor = ContentProcessor(MarkdownProcessor())
+        val devRepository = ContentRepository(tempRoot.toString(), config, fileWalker, contentProcessor, isDevelopment = true)
+
+        val posts = devRepository.loadAllPosts(useCache = false)
+
+        assertEquals(2, posts.size)
+        assertEquals("Draft Post", posts[0].title)  // Sorted by date descending
+        assertEquals("Published Post", posts[1].title)
+    }
+
+    @Test
+    fun `draft field is case insensitive`() {
+        createPost("posts/draft-TRUE.md", """
+            ---
+            title: Draft TRUE
+            draft: TRUE
+            published: 2024-01-01T00:00:00
+            ---
+            Draft content.
+        """.trimIndent())
+
+        createPost("posts/draft-Yes.md", """
+            ---
+            title: Draft Yes
+            draft: Yes
+            published: 2024-02-01T00:00:00
+            ---
+            Draft content.
+        """.trimIndent())
+
+        val fileWalker = FileWalker(tempRoot.toString())
+        val contentProcessor = ContentProcessor(MarkdownProcessor())
+        val prodRepository = ContentRepository(tempRoot.toString(), config, fileWalker, contentProcessor, isDevelopment = false)
+
+        val posts = prodRepository.loadAllPosts(useCache = false)
+
+        assertEquals(0, posts.size, "All drafts should be filtered in production")
+    }
+
     private fun createFile(relative: String, content: String) {
         val target = tempRoot / relative
         target.parent?.createDirectories()
