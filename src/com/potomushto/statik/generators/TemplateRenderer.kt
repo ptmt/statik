@@ -20,6 +20,12 @@ class TemplateRenderer(
     private val baseUrlOverride: String?
 ) {
     private val logger = LoggerFactory.getLogger(TemplateRenderer::class.java)
+    private val templatesRoot = templatesPath.toAbsolutePath().normalize()
+
+    private data class TemplateSelection(
+        val content: String,
+        val identifier: String
+    )
 
     // Use overridden baseUrl if provided, otherwise use config baseUrl
     private val effectiveBaseUrl: String
@@ -41,7 +47,11 @@ class TemplateRenderer(
      * Render a single blog post to HTML
      */
     fun renderPost(post: BlogPost, allPages: List<SitePage>, datasourceContext: Map<String, Any?>): String {
-        val templateContent = getTemplateContent("post", FallbackTemplates.POST_TEMPLATE)
+        val templateSelection = getTemplateContent(
+            templateName = "post",
+            fallbackTemplate = FallbackTemplates.POST_TEMPLATE,
+            overrideTemplate = post.metadata["template"]
+        )
 
         return if (post.isTemplate) {
             // For template files, use layout if specified in metadata or default
@@ -71,7 +81,7 @@ class TemplateRenderer(
         } else {
             val layout = post.metadata["layout"] ?: "default"
             templateEngine.renderWithLayout(
-                templateContent,
+                templateSelection.content,
                 mapOf(
                     "post" to post,
                     "baseUrl" to effectiveBaseUrl,
@@ -84,7 +94,7 @@ class TemplateRenderer(
                         "Post",
                         post.id,
                         mapOf(
-                            "Template" to "post.hbs",
+                            "Template" to templateSelection.identifier,
                             "Path" to post.path,
                             "Date" to post.date.toString()
                         )
@@ -98,7 +108,11 @@ class TemplateRenderer(
      * Render a single page to HTML
      */
     fun renderPage(page: SitePage, allPages: List<SitePage>, datasourceContext: Map<String, Any?>): String {
-        val templateContent = getTemplateContent("page", FallbackTemplates.PAGE_TEMPLATE)
+        val templateSelection = getTemplateContent(
+            templateName = "page",
+            fallbackTemplate = FallbackTemplates.PAGE_TEMPLATE,
+            overrideTemplate = page.metadata["template"]
+        )
 
         return if (page.isTemplate) {
             // For template files, render directly with layout
@@ -128,7 +142,7 @@ class TemplateRenderer(
         } else {
             val layout = page.metadata["layout"] ?: "default"
             templateEngine.renderWithLayout(
-                templateContent,
+                templateSelection.content,
                 mapOf(
                     "page" to page,
                     "pages" to allPages,
@@ -141,7 +155,7 @@ class TemplateRenderer(
                         "Page",
                         page.id,
                         mapOf(
-                            "Template" to "page.hbs",
+                            "Template" to templateSelection.identifier,
                             "Path" to page.path,
                             "Nav Order" to (page.navOrder?.toString() ?: "none")
                         )
@@ -155,10 +169,10 @@ class TemplateRenderer(
      * Render the home page to HTML
      */
     fun renderHomePage(posts: List<BlogPost>, pages: List<SitePage>, datasourceContext: Map<String, Any?>): String {
-        val templateContent = getTemplateContent("home", FallbackTemplates.HOME_TEMPLATE)
+        val templateSelection = getTemplateContent("home", FallbackTemplates.HOME_TEMPLATE)
 
         return templateEngine.renderWithLayout(
-            templateContent,
+            templateSelection.content,
             mapOf(
                 "posts" to posts,
                 "siteName" to config.siteName,
@@ -171,7 +185,7 @@ class TemplateRenderer(
                     "Home",
                     null,
                     mapOf(
-                        "Template" to "home.hbs",
+                        "Template" to templateSelection.identifier,
                         "Posts Count" to posts.size.toString(),
                         "Pages Count" to pages.size.toString()
                     )
@@ -184,7 +198,7 @@ class TemplateRenderer(
      * Render the posts listing page to HTML
      */
     fun renderPostsPage(posts: List<BlogPost>, pages: List<SitePage>, datasourceContext: Map<String, Any?>, filterTags: String? = null): String {
-        val templateContent = getTemplateContent("posts", FallbackTemplates.POSTS_TEMPLATE)
+        val templateSelection = getTemplateContent("posts", FallbackTemplates.POSTS_TEMPLATE)
 
         val filteredPosts = if (filterTags != null) {
             val requestedTags = filterTags.split(",")
@@ -200,7 +214,7 @@ class TemplateRenderer(
         }
 
         return templateEngine.renderWithLayout(
-            templateContent,
+            templateSelection.content,
             mapOf(
                 "posts" to filteredPosts,
                 "total" to filteredPosts.size,
@@ -215,7 +229,7 @@ class TemplateRenderer(
                     "Posts Listing",
                     null,
                     mapOf(
-                        "Template" to "posts.hbs",
+                        "Template" to templateSelection.identifier,
                         "Total Posts" to filteredPosts.size.toString(),
                         "Filter Tags" to (filterTags ?: "none")
                     )
@@ -227,14 +241,57 @@ class TemplateRenderer(
     /**
      * Gets template content, falling back to built-in template if file doesn't exist
      */
-    private fun getTemplateContent(templateName: String, fallbackTemplate: String): String {
-        val templateFile = templatesPath.resolve("$templateName.${templateEngine.extension}")
-        return if (Files.exists(templateFile)) {
-            templateFile.readText()
-        } else {
-            logger.warn { "Template $templateName.${templateEngine.extension} not found, using built-in fallback" }
-            fallbackTemplate
+    private fun getTemplateContent(
+        templateName: String,
+        fallbackTemplate: String,
+        overrideTemplate: String? = null
+    ): TemplateSelection {
+        val normalizedOverride = overrideTemplate?.trim()?.takeIf { it.isNotEmpty() }
+        if (normalizedOverride != null) {
+            resolveTemplateOverride(normalizedOverride)?.let { overridePath ->
+                return TemplateSelection(
+                    content = overridePath.readText(),
+                    identifier = templatesRoot.relativize(overridePath).toString()
+                )
+            }
+            logger.warn {
+                "Template override '$normalizedOverride' not found under $templatesRoot, falling back to $templateName.${templateEngine.extension}"
+            }
         }
+
+        val defaultTemplateName = "$templateName.${templateEngine.extension}"
+        val defaultTemplatePath = templatesRoot.resolve(defaultTemplateName).normalize()
+        if (Files.exists(defaultTemplatePath)) {
+            return TemplateSelection(
+                content = defaultTemplatePath.readText(),
+                identifier = defaultTemplateName
+            )
+        }
+
+        logger.warn {
+            "Template $templateName.${templateEngine.extension} not found in $templatesRoot, falling back to built-in template"
+        }
+        return TemplateSelection(
+            content = fallbackTemplate,
+            identifier = "fallback:$templateName"
+        )
+    }
+
+    private fun resolveTemplateOverride(templateReference: String): Path? {
+        val sanitizedReference = templateReference.trim().removePrefix("/")
+        if (sanitizedReference.isEmpty()) return null
+
+        val candidates = if (sanitizedReference.endsWith(".${templateEngine.extension}")) {
+            listOf(sanitizedReference)
+        } else {
+            listOf("$sanitizedReference.${templateEngine.extension}", sanitizedReference)
+        }
+
+        return candidates.asSequence()
+            .map { templatesRoot.resolve(it).normalize() }
+            .firstOrNull { candidate ->
+                candidate.startsWith(templatesRoot) && Files.exists(candidate)
+            }
     }
 
     private fun Map<String, Any?>.withDatasource(datasource: Map<String, Any?>): Map<String, Any?> =

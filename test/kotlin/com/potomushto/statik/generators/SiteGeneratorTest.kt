@@ -22,6 +22,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalPathApi::class)
@@ -533,6 +534,78 @@ class SiteGeneratorTest {
         assertTrue(pageHtml.contains("<h2>Template Page</h2>"))
         assertTrue(pageHtml.contains("Welcome to HBS Test Site"))
         assertTrue(pageHtml.contains("<li>Template Page</li>"))
+    }
+
+    @Test
+    fun `markdown content can specify template override`() {
+        val config = BlogConfig(
+            siteName = "Template Override Site",
+            baseUrl = "https://template-override.example/",
+            description = "Template override description",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
+        )
+
+        createPost("posts/launch.md", """
+            ---
+            title: Launch Plans
+            published: 2024-09-01T10:00:00
+            template: custom/feature
+            ---
+            ## Countdown
+
+            Ready to go.
+        """.trimIndent())
+
+        createPage("pages/idea.md", """
+            ---
+            title: Idea Vault
+            template: idea
+            ---
+            <p>Collecting every experiment.</p>
+        """.trimIndent())
+
+        writeTemplate("templates/layouts/default.hbs", """
+            <html>
+            <body>{{{content}}}</body>
+            </html>
+        """.trimIndent())
+
+        writeTemplate("templates/post.hbs", """
+            <article class="default-post">{{post.title}} default</article>
+        """.trimIndent())
+
+        writeTemplate("templates/page.hbs", """
+            <section class="default-page">{{page.title}} default</section>
+        """.trimIndent())
+
+        writeTemplate("templates/idea.hbs", """
+            <section class="idea-template">
+                <h1>{{page.title}}</h1>
+                <div class="body">{{{page.content}}}</div>
+            </section>
+        """.trimIndent())
+
+        writeTemplate("templates/custom/feature.hbs", """
+            <article class="feature-post">
+                <header>{{post.title}}</header>
+                <div class="body">{{{post.content}}}</div>
+            </article>
+        """.trimIndent())
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val pageHtml = (tempRoot / "build" / "idea" / "index.html").readText()
+        assertTrue(pageHtml.contains("class=\"idea-template\""))
+        assertTrue(pageHtml.contains("Collecting every experiment."))
+        assertFalse(pageHtml.contains("default-page"))
+
+        val postHtml = (tempRoot / "build" / "launch" / "index.html").readText()
+        assertTrue(postHtml.contains("class=\"feature-post\""))
+        assertTrue(postHtml.contains("Ready to go."))
+        assertFalse(postHtml.contains("default-post"))
     }
 
     private fun createPost(relative: String, content: String) {

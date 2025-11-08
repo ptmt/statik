@@ -98,6 +98,22 @@ This page uses the minimal layout.
 
 If no layout is specified, the `default` layout is used.
 
+### Specifying a Template Override
+
+Layouts handle the outer shell, while templates control the markup for individual pages or posts. Markdown or HTML files can opt into a specific template by adding a `template` key to their frontmatter:
+
+```markdown
+---
+title: Idea Vault
+template: idea      # Renders with templates/idea.hbs
+layout: minimal     # Wrapped by templates/layouts/minimal.hbs
+---
+
+Content goes here…
+```
+
+Statik looks for `templates/idea.hbs` (paths like `custom/idea` are also supported) and falls back to `templates/page.hbs` or `templates/post.hbs` if the override is missing.
+
 ### Multiple Layouts
 
 You can create multiple layouts for different purposes:

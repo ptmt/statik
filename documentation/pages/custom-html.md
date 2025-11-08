@@ -81,6 +81,7 @@ published: 2024-10-07T10:00:00  # For posts
 nav_order: 1                     # For pages
 layout: custom                   # Optional: specify layout
 description: Custom description  # For meta tags
+template: idea                   # Optional: use templates/idea.hbs
 custom_field: Any value         # Custom metadata
 ---
 ```
@@ -133,6 +134,31 @@ HBS files have access to all template variables:
 ```
 
 ## Advanced Examples
+
+### Markdown Page Using a Custom Template
+
+You can keep writing Markdown while still opting into a bespoke Handlebars template. Create `templates/idea.hbs`:
+
+```handlebars
+<section class="idea">
+  <h1>{{page.title}}</h1>
+  <div class="body">{{{page.content}}}</div>
+</section>
+```
+
+Then reference it from a Markdown file with the `template` frontmatter key (extension optional):
+
+```markdown
+---
+title: Idea Vault
+template: idea         # Looks for templates/idea.hbs
+layout: minimal        # Layout still wraps the template
+---
+
+Every idea starts here.
+```
+
+Statik loads `templates/idea.hbs` (or `templates/custom/idea.hbs` if you provide a nested path) and renders the Markdown content with the same variables available to `.hbs` files. If the template override is missing, Statik falls back to `templates/page.hbs`.
 
 ### HTML Post with Custom Layout
 
