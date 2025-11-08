@@ -179,10 +179,50 @@ The YAML frontmatter supports these options:
 
 - `title`: Page title (required)
 - `published`: Publication date for posts (format: "YYYY-MM-DDTHH:MM:SS")
+- `draft`: Mark post as draft (see Draft Posts below)
 - `nav_order`: Order in navigation menu (for pages)
 - `layout`: Specify a custom layout (e.g., "minimal", "landing")
 - `description`: Page description for SEO
 - Custom fields: Add any custom metadata you need
+
+### Draft Posts
+
+Statik supports draft posts that are hidden in production builds but visible during development. This lets you work on posts before they're ready to publish.
+
+**Mark a post as draft:**
+
+```markdown
+---
+title: "Work in Progress"
+published: "2024-01-15T00:00:00"
+draft: true
+---
+
+This post is still being written...
+```
+
+**How drafts work:**
+
+- **Development mode** (`--w` flag): Draft posts are included and visible
+- **Production build**: Draft posts are automatically filtered out
+- **Supported values**: `true`, `yes`, `1` (case-insensitive: `TRUE`, `Yes`, etc.)
+
+**Example workflow:**
+
+```bash
+# Development: See all posts including drafts
+./amper run -- --root-path . --w
+
+# Production: Drafts are excluded automatically
+./amper run -- --root-path .
+```
+
+This is perfect for:
+- Writing posts over multiple sessions
+- Getting feedback before publishing
+- Scheduling content without manual file management
+
+Simply remove the `draft: true` line when ready to publish!
 
 ## Custom Templates (Optional)
 
@@ -253,7 +293,7 @@ With layouts, templates become simpler:
 </article>
 ```
 
-The layout wrapper is automatically applied! See the [Layouts documentation](layouts.html) for more details.
+The layout wrapper is automatically applied! See the [Layouts documentation](./layouts) for more details.
 
 ### Template Variables
 
