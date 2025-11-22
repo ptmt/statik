@@ -1,5 +1,6 @@
 com.potomushto.statik.template.helpers.BlockHelperRegistrar
 com.potomushto.statik.template.helpers.ContentHelperRegistrar
+com.potomushto.statik.template.helpers.DebugHelperRegistrar
 com.potomushto.statik.template.helpers.EqHelperRegistrar
 com.potomushto.statik.template.helpers.ExcerptHelperRegistrar
 com.potomushto.statik.template.helpers.FormatDateHelperRegistrar
