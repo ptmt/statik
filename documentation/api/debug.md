@@ -58,6 +58,28 @@ title: "My Post"
 - **Development**: Understand the structure of posts, pages, and custom data
 - **Troubleshooting**: Verify that expected variables are present and have correct values
 
+## Common Issues Revealed by Debug
+
+### Tags Not Rendering Correctly
+
+If you see strange output when iterating over tags (like `isEmpty`, `hashCode`, byte arrays, etc.), you're likely iterating over `page.metadata.tags` or `post.metadata.tags`, which are **strings**, not arrays.
+
+**Wrong:**
+```handlebars
+{{#each page.metadata.tags}}  <!-- This is a string! -->
+  <span>{{this}}</span>
+{{/each}}
+```
+
+**Correct:**
+```handlebars
+{{#each page.tags}}  <!-- This is a proper array -->
+  <span>{{this}}</span>
+{{/each}}
+```
+
+Both `BlogPost` and `SitePage` have a `tags` property that automatically parses the comma-separated string from metadata into a list.
+
 ## Notes
 
 - The debug helper is safe to use in production, but you should remove it before deploying
