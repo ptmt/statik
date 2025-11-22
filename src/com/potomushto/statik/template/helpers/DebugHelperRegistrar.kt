@@ -24,7 +24,8 @@ class DebugHelperRegistrar : HandlebarsHelperRegistrar {
             sb.appendLine("═".repeat(60))
             sb.append("</pre>")
 
-            sb.toString()
+            // Return as SafeString to prevent HTML escaping
+            Handlebars.SafeString(sb.toString())
         })
     }
 
