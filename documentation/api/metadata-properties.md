@@ -32,45 +32,9 @@ tags: "kotlin, web, tutorial"
 
 **Important:** Always use `post.tags` or `page.tags`, NOT `post.metadata.tags` or `page.metadata.tags`. The metadata value is a string, which will cause issues when iterating with `{{#each}}`.
 
-## Description
-
-The description property provides a fallback mechanism for meta descriptions.
-
-### For BlogPost
-
-```handlebars
-{{! Description from metadata, or first 160 chars of content }}
-<meta name="description" content="{{post.description}}">
-```
-
-**Priority:**
-1. `metadata["description"]` - Custom description from frontmatter
-2. First 160 characters of post content (auto-generated)
-
-**Frontmatter:**
-```yaml
----
-title: "My Post"
-description: "A custom description for SEO"
----
-```
-
-### For SitePage
-
-```handlebars
-{{! Description from metadata, or null }}
-{{#if page.description}}
-<meta name="description" content="{{page.description}}">
-{{/if}}
-```
-
-**Priority:**
-1. `metadata["description"]` - Custom description from frontmatter
-2. `null` if not set
-
 ## Summary
 
-The summary property provides an alias for description with an additional fallback.
+The summary property is the primary field for content summaries.
 
 ### For BlogPost
 
@@ -80,8 +44,15 @@ The summary property provides an alias for description with an additional fallba
 
 **Priority:**
 1. `metadata["summary"]` - Custom summary from frontmatter
-2. `metadata["description"]` - Falls back to description
-3. First 160 characters of post content
+2. First 160 characters of post content (auto-generated)
+
+**Frontmatter:**
+```yaml
+---
+title: "My Post"
+summary: "A brief summary of this post"
+---
+```
 
 ### For SitePage
 
@@ -93,7 +64,45 @@ The summary property provides an alias for description with an additional fallba
 
 **Priority:**
 1. `metadata["summary"]` - Custom summary from frontmatter
-2. `metadata["description"]` - Falls back to description
+2. `null` if not set
+
+## Description
+
+The description property is used for SEO meta descriptions and falls back to summary.
+
+### For BlogPost
+
+```handlebars
+{{! Description from metadata, or summary, or first 160 chars of content }}
+<meta name="description" content="{{post.description}}">
+```
+
+**Priority:**
+1. `metadata["description"]` - Custom description for SEO from frontmatter
+2. `metadata["summary"]` - Falls back to summary
+3. First 160 characters of post content (auto-generated)
+
+**Frontmatter:**
+```yaml
+---
+title: "My Post"
+summary: "A brief summary for listings"
+description: "A different description optimized for search engines"
+---
+```
+
+### For SitePage
+
+```handlebars
+{{! Description from metadata, or summary }}
+{{#if page.description}}
+<meta name="description" content="{{page.description}}">
+{{/if}}
+```
+
+**Priority:**
+1. `metadata["description"]` - Custom description for SEO from frontmatter
+2. `metadata["summary"]` - Falls back to summary
 3. `null` if neither is set
 
 ## Example: Complete Post Card

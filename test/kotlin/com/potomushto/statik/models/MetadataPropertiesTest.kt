@@ -8,21 +8,21 @@ import kotlin.test.assertNull
 class MetadataPropertiesTest {
 
     @Test
-    fun `BlogPost description from metadata overrides content`() {
+    fun `BlogPost summary from metadata overrides content`() {
         val post = BlogPost(
             id = "test",
             title = "Test Post",
             date = LocalDateTime.now(),
-            content = "This is a very long content that would normally be truncated to 160 characters for the description but we have a custom description in metadata",
-            metadata = mapOf("description" to "Custom description from metadata"),
+            content = "This is a very long content that would normally be truncated to 160 characters for the summary but we have a custom summary in metadata",
+            metadata = mapOf("summary" to "Custom summary from metadata"),
             outputPath = "test"
         )
 
-        assertEquals("Custom description from metadata", post.description)
+        assertEquals("Custom summary from metadata", post.summary)
     }
 
     @Test
-    fun `BlogPost description falls back to truncated content`() {
+    fun `BlogPost summary falls back to truncated content`() {
         val longContent = "a".repeat(200)
         val post = BlogPost(
             id = "test",
@@ -33,53 +33,53 @@ class MetadataPropertiesTest {
             outputPath = "test"
         )
 
-        assertEquals(longContent.take(160), post.description)
-        assertEquals(160, post.description.length)
+        assertEquals(longContent.take(160), post.summary)
+        assertEquals(160, post.summary.length)
     }
 
     @Test
-    fun `BlogPost summary uses metadata summary first, then description`() {
+    fun `BlogPost description uses metadata description first, then summary`() {
         val post1 = BlogPost(
             id = "test",
             title = "Test Post",
             date = LocalDateTime.now(),
             content = "Content",
             metadata = mapOf(
-                "summary" to "Custom summary",
-                "description" to "Custom description"
+                "description" to "Custom description",
+                "summary" to "Custom summary"
             ),
             outputPath = "test"
         )
 
-        assertEquals("Custom summary", post1.summary)
+        assertEquals("Custom description", post1.description)
 
         val post2 = BlogPost(
             id = "test",
             title = "Test Post",
             date = LocalDateTime.now(),
             content = "Content",
-            metadata = mapOf("description" to "Custom description"),
+            metadata = mapOf("summary" to "Custom summary"),
             outputPath = "test"
         )
 
-        assertEquals("Custom description", post2.summary)
+        assertEquals("Custom summary", post2.description)
     }
 
     @Test
-    fun `SitePage description from metadata`() {
+    fun `SitePage summary from metadata`() {
         val page = SitePage(
             id = "test",
             title = "Test Page",
             content = "Content",
-            metadata = mapOf("description" to "Custom page description"),
+            metadata = mapOf("summary" to "Custom page summary"),
             outputPath = "test"
         )
 
-        assertEquals("Custom page description", page.description)
+        assertEquals("Custom page summary", page.summary)
     }
 
     @Test
-    fun `SitePage description is null when not in metadata`() {
+    fun `SitePage summary is null when not in metadata`() {
         val page = SitePage(
             id = "test",
             title = "Test Page",
@@ -88,33 +88,33 @@ class MetadataPropertiesTest {
             outputPath = "test"
         )
 
-        assertNull(page.description)
+        assertNull(page.summary)
     }
 
     @Test
-    fun `SitePage summary uses metadata summary first, then description`() {
+    fun `SitePage description uses metadata description first, then summary`() {
         val page1 = SitePage(
             id = "test",
             title = "Test Page",
             content = "Content",
             metadata = mapOf(
-                "summary" to "Custom summary",
-                "description" to "Custom description"
+                "description" to "Custom description",
+                "summary" to "Custom summary"
             ),
             outputPath = "test"
         )
 
-        assertEquals("Custom summary", page1.summary)
+        assertEquals("Custom description", page1.description)
 
         val page2 = SitePage(
             id = "test",
             title = "Test Page",
             content = "Content",
-            metadata = mapOf("description" to "Custom description"),
+            metadata = mapOf("summary" to "Custom summary"),
             outputPath = "test"
         )
 
-        assertEquals("Custom description", page2.summary)
+        assertEquals("Custom summary", page2.description)
     }
 
     @Test
