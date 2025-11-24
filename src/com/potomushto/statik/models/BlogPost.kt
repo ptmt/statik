@@ -25,4 +25,14 @@ data class BlogPost(
         ?.map { it.trim() }
         ?.filter { it.isNotEmpty() }
         ?: emptyList()
+
+    /**
+     * Get summary from metadata, falling back to truncated content.
+     */
+    val summary: String get() = metadata["summary"] ?: content.take(160)
+
+    /**
+     * Get description from metadata, falling back to summary.
+     */
+    val description: String get() = metadata["description"] ?: summary
 }

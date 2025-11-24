@@ -19,4 +19,14 @@ data class SitePage(
         ?.map { it.trim() }
         ?.filter { it.isNotEmpty() }
         ?: emptyList()
+
+    /**
+     * Get summary from metadata. Returns null if not set.
+     */
+    val summary: String? get() = metadata["summary"]
+
+    /**
+     * Get description from metadata, falling back to summary. Returns null if neither is set.
+     */
+    val description: String? get() = metadata["description"] ?: summary
 }

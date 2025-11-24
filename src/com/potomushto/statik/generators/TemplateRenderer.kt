@@ -56,7 +56,6 @@ class TemplateRenderer(
         return if (post.isTemplate) {
             // For template files, use layout if specified in metadata or default
             val layout = post.metadata["layout"] ?: "default"
-            val description: String = post.metadata["description"] ?: post.title
             templateEngine.renderWithLayout(
                 post.content,
                 mapOf(
@@ -65,7 +64,7 @@ class TemplateRenderer(
                     "siteName" to config.siteName,
                     "pages" to allPages,
                     "title" to post.title,
-                    "description" to description,
+                    "description" to post.description,
                     "layout" to layout,
                     "__renderTrace" to createRenderTrace(
                         "Post",
@@ -88,7 +87,7 @@ class TemplateRenderer(
                     "siteName" to config.siteName,
                     "pages" to allPages,
                     "title" to post.title,
-                    "description" to post.content.take(160),
+                    "description" to post.description,
                     "layout" to layout,
                     "__renderTrace" to createRenderTrace(
                         "Post",
@@ -117,7 +116,7 @@ class TemplateRenderer(
         return if (page.isTemplate) {
             // For template files, render directly with layout
             val layout = page.metadata["layout"] ?: "default"
-            val description: String = page.metadata["description"] ?: config.description
+            val description = page.description ?: config.description
             templateEngine.renderWithLayout(
                 page.content,
                 mapOf(
@@ -141,6 +140,7 @@ class TemplateRenderer(
             )
         } else {
             val layout = page.metadata["layout"] ?: "default"
+            val description = page.description ?: config.description
             templateEngine.renderWithLayout(
                 templateSelection.content,
                 mapOf(
@@ -148,7 +148,7 @@ class TemplateRenderer(
                     "pages" to allPages,
                     "baseUrl" to effectiveBaseUrl,
                     "siteName" to config.siteName,
-                    "description" to config.description,
+                    "description" to description,
                     "title" to page.title,
                     "layout" to layout,
                     "__renderTrace" to createRenderTrace(
