@@ -2,8 +2,10 @@ package com.potomushto.statik.processors
 
 import com.potomushto.statik.logging.LoggerFactory
 import com.vladsch.flexmark.ast.AutoLink
+import com.vladsch.flexmark.ast.BlockQuote
 import com.vladsch.flexmark.ast.Image
 import com.vladsch.flexmark.ast.Link
+import com.vladsch.flexmark.ast.Paragraph
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension
@@ -50,6 +52,7 @@ class MarkdownProcessor {
             // CustomHtmlExtension.create()
         ))
         .nodeRendererFactory(ImageCaptionNodeRenderer.Factory())
+        .nodeRendererFactory(BlockQuoteAttributionNodeRenderer.Factory())
         .build()
 
     fun process(content: String): ParsedPost {
@@ -67,6 +70,30 @@ class MarkdownProcessor {
             renderer.render(document),
             metadata
         )
+    }
+
+    /**
+     * Post-process HTML content to wrap blockquotes with data-author attribute
+     * in figure/figcaption elements for semantic HTML.
+     */
+    fun processHtmlBlockquotes(html: String): String {
+        val doc = org.jsoup.Jsoup.parse(html)
+        doc.select("blockquote[data-author]").forEach { blockquote ->
+            val author = blockquote.attr("data-author")
+            if (author.isNotBlank()) {
+                // Create figure and figcaption
+                val figure = doc.createElement("figure")
+                val figcaption = doc.createElement("figcaption")
+                figcaption.text("— $author")
+
+                // Move blockquote into figure
+                blockquote.before(figure)
+                figure.appendChild(blockquote.clone())
+                figure.appendChild(figcaption)
+                blockquote.remove()
+            }
+        }
+        return doc.body().html()
     }
 
     private fun sanitizeMetadataValue(rawValue: String?): String {
@@ -124,6 +151,138 @@ class ImageCaptionNodeRenderer(val options: com.vladsch.flexmark.util.data.DataH
     class Factory : NodeRendererFactory {
         override fun apply(options: com.vladsch.flexmark.util.data.DataHolder): NodeRenderer {
             return ImageCaptionNodeRenderer(options)
+        }
+    }
+}
+
+/**
+ * Custom NodeRenderer that handles blockquotes with attribution.
+ * Detects attribution patterns like "— Author" or "-- Author" in the last paragraph
+ * and wraps the blockquote in <figure> with <figcaption>.
+ */
+class BlockQuoteAttributionNodeRenderer(val options: com.vladsch.flexmark.util.data.DataHolder) : NodeRenderer {
+    override fun getNodeRenderingHandlers(): Set<NodeRenderingHandler<*>> {
+        return setOf(
+            NodeRenderingHandler(BlockQuote::class.java) { node, context, html -> render(node, context, html) }
+        )
+    }
+
+    private fun render(node: BlockQuote, context: NodeRendererContext, html: HtmlWriter) {
+        // Check if the blockquote contains attribution
+        val attribution = extractAttribution(node)
+        val hasAttribution = attribution != null
+
+        if (hasAttribution) {
+            html.tag("figure")
+        }
+
+        // Render the blockquote
+        html.line()
+
+        if (hasAttribution) {
+            // Add data-author attribute for datasource collection
+            html.withAttr().attr("data-author", attribution!!).tag("blockquote")
+        } else {
+            html.tag("blockquote")
+        }
+
+        html.indent()
+
+        // Render children
+        var child = node.firstChild
+        while (child != null) {
+            if (child is Paragraph && hasAttribution && child.next == null) {
+                // This is the last paragraph and has attribution - render without attribution line
+                renderParagraphWithoutAttribution(child, context, html)
+            } else {
+                context.render(child)
+            }
+            child = child.next
+        }
+
+        html.unIndent().line().tag("/blockquote")
+
+        if (hasAttribution) {
+            html.tag("figcaption")
+            html.text("— $attribution")
+            html.tag("/figcaption")
+            html.tag("/figure")
+        }
+
+        html.line()
+    }
+
+    private fun renderParagraphWithoutAttribution(paragraph: Paragraph, context: NodeRendererContext, html: HtmlWriter) {
+        val text = paragraph.contentChars.toString()
+        val lines = text.lines()
+
+        // Remove the last line if it's an attribution line
+        val contentLines = if (lines.isNotEmpty() && isAttributionLine(lines.last())) {
+            lines.dropLast(1)
+        } else {
+            lines
+        }
+
+        val cleanText = contentLines.joinToString("\n").trim()
+
+        if (cleanText.isNotEmpty()) {
+            html.line().tag("p")
+            html.text(cleanText)
+            html.tag("/p").line()
+        }
+    }
+
+    private fun extractAttribution(blockQuote: BlockQuote): String? {
+        // Get all paragraphs in the blockquote
+        val children = mutableListOf<Node>()
+        var child = blockQuote.firstChild
+        while (child != null) {
+            if (child is Paragraph) {
+                children.add(child)
+            }
+            child = child.next
+        }
+
+        if (children.isEmpty()) {
+            return null
+        }
+
+        // Check the last paragraph for attribution at the end
+        val lastParagraph = children.last() as Paragraph
+        // Get the content chars (without markdown markers)
+        val text = lastParagraph.contentChars.toString()
+
+        // Look for attribution at the end of the text (can be on last line)
+        val lines = text.lines()
+        val lastLine = lines.lastOrNull()?.trim()
+
+        if (lastLine == null) return null
+
+        // Match patterns like "— Author" or "-- Author" at the end
+        val emdashPattern = Regex("^[—–]\\s*(.+)$")
+        val doubleHyphenPattern = Regex("^--\\s*(.+)$")
+
+        val emdashMatch = emdashPattern.find(lastLine)
+        if (emdashMatch != null) {
+            return emdashMatch.groupValues[1].trim()
+        }
+
+        val hyphenMatch = doubleHyphenPattern.find(lastLine)
+        if (hyphenMatch != null) {
+            return hyphenMatch.groupValues[1].trim()
+        }
+
+        return null
+    }
+
+    private fun isAttributionLine(text: String): Boolean {
+        val trimmed = text.trim()
+        return trimmed.matches(Regex("^[—–]\\s*.+$")) || trimmed.matches(Regex("^--\\s*.+$"))
+    }
+
+    class Factory : NodeRendererFactory {
+        override fun apply(options: com.vladsch.flexmark.util.data.DataHolder): NodeRenderer {
+            return BlockQuoteAttributionNodeRenderer(options)
         }
     }
 }

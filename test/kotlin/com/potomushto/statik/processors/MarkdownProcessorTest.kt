@@ -144,4 +144,93 @@ class MarkdownProcessorTest {
         // Third image should have figure
         assertTrue(result.content.contains("Caption 3"))
     }
+
+    @Test
+    fun `blockquote with emdash attribution renders as figure with figcaption`() {
+        val source = """
+            > Üben macht den Meister.
+            > — German Proverb
+        """.trimIndent()
+
+        val result = processor.process(source)
+
+        assertTrue(result.content.contains("<figure>"), "Should contain figure tag")
+        assertTrue(result.content.contains("<blockquote"), "Should contain blockquote tag")
+        assertTrue(result.content.contains("data-author=\"German Proverb\""), "Should have data-author attribute")
+        assertTrue(result.content.contains("Üben macht den Meister."), "Should contain quote text")
+        assertTrue(!result.content.contains("— German Proverb</p>"), "Should not render attribution in blockquote")
+        assertTrue(result.content.contains("<figcaption>"), "Should contain figcaption tag")
+        assertTrue(result.content.contains("— German Proverb"), "Should contain attribution in figcaption")
+        assertTrue(result.content.contains("</figcaption>"), "Should close figcaption")
+        assertTrue(result.content.contains("</figure>"), "Should close figure")
+    }
+
+    @Test
+    fun `blockquote with double hyphen attribution renders as figure with figcaption`() {
+        val source = """
+            > Practice makes perfect.
+            > -- English Proverb
+        """.trimIndent()
+
+        val result = processor.process(source)
+
+        assertTrue(result.content.contains("<figure>"), "Should contain figure tag")
+        assertTrue(result.content.contains("data-author=\"English Proverb\""), "Should have data-author attribute")
+        assertTrue(result.content.contains("Practice makes perfect."), "Should contain quote text")
+        assertTrue(result.content.contains("<figcaption>"), "Should contain figcaption tag")
+        assertTrue(result.content.contains("— English Proverb"), "Should contain attribution in figcaption")
+    }
+
+    @Test
+    fun `blockquote without attribution renders as plain blockquote`() {
+        val source = """
+            > This is just a regular quote.
+            > No attribution here.
+        """.trimIndent()
+
+        val result = processor.process(source)
+
+        assertTrue(result.content.contains("<blockquote"), "Should contain blockquote tag")
+        assertTrue(result.content.contains("This is just a regular quote."), "Should contain quote text")
+        assertTrue(!result.content.contains("<figure>"), "Should not contain figure tag")
+        assertTrue(!result.content.contains("<figcaption>"), "Should not contain figcaption tag")
+        assertTrue(!result.content.contains("data-author"), "Should not have data-author attribute")
+    }
+
+    @Test
+    fun `html blockquote with data-author gets wrapped in figure`() {
+        val html = """
+            <blockquote data-collect="quotes" data-author="Ada Lovelace">
+              That brain of mine is more than merely mortal.
+            </blockquote>
+        """.trimIndent()
+
+        val result = processor.processHtmlBlockquotes(html)
+
+        assertTrue(result.contains("<figure>"), "Should contain figure tag")
+        assertTrue(result.contains("<blockquote"), "Should contain blockquote tag")
+        assertTrue(result.contains("data-author=\"Ada Lovelace\""), "Should preserve data-author attribute")
+        assertTrue(result.contains("data-collect=\"quotes\""), "Should preserve data-collect attribute")
+        assertTrue(result.contains("That brain of mine is more than merely mortal."), "Should contain quote text")
+        assertTrue(result.contains("<figcaption>"), "Should contain figcaption tag")
+        assertTrue(result.contains("— Ada Lovelace"), "Should contain attribution in figcaption")
+        assertTrue(result.contains("</figcaption>"), "Should close figcaption")
+        assertTrue(result.contains("</figure>"), "Should close figure")
+    }
+
+    @Test
+    fun `html blockquote without data-author stays unchanged`() {
+        val html = """
+            <blockquote>
+              Just a regular quote.
+            </blockquote>
+        """.trimIndent()
+
+        val result = processor.processHtmlBlockquotes(html)
+
+        assertTrue(result.contains("<blockquote"), "Should contain blockquote tag")
+        assertTrue(result.contains("Just a regular quote."), "Should contain quote text")
+        assertTrue(!result.contains("<figure>"), "Should not contain figure tag")
+        assertTrue(!result.contains("<figcaption>"), "Should not contain figcaption tag")
+    }
 }

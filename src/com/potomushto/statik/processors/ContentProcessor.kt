@@ -28,7 +28,10 @@ class ContentProcessor(private val markdownProcessor: MarkdownProcessor) {
 
     private fun processHtml(file: Path): ParsedPost {
         val content = file.readText()
-        return extractFrontmatter(content)
+        val parsed = extractFrontmatter(content)
+        // Post-process HTML to wrap blockquotes with data-author in figure/figcaption
+        val processedContent = markdownProcessor.processHtmlBlockquotes(parsed.content)
+        return ParsedPost(processedContent, parsed.metadata)
     }
 
     private fun processHandlebars(file: Path): ParsedPost {
