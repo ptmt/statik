@@ -2,6 +2,7 @@ package com.potomushto.statik.processors
 
 import com.potomushto.statik.logging.LoggerFactory
 import com.vladsch.flexmark.ast.AutoLink
+import com.vladsch.flexmark.ast.Image
 import com.vladsch.flexmark.ast.Link
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
@@ -13,9 +14,14 @@ import com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension
 import com.vladsch.flexmark.html.AttributeProvider
 import com.vladsch.flexmark.html.AttributeProviderFactory
 import com.vladsch.flexmark.html.HtmlRenderer
+import com.vladsch.flexmark.html.HtmlWriter
 import com.vladsch.flexmark.html.IndependentAttributeProviderFactory
 import com.vladsch.flexmark.html.renderer.AttributablePart
 import com.vladsch.flexmark.html.renderer.LinkResolverContext
+import com.vladsch.flexmark.html.renderer.NodeRenderer
+import com.vladsch.flexmark.html.renderer.NodeRendererContext
+import com.vladsch.flexmark.html.renderer.NodeRendererFactory
+import com.vladsch.flexmark.html.renderer.NodeRenderingHandler
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.ast.Node
 import com.vladsch.flexmark.util.html.MutableAttributes
@@ -43,7 +49,7 @@ class MarkdownProcessor {
             StrikethroughExtension.create(),
             // CustomHtmlExtension.create()
         ))
-        .attributeProviderFactory(LinkRewriterAttributeProvider.Factory())
+        .nodeRendererFactory(ImageCaptionNodeRenderer.Factory())
         .build()
 
     fun process(content: String): ParsedPost {
@@ -84,24 +90,40 @@ class ParsedPost(
 )
 
 /**
- * AttributeProvider that rewrites internal links to remove /pages/ prefix
- * Converts /pages/foo to /foo for proper internal navigation
+ * Custom NodeRenderer that handles images with captions.
+ * If an image has a title attribute, it wraps it in <figure> with <figcaption>.
  */
-class LinkRewriterAttributeProvider : AttributeProvider {
-    override fun setAttributes(node: Node, part: AttributablePart, attributes: MutableAttributes) {
-        if (node is Link && part == AttributablePart.LINK) {
-            val href = attributes.getValue("href")
-            if (href != null && href.startsWith("/pages/")) {
-                // Rewrite /pages/foo to /foo
-                val newHref = href.removePrefix("/pages")
-                attributes.replaceValue("href", newHref)
-            }
+class ImageCaptionNodeRenderer(val options: com.vladsch.flexmark.util.data.DataHolder) : NodeRenderer {
+    override fun getNodeRenderingHandlers(): Set<NodeRenderingHandler<*>> {
+        return setOf(
+            NodeRenderingHandler(Image::class.java) { node, context, html -> render(node, context, html) }
+        )
+    }
+
+    private fun render(node: Image, context: NodeRendererContext, html: HtmlWriter) {
+        val title = node.title.toString()
+        val hasCaption = title.isNotEmpty()
+
+        if (hasCaption) {
+            html.tag("figure")
+        }
+
+        html.srcPos(node.chars).withAttr()
+            .attr("src", context.encodeUrl(node.url.toString()))
+            .attr("alt", node.text.toString())
+            .tagVoidLine("img")
+
+        if (hasCaption) {
+            html.tag("figcaption")
+            html.text(title)
+            html.tag("/figcaption")
+            html.tag("/figure")
         }
     }
 
-    class Factory : IndependentAttributeProviderFactory() {
-        override fun apply(context: LinkResolverContext): AttributeProvider {
-            return LinkRewriterAttributeProvider()
+    class Factory : NodeRendererFactory {
+        override fun apply(options: com.vladsch.flexmark.util.data.DataHolder): NodeRenderer {
+            return ImageCaptionNodeRenderer(options)
         }
     }
 }
