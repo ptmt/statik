@@ -7,6 +7,7 @@ import kotlin.test.assertTrue
 
 class MarkdownProcessorTest {
     private val processor = MarkdownProcessor()
+    private val htmlPostProcessor = HtmlPostProcessor()
 
     @Test
     fun `process extracts metadata and renders html`() {
@@ -205,7 +206,7 @@ class MarkdownProcessorTest {
             </blockquote>
         """.trimIndent()
 
-        val result = processor.processHtmlBlockquotes(html)
+        val result = htmlPostProcessor.process(html)
 
         assertTrue(result.contains("<figure>"), "Should contain figure tag")
         assertTrue(result.contains("<blockquote"), "Should contain blockquote tag")
@@ -226,7 +227,7 @@ class MarkdownProcessorTest {
             </blockquote>
         """.trimIndent()
 
-        val result = processor.processHtmlBlockquotes(html)
+        val result = htmlPostProcessor.process(html)
 
         assertTrue(result.contains("<blockquote"), "Should contain blockquote tag")
         assertTrue(result.contains("Just a regular quote."), "Should contain quote text")

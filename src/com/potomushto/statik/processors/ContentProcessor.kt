@@ -8,7 +8,10 @@ import kotlin.io.path.readText
  * Processes content files of different types (.md, .html, .hbs)
  * Extracts frontmatter metadata and content
  */
-class ContentProcessor(private val markdownProcessor: MarkdownProcessor) {
+class ContentProcessor(
+    private val markdownProcessor: MarkdownProcessor,
+    private val htmlPostProcessor: HtmlPostProcessor = HtmlPostProcessor()
+) {
 
     /**
      * Process a content file based on its extension
@@ -23,14 +26,17 @@ class ContentProcessor(private val markdownProcessor: MarkdownProcessor) {
     }
 
     private fun processMarkdown(file: Path): ParsedPost {
-        return markdownProcessor.process(file.readText())
+        val parsed = markdownProcessor.process(file.readText())
+        // Post-process HTML for semantic transformations
+        val processedContent = htmlPostProcessor.process(parsed.content)
+        return ParsedPost(processedContent, parsed.metadata)
     }
 
     private fun processHtml(file: Path): ParsedPost {
         val content = file.readText()
         val parsed = extractFrontmatter(content)
-        // Post-process HTML to wrap blockquotes with data-author in figure/figcaption
-        val processedContent = markdownProcessor.processHtmlBlockquotes(parsed.content)
+        // Post-process HTML for semantic transformations
+        val processedContent = htmlPostProcessor.process(parsed.content)
         return ParsedPost(processedContent, parsed.metadata)
     }
 
