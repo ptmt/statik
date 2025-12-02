@@ -89,6 +89,7 @@ class MarkdownProcessorTest {
         assertTrue(result.content.contains("<img"), "Should contain img tag")
         assertTrue(result.content.contains("image.jpg"), "Should have correct src")
         assertTrue(result.content.contains("Alt text"), "Should have correct alt")
+        assertTrue(result.content.contains("title=\"This is a caption\""), "Should preserve title attribute for datasource")
         assertTrue(result.content.contains("<figcaption>"), "Should contain figcaption tag")
         assertTrue(result.content.contains("This is a caption"), "Should contain caption text")
         assertTrue(result.content.contains("</figcaption>"), "Should close figcaption")

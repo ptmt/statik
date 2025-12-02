@@ -111,10 +111,16 @@ class ImageCaptionNodeRenderer(val options: com.vladsch.flexmark.util.data.DataH
             html.tag("figure")
         }
 
-        html.srcPos(node.chars).withAttr()
+        val imgAttrs = html.srcPos(node.chars).withAttr()
             .attr("src", context.encodeUrl(node.url.toString()))
             .attr("alt", node.text.toString())
-            .tagVoidLine("img")
+
+        // Keep title attribute for datasource collection and semantic HTML
+        if (hasCaption) {
+            imgAttrs.attr("title", title)
+        }
+
+        imgAttrs.tagVoidLine("img")
 
         if (hasCaption) {
             html.tag("figcaption")
