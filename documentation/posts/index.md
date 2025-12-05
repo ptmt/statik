@@ -103,4 +103,4 @@ You're viewing a live example right now! This entire site is:
 
 Ready to build your own static site? Check out the [Getting Started Guide](/getting-started) or explore the [source code](https://github.com/statik/statik).
 
-[^1]: Footnotes provide additional context without cluttering the main text. Set `footnotes.display` to `HOVER` to keep them inline.
+[^1]: Footnotes provide additional context without cluttering the main text. Set `html.footnotes.display` to `HOVER` to keep them inline.

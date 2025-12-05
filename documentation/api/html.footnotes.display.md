@@ -1,9 +1,9 @@
 ---
-title: footnotes.display
+title: html.footnotes.display
 type: string
 required: false
 default: LIST
-category: markdown
+category: html
 order: 1
 ---
 
