@@ -52,6 +52,11 @@ body {
     font-size: 2rem;
 }
 
+.logo-image {
+    height: 40px;
+    width: auto;
+}
+
 .main-nav {
     display: flex;
     gap: 0.5rem;

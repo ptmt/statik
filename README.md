@@ -1,5 +1,7 @@
 # statik - Static web-site generator in Kotlin
 
+![logo](https://potomushto.com/statik/images/statik.png)
+
 A fast, simple static site generator built with Kotlin that works out of the box with minimal setup.
 
 ## Quick Start
