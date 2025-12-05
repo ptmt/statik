@@ -19,7 +19,7 @@ data class BlogConfig(
     val devServer: DevServerConfig = DevServerConfig(),
     val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig(),
     val rss: RssConfig = RssConfig(),
-
+    val footnotes: FootnotesConfig = FootnotesConfig(),
     val html: HtmlConfig = HtmlConfig(),
     val debug: DebugConfig = DebugConfig()
 ) {
@@ -92,6 +92,17 @@ data class RssConfig(
     val maxItems: Int = 20,
     val includeFullContent: Boolean = true
 )
+
+@Serializable
+data class FootnotesConfig(
+    val display: FootnoteDisplay = FootnoteDisplay.LIST
+)
+
+@Serializable
+enum class FootnoteDisplay {
+    LIST,
+    HOVER
+}
 
 @Serializable
 data class HtmlConfig(

@@ -143,6 +143,9 @@ Example `config.json`:
     "fileName": "feed.xml",
     "maxItems": 20,
     "includeFullContent": true
+  },
+  "footnotes": {
+    "display": "HOVER"
   }
 }
 ```
@@ -155,6 +158,7 @@ Example `config.json`:
 - `rss.fileName`: RSS feed filename (default `feed.xml`).
 - `rss.maxItems`: Maximum number of posts in the RSS feed (default `20`).
 - `rss.includeFullContent`: Include full post content in RSS feed (default `true`).
+- `footnotes.display`: `LIST` renders classic reference lists while `HOVER` collapses them into inline tooltips.
 
 ## RSS Feed
 

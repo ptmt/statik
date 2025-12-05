@@ -21,6 +21,11 @@
         .archive-description { color: #666; }
         .filter-info { color: #666; font-style: italic; }
         .post-count { color: #666; }
+        .footnote-inline { position: relative; display: inline-block; cursor: help; font-size: 0.85em; margin: 0 0.1em; color: #444; }
+        .footnote-inline::after { content: attr(data-footnote); position: absolute; left: 50%; bottom: 125%; transform: translateX(-50%); background: #111; color: #fff; padding: 6px 8px; border-radius: 4px; white-space: normal; min-width: 120px; max-width: 240px; font-size: 0.8rem; line-height: 1.2; opacity: 0; pointer-events: none; transition: opacity 0.15s ease-in-out; z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .footnote-inline::before { content: ""; position: absolute; left: 50%; bottom: 105%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: #111 transparent transparent transparent; opacity: 0; transition: opacity 0.15s ease-in-out; }
+        .footnote-inline:hover::after, .footnote-inline:focus-visible::after { opacity: 1; }
+        .footnote-inline:hover::before, .footnote-inline:focus-visible::before { opacity: 1; }
     </style>
 </head>
 <body>

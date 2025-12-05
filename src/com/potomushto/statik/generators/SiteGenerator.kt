@@ -2,8 +2,9 @@ package com.potomushto.statik.generators
 
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.config.HtmlFormat
-import com.potomushto.statik.processors.MarkdownProcessor
 import com.potomushto.statik.processors.ContentProcessor
+import com.potomushto.statik.processors.HtmlPostProcessor
+import com.potomushto.statik.processors.MarkdownProcessor
 import com.potomushto.statik.template.*
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -21,7 +22,8 @@ class SiteGenerator(
 ) {
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
-    private val contentProcessor = ContentProcessor(markdownProcessor)
+    private val htmlPostProcessor = HtmlPostProcessor(config.footnotes)
+    private val contentProcessor = ContentProcessor(markdownProcessor, htmlPostProcessor)
 
     private val htmlProcessor: HtmlProcessor = when (config.html.format) {
         HtmlFormat.MINIFY -> HtmlMinifier()
