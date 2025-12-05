@@ -74,7 +74,7 @@ This site showcases various Markdown features:
 | Feature | Status | Description |
 |---------|--------|-------------|
 | Tables | ✅ | GitHub-style tables |
-| Footnotes | ✅ | Reference-style footnotes[^1] |
+| Footnotes | ✅ | Reference-style footnotes with hover tooltips[^1] |
 | Anchor Links | ✅ | Auto-generated heading anchors |
 | Strikethrough | ✅ | ~~Crossed out text~~ |
 
@@ -103,4 +103,4 @@ You're viewing a live example right now! This entire site is:
 
 Ready to build your own static site? Check out the [Getting Started Guide](/getting-started) or explore the [source code](https://github.com/statik/statik).
 
-[^1]: Footnotes provide additional context without cluttering the main text.
+[^1]: Footnotes provide additional context without cluttering the main text. Set `footnotes.display` to `HOVER` to keep them inline.
