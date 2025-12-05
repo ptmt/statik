@@ -22,7 +22,7 @@ class SiteGenerator(
 ) {
     private val templatesPath = Paths.get(rootPath, config.theme.templates)
     private val markdownProcessor = MarkdownProcessor()
-    private val htmlPostProcessor = HtmlPostProcessor(config.footnotes)
+    private val htmlPostProcessor = HtmlPostProcessor(config.html.footnotes)
     private val contentProcessor = ContentProcessor(markdownProcessor, htmlPostProcessor)
 
     private val htmlProcessor: HtmlProcessor = when (config.html.format) {

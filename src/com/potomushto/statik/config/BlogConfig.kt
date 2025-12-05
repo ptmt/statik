@@ -19,7 +19,6 @@ data class BlogConfig(
     val devServer: DevServerConfig = DevServerConfig(),
     val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig(),
     val rss: RssConfig = RssConfig(),
-    val footnotes: FootnotesConfig = FootnotesConfig(),
     val html: HtmlConfig = HtmlConfig(),
     val debug: DebugConfig = DebugConfig()
 ) {
@@ -107,7 +106,8 @@ enum class FootnoteDisplay {
 @Serializable
 data class HtmlConfig(
     val format: HtmlFormat = HtmlFormat.DEFAULT,
-    val indentSize: Int = 2
+    val indentSize: Int = 2,
+    val footnotes: FootnotesConfig = FootnotesConfig()
 )
 
 @Serializable
