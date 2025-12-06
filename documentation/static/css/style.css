@@ -55,6 +55,7 @@ body {
 .logo-image {
     height: 40px;
     width: auto;
+    filter: invert(1) brightness(1.2);
 }
 
 .main-nav {
