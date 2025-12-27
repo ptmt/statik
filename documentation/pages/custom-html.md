@@ -45,6 +45,10 @@ layout: default
 </div>
 ```
 
+**Writing big HTML snippets in `.md` files**
+
+Markdown treats indented blocks as code. If you paste large HTML into a `.md` post, keep the block flush-left (no leading spaces) and surround it with blank lines, or save the file as `.html`/`.hbs` instead. Otherwise the parser will wrap the HTML in `<pre><code>` and it will look like a code sample.
+
 ### Handlebars Template Files (`.hbs`)
 
 Dynamic template files that can use Handlebars expressions and have access to all template variables.
