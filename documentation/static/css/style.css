@@ -1005,6 +1005,73 @@ blockquote {
     opacity: 1;
 }
 
+/* Abbreviation/Elaboration Popups */
+abbr[title] {
+    text-decoration: underline dotted var(--muted);
+    text-underline-offset: 3px;
+    cursor: pointer;
+    position: relative;
+}
+
+abbr[title]:hover {
+    text-decoration-color: var(--accent);
+}
+
+/* Popup container */
+.abbr-popup {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    min-width: 180px;
+    max-width: 320px;
+    white-space: normal;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
+    z-index: 1000;
+    text-decoration: none;
+    font-style: normal;
+}
+
+.abbr-popup::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #1f2937 transparent transparent transparent;
+}
+
+/* Ensure popup stays visible when positioned near edges */
+.abbr-popup.flip-left {
+    left: 0;
+    transform: translateX(0);
+}
+
+.abbr-popup.flip-left::after {
+    left: 20px;
+    transform: none;
+}
+
+.abbr-popup.flip-right {
+    left: auto;
+    right: 0;
+    transform: translateX(0);
+}
+
+.abbr-popup.flip-right::after {
+    left: auto;
+    right: 20px;
+    transform: none;
+}
+
 /* Smooth scrolling */
 html {
     scroll-behavior: smooth;

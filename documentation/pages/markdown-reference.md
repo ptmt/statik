@@ -99,6 +99,18 @@ fun main() {
 }
 ```
 
+## Inline elaborations
+
+For inline explanations that don't warrant a footnote, use the HTML `<abbr>` element. Statik styles these with a dotted underline and shows a click-to-toggle popup:
+
+```html
+The server uses <abbr title="A protocol for real-time bidirectional communication over a single TCP connection">WebSocket</abbr> for live updates.
+```
+
+Here's how it renders: The server uses <abbr title="A protocol for real-time bidirectional communication over a single TCP connection">WebSocket</abbr> for live updates.
+
+Click the term to see the explanation popup. Click again or anywhere else to dismiss.
+
 ## Inline HTML
 
 Inline HTML is left intact, so you can sprinkle custom markup or data attributes wherever Markdown falls short.
