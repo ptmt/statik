@@ -50,6 +50,12 @@ Content that needs a citation.[^why]
 [^why]: Footnote text shown at the bottom, or inline when hover tooltips are enabled.
 ```
 
+Here's how it renders: Content that needs a citation.[^example]
+
+[^example]: This is an example footnote rendered at the bottom of this page.
+
+**Important**: The footnote definition (`[^id]: text`) must be separated from other content by a blank line, and must start at the beginning of a line (no indentation).
+
 To switch to hover tooltips instead of a list, set in `config.json`:
 
 ```json

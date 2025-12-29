@@ -8,16 +8,16 @@ date: "2025-09-12"
 
 Statik is a powerful static site generator built with **Kotlin** that combines simplicity with advanced features. This website itself is generated using Statik, serving as both documentation and a live example.
 
-## ✨ Key Features
+## Key Features
 
-- **Zero Setup**: Works out of the box with built-in templates - no configuration required!
+- **Zero Setup**: Works out of the box with built-in templates—no configuration required
 - **Templates Optional**: Start with content only, customize templates later if desired
 - **Markdown Processing**: Full support for GitHub Flavored Markdown with extensions
 - **Docker Support**: Run anywhere with pre-built Docker images
 - **Live Development**: Built-in server with hot reload during development
 - **Flexible Configuration**: JSON-based configuration with sensible defaults
 
-## 🚀 Quick Start
+## Quick Start
 
 **Super Simple** - Just create content and go:
 
@@ -46,7 +46,7 @@ docker run --rm -v $(pwd):/github/workspace ghcr.io/ptmt/statik:latest run -- --
 ./amper run -- --root-path=/path/to/your/site --w
 ```
 
-## 📖 How This Site Works
+## How This Site Works
 
 This website demonstrates Statik's capabilities:
 
@@ -55,7 +55,7 @@ This website demonstrates Statik's capabilities:
 3. **Static Assets**: CSS, JavaScript, and images are copied to the output
 4. **GitHub Actions**: Automated building and deployment to GitHub Pages
 
-## 🛠 Architecture
+## Architecture
 
 Statik follows a modular architecture:
 
@@ -65,7 +65,7 @@ Statik follows a modular architecture:
 - `SiteGenerator`: Orchestrates the build process
 - `FileWalker`: Efficiently traverses and processes file trees
 
-## 📝 Markdown Extensions
+## Markdown Extensions
 
 This site showcases various Markdown features:
 
@@ -90,7 +90,7 @@ class BlogEngine(private val config: BlogConfig) {
 }
 ```
 
-## 🌟 Live Example
+## Live Example
 
 You're viewing a live example right now! This entire site is:
 
