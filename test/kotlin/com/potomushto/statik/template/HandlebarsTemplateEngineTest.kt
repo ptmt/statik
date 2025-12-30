@@ -188,5 +188,36 @@ class HandlebarsTemplateEngineTest {
         assertTrue(normalizedHtml.contains("<main>Fallback</main>"))
     }
 
+    @Test
+    fun `block helper allows overriding with empty content`() {
+        val layout = templatesDir.resolve("layouts/default.hbs")
+        Files.createDirectories(layout.parent)
+        Files.writeString(
+            layout,
+            """
+            <html>
+              <body>
+                {{{content}}}
+                {{#block "footer"}}<footer>Default footer</footer>{{/block}}
+              </body>
+            </html>
+            """.trimIndent()
+        )
+
+        val template = """
+            <main>{{body}}</main>
+            {{#content "footer"}}{{/content}}
+        """.trimIndent()
+
+        val html = engine.renderWithLayout(template, mapOf(
+            "layout" to "default",
+            "body" to "Page body"
+        ))
+
+        val normalizedHtml = html.normalizeQuotes()
+        assertTrue(normalizedHtml.contains("<main>Page body</main>"))
+        assertFalse(normalizedHtml.contains("Default footer"))
+    }
+
     private fun String.normalizeQuotes(): String = this.replace("\\\"", "\"")
 }

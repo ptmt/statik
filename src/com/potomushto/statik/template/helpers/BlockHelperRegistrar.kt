@@ -15,8 +15,6 @@ class BlockHelperRegistrar : HandlebarsHelperRegistrar {
             } ?: return@Helper options.fn(options.context) ?: ""
 
             val overrideContent = blocks?.get(blockName)
-                ?.filter { it.isNotBlank() }
-                ?.takeIf { it.isNotEmpty() }
                 ?.joinToString(separator = "") { it }
 
             if (overrideContent != null) {
