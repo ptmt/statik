@@ -25,8 +25,8 @@ class HtmlPostProcessor(
         val doc = Jsoup.parse(html)
 
         wrapBlockquotesWithAttribution(doc)
+        tagAsidesForCollection(doc)
         applyFootnoteDisplayPreference(doc)
-        // Future transformations can be added here
 
         return doc.body().html()
     }
@@ -49,6 +49,18 @@ class HtmlPostProcessor(
                 figure.appendChild(blockquote.clone())
                 figure.appendChild(figcaption)
                 blockquote.remove()
+            }
+        }
+    }
+
+    /**
+     * Tag <aside> elements with data-collect="quote" for unified collection
+     * with attributed blockquotes in the datasource system.
+     */
+    private fun tagAsidesForCollection(doc: Document) {
+        doc.select("aside").forEach { aside ->
+            if (!aside.hasAttr("data-collect")) {
+                aside.attr("data-collect", "quote")
             }
         }
     }

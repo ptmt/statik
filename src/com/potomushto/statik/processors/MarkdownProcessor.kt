@@ -162,8 +162,11 @@ class BlockQuoteAttributionNodeRenderer(val options: com.vladsch.flexmark.util.d
         html.line()
 
         if (hasAttribution) {
-            // Add data-author attribute for datasource collection
-            html.withAttr().attr("data-author", attribution!!).tag("blockquote")
+            // Add data-author and data-collect attributes for datasource collection
+            html.withAttr()
+                .attr("data-author", attribution!!)
+                .attr("data-collect", "quote")
+                .tag("blockquote")
         } else {
             html.tag("blockquote")
         }
