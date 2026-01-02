@@ -186,6 +186,7 @@ class StaticDatasourceGenerator(
         Files.walk(folderPath).use { stream ->
             stream.filter { Files.isRegularFile(it) }
                 .filter { it.extension.lowercase() in supportedExtensions }
+                .filter { it.nameWithoutExtension.lowercase() != "index" }
                 .forEach { file ->
                     val parsed = try {
                         contentProcessor.process(file)
