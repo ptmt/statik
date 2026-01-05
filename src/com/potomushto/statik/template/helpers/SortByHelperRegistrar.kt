@@ -3,6 +3,7 @@ package com.potomushto.statik.template.helpers
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
 import com.potomushto.statik.logging.LoggerFactory
+import com.potomushto.statik.metadata.metadataValueAsString
 
 class SortByHelperRegistrar : HandlebarsHelperRegistrar {
     private val logger = LoggerFactory.getLogger(SortByHelperRegistrar::class.java)
@@ -36,8 +37,7 @@ class SortByHelperRegistrar : HandlebarsHelperRegistrar {
                         val metadataValue = metadata?.get(key)
                         when (metadataValue) {
                             is Number -> metadataValue.toInt()
-                            is String -> metadataValue.toIntOrNull() ?: 0
-                            else -> 0
+                            else -> metadataValueAsString(metadataValue)?.toIntOrNull() ?: 0
                         }
                     }
                     else -> 0

@@ -2,6 +2,8 @@ package com.potomushto.statik.generators
 
 import com.potomushto.statik.config.StaticDatasourceConfig
 import com.potomushto.statik.logging.LoggerFactory
+import com.potomushto.statik.metadata.string
+import com.potomushto.statik.metadata.toStringMap
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
 import com.potomushto.statik.processors.ContentProcessor
@@ -205,16 +207,16 @@ class StaticDatasourceGenerator(
                         .filter { it.isNotEmpty() }
                         .joinToString("/")
 
-                    val id = parsed.metadata["id"]?.ifBlank { null }
+                    val id = parsed.metadata.string("id")?.ifBlank { null }
                         ?: combinedSlug.replace('/', '-').ifBlank { file.nameWithoutExtension }
-                    val title = parsed.metadata["title"]?.ifBlank { null } ?: id
+                    val title = parsed.metadata.string("title")?.ifBlank { null } ?: id
 
                     val item = EntityDatasourceItem(
                         dataset = dataset.name,
                         id = id,
                         title = title,
                         content = parsed.content,
-                        metadata = parsed.metadata,
+                        metadata = parsed.metadata.toStringMap(),
                         source = DatasourceItemSource(
                             type = dataset.name,
                             id = id,
@@ -244,15 +246,15 @@ class StaticDatasourceGenerator(
 
         if (sources.contains(DatasetSource.POSTS)) {
             posts.forEach { post ->
-                val metadataValue = post.metadata[key]?.trim() ?: return@forEach
+                val metadataValue = post.metadata.string(key) ?: return@forEach
                 if (expectedValue == null || metadataValue == expectedValue) {
                     items.add(
                         EntityDatasourceItem(
                             dataset = dataset.name,
-                            id = post.metadata["id"]?.ifBlank { null } ?: post.id,
+                            id = post.metadata.string("id")?.ifBlank { null } ?: post.id,
                             title = post.title,
                             content = post.content,
-                            metadata = post.metadata,
+                            metadata = post.metadata.toStringMap(),
                             source = DatasourceItemSource(
                                 type = "post",
                                 id = post.id,
@@ -267,15 +269,15 @@ class StaticDatasourceGenerator(
 
         if (sources.contains(DatasetSource.PAGES)) {
             pages.forEach { page ->
-                val metadataValue = page.metadata[key]?.trim() ?: return@forEach
+                val metadataValue = page.metadata.string(key) ?: return@forEach
                 if (expectedValue == null || metadataValue == expectedValue) {
                     items.add(
                         EntityDatasourceItem(
                             dataset = dataset.name,
-                            id = page.metadata["id"]?.ifBlank { null } ?: page.id,
+                            id = page.metadata.string("id")?.ifBlank { null } ?: page.id,
                             title = page.title,
                             content = page.content,
-                            metadata = page.metadata,
+                            metadata = page.metadata.toStringMap(),
                             source = DatasourceItemSource(
                                 type = "page",
                                 id = page.id,
@@ -339,7 +341,7 @@ class StaticDatasourceGenerator(
         val title: String,
         val path: String,
         val html: String,
-        val metadata: Map<String, String>
+        val metadata: Map<String, Any?>
     )
 
     private enum class SourceType(val label: String) {

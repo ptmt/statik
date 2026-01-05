@@ -8,6 +8,7 @@ dependencies:
   - com.vladsch.flexmark:flexmark-ext-anchorlink:0.64.8
   - com.vladsch.flexmark:flexmark-ext-autolink:0.64.8
   - com.vladsch.flexmark:flexmark-ext-gfm-strikethrough:0.64.8
+  - org.yaml:snakeyaml:2.2
   - $kotlin.serialization.json
   - com.github.jknack:handlebars:4.3.1
   - com.github.ajalt.clikt:clikt:4.3.0

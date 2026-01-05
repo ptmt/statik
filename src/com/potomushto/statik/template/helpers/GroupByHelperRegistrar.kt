@@ -3,6 +3,7 @@ package com.potomushto.statik.template.helpers
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Helper
 import com.potomushto.statik.logging.LoggerFactory
+import com.potomushto.statik.metadata.metadataValueAsString
 
 class GroupByHelperRegistrar : HandlebarsHelperRegistrar {
     private val logger = LoggerFactory.getLogger(GroupByHelperRegistrar::class.java)
@@ -44,7 +45,7 @@ class GroupByHelperRegistrar : HandlebarsHelperRegistrar {
                         }
                     }
                 }
-                metadata?.get(key) as? String ?: ""
+                metadataValueAsString(metadata?.get(key)) ?: ""
             }
 
             logger.debug { "GroupBy grouped into ${grouped.size} groups: ${grouped.keys}" }

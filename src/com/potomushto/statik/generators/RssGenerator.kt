@@ -2,6 +2,7 @@ package com.potomushto.statik.generators
 
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.models.BlogPost
+import com.potomushto.statik.metadata.string
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.ZoneId
@@ -69,7 +70,7 @@ class RssGenerator(
                 }
 
                 // Add description
-                val description = post.metadata["description"]
+                val description = post.metadata.string("description")
                     ?: post.content.take(300).replace(Regex("<[^>]*>"), "").trim()
                 appendLine("      <description>${escapeXml(description)}</description>")
 

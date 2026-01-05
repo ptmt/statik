@@ -11,8 +11,6 @@ import com.vladsch.flexmark.ext.autolink.AutolinkExtension
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension
 import com.vladsch.flexmark.ext.tables.TablesExtension
-import com.vladsch.flexmark.ext.yaml.front.matter.AbstractYamlFrontMatterVisitor
-import com.vladsch.flexmark.ext.yaml.front.matter.YamlFrontMatterExtension
 import com.vladsch.flexmark.html.AttributeProvider
 import com.vladsch.flexmark.html.AttributeProviderFactory
 import com.vladsch.flexmark.html.HtmlRenderer
@@ -34,7 +32,6 @@ class MarkdownProcessor {
     private val parser = Parser.builder()
         .extensions(listOf(
             TablesExtension.create(),
-            YamlFrontMatterExtension.create(),
             FootnoteExtension.create(),
             AnchorLinkExtension.create(),
             AutolinkExtension.create(),
@@ -56,40 +53,18 @@ class MarkdownProcessor {
         .build()
 
     fun process(content: String): ParsedPost {
-        val document = parser.parse(content)
-        val yamlVisitor = AbstractYamlFrontMatterVisitor()
-        yamlVisitor.visit(document)
-
-        // Convert the YAML visitor data to a Map<String, String>
-        // The visitor returns List<String> for each key, we take the first value
-        val metadata = yamlVisitor.data.mapValues { (_, values) ->
-            sanitizeMetadataValue(values.firstOrNull())
-        }
-
+        val parsed = FrontmatterParser.extract(content)
+        val document = parser.parse(parsed.content)
         return ParsedPost(
             renderer.render(document),
-            metadata
+            parsed.metadata
         )
-    }
-
-    private fun sanitizeMetadataValue(rawValue: String?): String {
-        val value = rawValue?.trim() ?: return ""
-
-        if (value.length >= 2) {
-            val firstChar = value.first()
-            val lastChar = value.last()
-            if ((firstChar == '"' && lastChar == '"') || (firstChar == '\'' && lastChar == '\'')) {
-                return value.substring(1, value.length - 1).trim()
-            }
-        }
-
-        return value
     }
 }
 
 class ParsedPost(
     val content: String,
-    val metadata: Map<String, String>
+    val metadata: Map<String, Any?>
 )
 
 /**

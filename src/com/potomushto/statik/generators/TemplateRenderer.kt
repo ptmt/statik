@@ -2,6 +2,7 @@ package com.potomushto.statik.generators
 
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.logging.LoggerFactory
+import com.potomushto.statik.metadata.string
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
 import com.potomushto.statik.template.FallbackTemplates
@@ -50,12 +51,12 @@ class TemplateRenderer(
         val templateSelection = getTemplateContent(
             templateName = "post",
             fallbackTemplate = FallbackTemplates.POST_TEMPLATE,
-            overrideTemplate = post.metadata["template"]
+            overrideTemplate = post.metadata.string("template")
         )
 
         return if (post.isTemplate) {
             // For template files, use layout if specified in metadata or default
-            val layout = post.metadata["layout"] ?: "default"
+            val layout = post.metadata.string("layout") ?: "default"
             templateEngine.renderWithLayout(
                 post.content,
                 mapOf(
@@ -78,7 +79,7 @@ class TemplateRenderer(
                 ).withDatasource(datasourceContext)
             )
         } else {
-            val layout = post.metadata["layout"] ?: "default"
+            val layout = post.metadata.string("layout") ?: "default"
             templateEngine.renderWithLayout(
                 templateSelection.content,
                 mapOf(
@@ -110,12 +111,12 @@ class TemplateRenderer(
         val templateSelection = getTemplateContent(
             templateName = "page",
             fallbackTemplate = FallbackTemplates.PAGE_TEMPLATE,
-            overrideTemplate = page.metadata["template"]
+            overrideTemplate = page.metadata.string("template")
         )
 
         return if (page.isTemplate) {
             // For template files, render directly with layout
-            val layout = page.metadata["layout"] ?: "default"
+            val layout = page.metadata.string("layout") ?: "default"
             val description = page.description ?: config.description
             templateEngine.renderWithLayout(
                 page.content,
@@ -139,7 +140,7 @@ class TemplateRenderer(
                 ).withDatasource(datasourceContext)
             )
         } else {
-            val layout = page.metadata["layout"] ?: "default"
+            val layout = page.metadata.string("layout") ?: "default"
             val description = page.description ?: config.description
             templateEngine.renderWithLayout(
                 templateSelection.content,

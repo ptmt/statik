@@ -4,6 +4,7 @@ import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.logging.LoggerFactory
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
+import com.potomushto.statik.metadata.string
 import com.potomushto.statik.processors.ContentProcessor
 import java.nio.file.Files
 import java.nio.file.Path
@@ -110,8 +111,8 @@ class ContentRepository(
         return fileWalker.walkMarkdownFiles(postsDirectory, excludeIndex = true)
             .map { file ->
                 val parsedPost = contentProcessor.process(file)
-                val title = parsedPost.metadata["title"] ?: file.nameWithoutExtension
-                val date = parsedPost.metadata["published"]?.let { LocalDateTime.parse(it) }
+                val title = parsedPost.metadata.string("title") ?: file.nameWithoutExtension
+                val date = parsedPost.metadata.string("published")?.let { LocalDateTime.parse(it) }
                     ?: Files.getLastModifiedTime(file).let {
                         LocalDateTime.ofInstant(it.toInstant(), ZoneId.systemDefault())
                     }
@@ -129,7 +130,7 @@ class ContentRepository(
             }
             .filter { post ->
                 // Filter out draft posts unless in development mode
-                val isDraft = post.metadata["draft"]?.lowercase() in setOf("true", "yes", "1")
+                val isDraft = post.metadata.string("draft")?.lowercase() in setOf("true", "yes", "1")
                 if (isDraft && !isDevelopment) {
                     logger.debug { "Skipping draft post: ${post.id}" }
                     false
@@ -147,9 +148,9 @@ class ContentRepository(
             fileWalker.walkMarkdownFiles(pagesDirectory)
                 .map { file ->
                     val parsedPage = contentProcessor.process(file)
-                    val title = parsedPage.metadata["title"] ?: file.nameWithoutExtension
-                    val navOrder = parsedPage.metadata["nav_order"]?.toIntOrNull()
-                        ?: parsedPage.metadata["navOrder"]?.toIntOrNull()
+                    val title = parsedPage.metadata.string("title") ?: file.nameWithoutExtension
+                    val navOrder = parsedPage.metadata.string("nav_order")?.toIntOrNull()
+                        ?: parsedPage.metadata.string("navOrder")?.toIntOrNull()
 
                     val basePath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true)
 
