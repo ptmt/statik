@@ -272,6 +272,22 @@ Include partials:
 {{include "partials/sidebar.hbs"}}
 ```
 
+### `md` (inline markdown)
+
+Render inline Markdown from a string (links, bold, italics, ~~strikethrough~~):
+
+```handlebars
+{{{md post.metadata.captionText}}}
+```
+
+Useful for nested frontmatter fields, e.g.:
+
+```handlebars
+{{#each post.metadata.timeline}}
+  <span class="caption-text">{{{md captionText}}}</span>
+{{/each}}
+```
+
 ### `datasource`
 
 All templates receive a `datasource` object that mirrors the generated JSON files, so you can render galleries, quote blocks, or entity lists during server-side rendering without additional fetches:

@@ -7,6 +7,7 @@ com.potomushto.statik.template.helpers.FormatDateHelperRegistrar
 com.potomushto.statik.template.helpers.GroupByHelperRegistrar
 com.potomushto.statik.template.helpers.IncludeHelperRegistrar
 com.potomushto.statik.template.helpers.LimitHelperRegistrar
+com.potomushto.statik.template.helpers.MarkdownHelperRegistrar
 com.potomushto.statik.template.helpers.SafeHelperRegistrar
 com.potomushto.statik.template.helpers.SortByHelperRegistrar
 com.potomushto.statik.template.helpers.SubstringHelperRegistrar
