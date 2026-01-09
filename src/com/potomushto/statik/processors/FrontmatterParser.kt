@@ -19,7 +19,8 @@ internal object FrontmatterParser {
         if (yamlContent.isBlank()) return emptyMap()
         val loaded = try {
             yaml.load<Any?>(yamlContent)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            System.err.println("YAML parsing error: ${e.message}")
             return emptyMap()
         }
         val root = loaded as? Map<*, *> ?: return emptyMap()
