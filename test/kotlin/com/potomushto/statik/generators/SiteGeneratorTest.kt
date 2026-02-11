@@ -160,6 +160,47 @@ class SiteGeneratorTest {
     }
 
     @Test
+    fun `templates expose siteDescription separately from page description`() {
+        val config = BlogConfig(
+            siteName = "Site Description Test",
+            baseUrl = "https://example.com/",
+            description = "Description from config",
+            author = "Author",
+            theme = ThemeConfig(templates = "templates", assets = listOf("static"), output = "build"),
+            paths = PathConfig(posts = "posts", pages = listOf("pages"))
+        )
+
+        createPost("posts/hello.md", """
+            ---
+            title: Hello
+            published: 2024-01-01T00:00:00
+            description: Description from post metadata
+            ---
+            Hello world.
+        """.trimIndent())
+
+        writeTemplate("templates/post.hbs", """
+            <article>
+              <p class="page-description">{{description}}</p>
+              <p class="site-description">{{siteDescription}}</p>
+            </article>
+        """.trimIndent())
+
+        writeTemplate("templates/layouts/default.hbs", """
+            <html>
+              <body>{{{content}}}</body>
+            </html>
+        """.trimIndent())
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        val postHtml = (tempRoot / "build" / "hello" / "index.html").readText()
+        assertTrue(postHtml.contains("Description from post metadata"))
+        assertTrue(postHtml.contains("Description from config"))
+    }
+
+    @Test
     fun `generate falls back to built in templates when custom ones missing`() {
         val config = BlogConfig(
             siteName = "Fallback Site",

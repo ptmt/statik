@@ -174,7 +174,8 @@ All templates have access to these variables:
 **Global Variables:**
 - `siteName` - Your site name
 - `baseUrl` - Base URL for the site
-- `description` - Site description
+- `siteDescription` - Site description from `config.json`
+- `description` - Context description (can be page/post specific)
 - `pages` - Array of all pages
 
 **Template-Specific:**

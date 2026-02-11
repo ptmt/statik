@@ -107,9 +107,9 @@ Statik includes built-in fallback templates, so you can start generating sites i
 If a template file doesn't exist, Statik will use a clean, minimal built-in template instead.
 
 #### Template Variables Available:
-- `home.hbs`: `siteName`, `description`, `baseUrl`, `posts[]`, `pages[]`
-- `post.hbs`: `post` (title, content, date, metadata), `siteName`, `baseUrl`, `pages[]`
-- `page.hbs`: `page` (title, content, metadata), `siteName`, `baseUrl`, `pages[]`
+- `home.hbs`: `siteName`, `siteDescription`, `description`, `baseUrl`, `posts[]`, `pages[]`
+- `post.hbs`: `post` (title, content, date, metadata), `siteName`, `siteDescription`, `description`, `baseUrl`, `pages[]`
+- `page.hbs`: `page` (title, content, metadata), `siteName`, `siteDescription`, `description`, `baseUrl`, `pages[]`
 
 You can also use partials in `templates/partials/` for shared components like headers and footers.
 
