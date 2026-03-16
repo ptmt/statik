@@ -55,6 +55,16 @@ class BlogConfigTest {
         assertEquals("build", config.theme.output)
         assertEquals("articles", config.paths.posts)
         assertEquals(3000, config.devServer.port)
+        assertEquals(false, config.cms.enabled)
+        assertEquals("/__statik__/cms", config.cms.basePath)
+        assertEquals(".statik/cms.db", config.cms.databasePath)
+        assertEquals(false, config.cms.autoSyncOnSave)
+        assertEquals(true, config.cms.git.enabled)
+        assertEquals("origin", config.cms.git.remote)
+        assertEquals(false, config.cms.git.pushOnSync)
+        assertEquals(false, config.cms.auth.enabled)
+        assertEquals(null, config.cms.auth.allowedUser)
+        assertEquals(listOf("repo"), config.cms.auth.scopes)
         assertEquals("datasource", config.staticDatasource.outputDir)
         assertEquals("data-collect", config.staticDatasource.collectAttribute)
         assertEquals("images.json", config.staticDatasource.imagesFileName)
@@ -107,6 +117,63 @@ class BlogConfigTest {
         assertEquals("data-statik", config.staticDatasource.collectAttribute)
         assertEquals("media.json", config.staticDatasource.imagesFileName)
         assertEquals("custom-datasource.json", config.staticDatasource.configFile)
+    }
+
+    @Test
+    fun `load overrides CMS config when provided`() {
+        val configJson = """
+            {
+              "siteName": "My Blog",
+              "baseUrl": "https://example.com",
+              "description": "Desc",
+              "author": "Author",
+              "cms": {
+                "enabled": true,
+                "basePath": "/editor",
+                "databasePath": ".cache/editor.db",
+                "autoSyncOnSave": true,
+                "git": {
+                  "enabled": true,
+                  "remote": "upstream",
+                  "branch": "main",
+                  "pushOnSync": true,
+                  "tokenEnv": "GITHUB_TOKEN",
+                  "authorName": "Statik CMS",
+                  "authorEmail": "cms@example.com"
+                },
+                "auth": {
+                  "enabled": true,
+                  "allowedUser": "potomushto",
+                  "clientId": "github-client-id",
+                  "clientSecretEnv": "GITHUB_CLIENT_SECRET",
+                  "callbackUrl": "https://cms.example.com/editor/auth/github/callback",
+                  "scopes": ["repo", "read:user"]
+                }
+              }
+            }
+        """.trimIndent()
+
+        (tempRoot / "config.json").writeText(configJson)
+
+        val config = BlogConfig.load(tempRoot.toString())
+
+        assertEquals(true, config.cms.enabled)
+        assertEquals("/editor", config.cms.basePath)
+        assertEquals(".cache/editor.db", config.cms.databasePath)
+        assertEquals(true, config.cms.autoSyncOnSave)
+        assertEquals(true, config.cms.git.enabled)
+        assertEquals("upstream", config.cms.git.remote)
+        assertEquals("main", config.cms.git.branch)
+        assertEquals(true, config.cms.git.pushOnSync)
+        assertEquals("GITHUB_TOKEN", config.cms.git.tokenEnv)
+        assertEquals("Statik CMS", config.cms.git.authorName)
+        assertEquals("cms@example.com", config.cms.git.authorEmail)
+        assertEquals(true, config.cms.auth.enabled)
+        assertEquals("potomushto", config.cms.auth.allowedUser)
+        assertEquals("github-client-id", config.cms.auth.clientId)
+        assertEquals("GITHUB_CLIENT_SECRET", config.cms.auth.clientSecretEnv)
+        assertEquals("https://cms.example.com/editor/auth/github/callback", config.cms.auth.callbackUrl)
+        assertEquals(listOf("repo", "read:user"), config.cms.auth.scopes)
     }
 
     @Test

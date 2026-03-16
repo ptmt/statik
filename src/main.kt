@@ -18,6 +18,11 @@ class MainCommand : CliktCommand() {
         "--watch", "-w",
         help = "Watch mode: automatically rebuild the site when files change"
     ).flag()
+
+    val cms by option(
+        "--cms",
+        help = "Run the embedded CMS server. Can be combined with --watch."
+    ).flag()
     
     val port by option(
         "--port", "-p",
@@ -25,7 +30,7 @@ class MainCommand : CliktCommand() {
     ).int()
 
     override fun run() {
-        BlogEngine.run(rootPath.path, watch, port)
+        BlogEngine.run(rootPath.path, watch, port, cms)
     }
 }
 

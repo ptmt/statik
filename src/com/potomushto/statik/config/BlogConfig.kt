@@ -17,6 +17,7 @@ data class BlogConfig(
     val theme: ThemeConfig = ThemeConfig(),
     val paths: PathConfig = PathConfig(),
     val devServer: DevServerConfig = DevServerConfig(),
+    val cms: CmsConfig = CmsConfig(),
     val staticDatasource: StaticDatasourceConfig = StaticDatasourceConfig(),
     val rss: RssConfig = RssConfig(),
     val html: HtmlConfig = HtmlConfig(),
@@ -70,6 +71,37 @@ data class PathConfig(
 @Serializable
 data class DevServerConfig(
     val port: Int = 3000
+)
+
+@Serializable
+data class CmsConfig(
+    val enabled: Boolean = false,
+    val basePath: String = "/__statik__/cms",
+    val databasePath: String = ".statik/cms.db",
+    val autoSyncOnSave: Boolean = false,
+    val git: CmsGitConfig = CmsGitConfig(),
+    val auth: CmsAuthConfig = CmsAuthConfig()
+)
+
+@Serializable
+data class CmsGitConfig(
+    val enabled: Boolean = true,
+    val remote: String = "origin",
+    val branch: String? = null,
+    val pushOnSync: Boolean = false,
+    val tokenEnv: String? = null,
+    val authorName: String? = null,
+    val authorEmail: String? = null
+)
+
+@Serializable
+data class CmsAuthConfig(
+    val enabled: Boolean = false,
+    val allowedUser: String? = null,
+    val clientId: String? = null,
+    val clientSecretEnv: String? = null,
+    val callbackUrl: String? = null,
+    val scopes: List<String> = listOf("repo")
 )
 
 @Serializable

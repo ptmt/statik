@@ -1,5 +1,9 @@
 package com.potomushto.statik
 
+import com.potomushto.statik.cms.CmsService
+import com.potomushto.statik.cms.CmsAuthService
+import com.potomushto.statik.cms.CmsPermissionDeniedException
+import com.potomushto.statik.cms.installCmsRoutes
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.SiteGenerator
 import com.potomushto.statik.logging.LoggerFactory
@@ -21,8 +25,10 @@ class BlogEngine {
     companion object {
         private val logger = LoggerFactory.getLogger(BlogEngine::class.java)
 
-        fun run(path: String, watch: Boolean = false, portOverride: Int? = null) {
+        fun run(path: String, watch: Boolean = false, portOverride: Int? = null, cmsOverride: Boolean = false) {
             val config = BlogConfig.load(path)
+            val cmsEnabled = cmsOverride || config.cms.enabled
+            val shouldServe = watch || cmsEnabled
             val resolvedPort = portOverride ?: config.devServer.port
 
             // Override baseUrl for development mode
@@ -36,13 +42,35 @@ class BlogEngine {
             }
             generator.generate()
 
-            if (watch) {
-                // Initialize live reload state
-                val liveReloadState = LiveReloadState()
+            val cmsService = if (cmsEnabled) {
+                CmsService(Paths.get(path), config, generator).also {
+                    it.bootstrap()
+                    logger.info("CMS enabled at ${config.cms.basePath}")
+                }
+            } else {
+                null
+            }
+            val authService = if (cmsEnabled && config.cms.auth.enabled) {
+                CmsAuthService(config.cms.auth).also {
+                    logger.info("CMS GitHub OAuth enabled for ${config.cms.auth.allowedUser}")
+                }
+            } else {
+                null
+            }
 
-                // Start HTTP server and file watcher
-                startServer(path, config, resolvedPort, generator, liveReloadState)
-                watchForChanges(path, config, generator, liveReloadState)
+            val liveReloadState = if (watch) LiveReloadState() else null
+
+            if (watch) {
+                Thread {
+                    watchForChanges(path, config, generator, liveReloadState!!, cmsService)
+                }.apply {
+                    isDaemon = true
+                    start()
+                }
+            }
+
+            if (shouldServe) {
+                startServer(path, config, resolvedPort, liveReloadState, cmsService, authService)
             }
         }
 
@@ -50,8 +78,9 @@ class BlogEngine {
             rootPath: String,
             config: BlogConfig,
             port: Int,
-            generator: SiteGenerator,
-            liveReloadState: LiveReloadState
+            liveReloadState: LiveReloadState?,
+            cmsService: CmsService?,
+            authService: CmsAuthService?
         ) {
             val json = Json {
                 prettyPrint = true
@@ -60,6 +89,18 @@ class BlogEngine {
 
             val server = embeddedServer(Netty, port = port) {
                 install(StatusPages) {
+                    exception<CmsPermissionDeniedException> { call, cause ->
+                        call.respondText(
+                            text = cause.message ?: "permissions denied",
+                            status = HttpStatusCode.Forbidden
+                        )
+                    }
+                    exception<IllegalArgumentException> { call, cause ->
+                        call.respondText(
+                            text = "400: ${cause.message}",
+                            status = HttpStatusCode.BadRequest
+                        )
+                    }
                     exception<Throwable> { call, cause ->
                         call.respondText(
                             text = "500: ${cause.message}",
@@ -72,22 +113,32 @@ class BlogEngine {
                 }
 
                 routing {
-                    // Live reload API endpoint
-                    get("/__statik__/reload") {
-                        call.respondText(
-                            text = json.encodeToString(
-                                ReloadResponse.serializer(),
-                                liveReloadState.getReloadResponse()
-                            ),
-                            contentType = ContentType.Application.Json
-                        )
+                    if (liveReloadState != null) {
+                        get("/__statik__/reload") {
+                            call.respondText(
+                                text = json.encodeToString(
+                                    ReloadResponse.serializer(),
+                                    liveReloadState.getReloadResponse()
+                                ),
+                                contentType = ContentType.Application.Json
+                            )
+                        }
+
+                        get("/__statik__/livereload.js") {
+                            call.respondText(
+                                text = LIVE_RELOAD_SCRIPT,
+                                contentType = ContentType.Text.JavaScript
+                            )
+                        }
                     }
 
-                    // Live reload client script
-                    get("/__statik__/livereload.js") {
-                        call.respondText(
-                            text = LIVE_RELOAD_SCRIPT,
-                            contentType = ContentType.Text.JavaScript
+                    if (cmsService != null) {
+                        installCmsRoutes(
+                            siteName = config.siteName,
+                            basePath = CmsService.normalizeBasePath(config.cms.basePath),
+                            cmsService = cmsService,
+                            authService = authService,
+                            json = json
                         )
                     }
 
@@ -105,22 +156,16 @@ class BlogEngine {
                 }
             }
 
-            // Start server in a separate thread
-            Thread {
-                server.start(wait = true)
-            }.apply {
-                isDaemon = true
-                start()
-            }
-
             logger.info("HTTP server started at http://localhost:$port")
+            server.start(wait = true)
         }
 
         private fun watchForChanges(
             rootPath: String,
             config: BlogConfig,
             generator: SiteGenerator,
-            liveReloadState: LiveReloadState
+            liveReloadState: LiveReloadState,
+            cmsService: CmsService?
         ) {
             val watchService = FileSystems.getDefault().newWatchService()
             val watchKeys = mutableMapOf<WatchKey, Path>()
@@ -270,6 +315,7 @@ class BlogEngine {
                                 }
                                 logger.info("Regenerating site...")
                                 generator.regenerate(changedFiles)
+                                cmsService?.refreshIndex()
                                 liveReloadState.markRebuilt()
                                 logger.info("Site regenerated successfully. Watching for more changes...")
                             }

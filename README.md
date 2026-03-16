@@ -34,6 +34,11 @@ This is my first post!
 
 That's it! No templates required - Statik includes clean, minimal built-in templates to get you started.
 
+To run the hosted CMS against the same site repo:
+```bash
+./amper run -- --root-path . --cms
+```
+
 ## Humans and agents contribution guidelines
 
 This README provides quick guidelines for both human contributors and AI coding assistants.
@@ -135,6 +140,29 @@ Example `config.json`:
   "devServer": {
     "port": 3000
   },
+  "cms": {
+    "enabled": false,
+    "basePath": "/__statik__/cms",
+    "databasePath": ".statik/cms.db",
+    "autoSyncOnSave": false,
+    "git": {
+      "enabled": true,
+      "remote": "origin",
+      "branch": "main",
+      "pushOnSync": false,
+      "tokenEnv": "GITHUB_TOKEN",
+      "authorName": "Statik CMS",
+      "authorEmail": "cms@example.com"
+    },
+    "auth": {
+      "enabled": true,
+      "allowedUser": "potomushto",
+      "clientId": "github-oauth-client-id",
+      "clientSecretEnv": "GITHUB_CLIENT_SECRET",
+      "callbackUrl": "https://cms.example.com/__statik__/cms/auth/github/callback",
+      "scopes": ["repo", "read:user"]
+    }
+  },
   "staticDatasource": {
     "outputDir": "datasource",
     "collectAttribute": "data-collect",
@@ -160,6 +188,20 @@ Example `config.json`:
 - `staticDatasource.collectAttribute`: Attribute used to mark custom collectable elements (default `data-collect`).
 - `staticDatasource.imagesFileName`: File name for the aggregated images list (default `images.json`).
 - `staticDatasource.configFile`: Optional dataset definition file (default `datasource-config.json`).
+- `cms.enabled`: Starts the embedded CMS server when enabled in config or via `--cms`.
+- `cms.basePath`: Route prefix for the editor UI and API (default `/__statik__/cms`).
+- `cms.databasePath`: SQLite file used as the CMS index and dirty-state store.
+- `cms.autoSyncOnSave`: If `true`, each save also commits through the configured git sync path.
+- `cms.git.remote`: Remote name to use for sync operations (default `origin`).
+- `cms.git.branch`: Optional branch override for pushes. When omitted, the current checked-out branch is used.
+- `cms.git.pushOnSync`: Push after each manual sync.
+- `cms.git.tokenEnv`: Optional env var containing a GitHub token for authenticated push.
+- `cms.auth.enabled`: Protect the CMS behind GitHub OAuth.
+- `cms.auth.allowedUser`: The only GitHub login allowed to access the editor. Any other user gets `permissions denied`.
+- `cms.auth.clientId`: GitHub OAuth app client id.
+- `cms.auth.clientSecretEnv`: Env var containing the GitHub OAuth app client secret.
+- `cms.auth.callbackUrl`: OAuth callback URL registered in the GitHub OAuth app.
+- `cms.auth.scopes`: Requested GitHub OAuth scopes. `repo` is the safe default when the CMS needs to push.
 - `rss.enabled`: Enable RSS feed generation (default `true`).
 - `rss.fileName`: RSS feed filename (default `feed.xml`).
 - `rss.maxItems`: Maximum number of posts in the RSS feed (default `20`).
@@ -188,6 +230,23 @@ Statik can emit JSON datasources alongside the generated HTML so client-side cod
 Each datasource entry includes its originating page/post metadata and the rendered HTML/text, making it simple to build interactive components.
 
 Read the full guide in [documentation/pages/static-datasources.md](documentation/pages/static-datasources.md).
+
+## CMS
+
+Statik now includes a lightweight CMS that mounts next to the generated site. It indexes the configured `posts/` and `pages/` folders into SQLite, serves a web editor, writes changes back to the repository, regenerates affected pages, and can commit those source changes back to git.
+
+Typical flow:
+- Run `./amper run -- --root-path . --cms` on a checked-out site repository.
+- Open `http://localhost:3000/__statik__/cms`.
+- Sign in with GitHub OAuth as the configured `cms.auth.allowedUser`.
+- Edit a post or page, save it, and let Statik rebuild the affected output.
+- Use `Commit Sync` to create a git commit for the dirty CMS-managed source files.
+
+Git sync notes:
+- The CMS commits only the edited content source files, not the generated `build/` output.
+- If the editor is signed in through GitHub OAuth, the session access token is used for authenticated pushes. `cms.git.tokenEnv` remains available as a fallback.
+- The repo must already be checked out on disk; the CMS sync layer works against that local checkout.
+- If the OAuth callback resolves to any GitHub login other than `cms.auth.allowedUser`, the CMS returns `permissions denied` immediately.
 
 ### GitHub Actions Usage
 
