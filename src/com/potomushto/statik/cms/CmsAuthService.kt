@@ -1,29 +1,48 @@
 package com.potomushto.statik.cms
 
 import com.potomushto.statik.config.CmsAuthConfig
+import com.potomushto.statik.config.CmsRepoConfig
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
+import org.bouncycastle.openssl.PEMKeyPair
+import org.bouncycastle.openssl.PEMParser
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.security.MessageDigest
+import java.security.PrivateKey
 import java.security.SecureRandom
+import java.security.Signature
+import java.time.Instant
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 
 class CmsAuthService(
     private val config: CmsAuthConfig,
+    private val hostRoot: Path? = null,
     private val client: GitHubOAuthClient = DefaultGitHubOAuthClient(),
+    private val appClient: GitHubAppClient = DefaultGitHubAppApiClient(),
     private val secretProvider: (String) -> String? = System::getenv
 ) {
     private val pendingAuthorizations = ConcurrentHashMap<String, PendingAuthorization>()
+    private val pendingInstallations = ConcurrentHashMap<String, String>()
     private val sessions = ConcurrentHashMap<String, CmsAuthSession>()
     private val secureRandom = SecureRandom()
+    private val privateKey: PrivateKey by lazy { loadPrivateKey() }
 
     init {
         if (config.enabled) {
@@ -81,10 +100,63 @@ class CmsAuthService(
             id = randomToken(),
             login = user.login,
             accessToken = token.accessToken,
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            installationId = null
         )
         sessions[session.id] = session
         return session
+    }
+
+    fun startInstallation(sessionId: String): String {
+        requireSession(sessionId)
+        purgeExpiredEntries()
+
+        val state = randomToken()
+        pendingInstallations[state] = sessionId
+        return "https://github.com/apps/${requireValue(config.appSlug, "cms.auth.appSlug")}/installations/new?state=${encode(state)}"
+    }
+
+    fun completeInstallation(
+        sessionId: String,
+        state: String,
+        installationId: Long,
+        repo: CmsRepoConfig
+    ): CmsAuthSession {
+        val session = requireSession(sessionId)
+        val expectedSessionId = pendingInstallations.remove(state)
+            ?: throw IllegalArgumentException("Invalid or expired GitHub App installation state")
+        require(expectedSessionId == session.id) {
+            "Invalid GitHub App installation state"
+        }
+
+        val repoInstallationId = appClient.repositoryInstallationId(createAppJwt(), repo)
+            ?: throw IllegalArgumentException("GitHub App is not installed on ${repo.fullName()}")
+        if (repoInstallationId != installationId) {
+            throw CmsPermissionDeniedException("permissions denied")
+        }
+
+        return session.copy(installationId = installationId).also { sessions[it.id] = it }
+    }
+
+    fun attachInstallationForRepo(sessionId: String, repo: CmsRepoConfig): CmsAuthSession? {
+        val session = requireSession(sessionId)
+        if (session.installationId != null) {
+            return session
+        }
+
+        val installationId = appClient.repositoryInstallationId(createAppJwt(), repo) ?: return null
+        return session.copy(installationId = installationId).also { sessions[it.id] = it }
+    }
+
+    fun createInstallationAccessToken(sessionId: String, repo: CmsRepoConfig): String {
+        val session = attachInstallationForRepo(sessionId, repo)
+            ?: throw IllegalStateException("GitHub App installation required for ${repo.fullName()}")
+        return appClient.createInstallationAccessToken(
+            appJwt = createAppJwt(),
+            installationId = session.installationId
+                ?: throw IllegalStateException("GitHub App installation required for ${repo.fullName()}"),
+            repo = repo
+        )
     }
 
     fun currentSession(sessionId: String?): CmsAuthSession? {
@@ -123,8 +195,15 @@ class CmsAuthService(
         requireValue(config.clientId, "cms.auth.clientId")
         requireValue(config.clientSecretEnv, "cms.auth.clientSecretEnv")
         requireValue(config.callbackUrl, "cms.auth.callbackUrl")
+        requireValue(config.appId, "cms.auth.appId")
+        requireValue(config.appSlug, "cms.auth.appSlug")
+        requireValue(config.privateKeyPath, "cms.auth.privateKeyPath")
+        requireValue(config.setupUrl, "cms.auth.setupUrl")
         require(clientSecret().isNotBlank()) {
-            "Missing GitHub OAuth client secret in env '${config.clientSecretEnv}'"
+            "Missing GitHub App client secret in env '${config.clientSecretEnv}'"
+        }
+        require(Files.exists(resolvePrivateKeyPath())) {
+            "Missing GitHub App private key at ${resolvePrivateKeyPath()}"
         }
     }
 
@@ -136,7 +215,53 @@ class CmsAuthService(
     private fun purgeExpiredEntries() {
         val now = System.currentTimeMillis()
         pendingAuthorizations.entries.removeIf { now - it.value.createdAt > PENDING_TTL_MS }
+        pendingInstallations.entries.removeIf { entry ->
+            val session = sessions[entry.value]
+            session == null || now - session.createdAt > SESSION_TTL_MS
+        }
         sessions.entries.removeIf { now - it.value.createdAt > SESSION_TTL_MS }
+    }
+
+    private fun loadPrivateKey(): PrivateKey {
+        Files.newBufferedReader(resolvePrivateKeyPath()).use { reader ->
+            PEMParser(reader).use { parser ->
+                val parsed = parser.readObject()
+                    ?: throw IllegalArgumentException("GitHub App private key is empty")
+                val converter = JcaPEMKeyConverter()
+                return when (parsed) {
+                    is PEMKeyPair -> converter.getKeyPair(parsed).private
+                    is PrivateKeyInfo -> converter.getPrivateKey(parsed)
+                    else -> throw IllegalArgumentException("Unsupported GitHub App private key format")
+                }
+            }
+        }
+    }
+
+    private fun resolvePrivateKeyPath(): Path {
+        val configuredPath = requireValue(config.privateKeyPath, "cms.auth.privateKeyPath")
+        val path = Paths.get(configuredPath)
+        return if (path.isAbsolute) path else (hostRoot ?: Paths.get(".")).resolve(path).normalize()
+    }
+
+    private fun createAppJwt(): String {
+        val now = Instant.now().epochSecond
+        val header = base64Url("""{"alg":"RS256","typ":"JWT"}""")
+        val payload = base64Url(
+            Json.encodeToString(
+                JsonObject.serializer(),
+                buildJsonObject {
+                    put("iat", JsonPrimitive(now - 60))
+                    put("exp", JsonPrimitive(now + 9 * 60))
+                    put("iss", JsonPrimitive(requireValue(config.appId, "cms.auth.appId")))
+                }
+            )
+        )
+        val unsigned = "$header.$payload"
+        val signature = Signature.getInstance("SHA256withRSA").apply {
+            initSign(privateKey)
+            update(unsigned.toByteArray(StandardCharsets.UTF_8))
+        }.sign()
+        return "$unsigned.${Base64.getUrlEncoder().withoutPadding().encodeToString(signature)}"
     }
 
     private fun randomToken(bytes: Int = 32): String {
@@ -154,6 +279,12 @@ class CmsAuthService(
         return pairs.joinToString("&") { (key, value) ->
             "${encode(key)}=${encode(value)}"
         }
+    }
+
+    private fun base64Url(value: String): String {
+        return Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(value.toByteArray(StandardCharsets.UTF_8))
     }
 
     private fun encode(value: String): String {
@@ -184,7 +315,8 @@ data class CmsAuthSession(
     val id: String,
     val login: String,
     val accessToken: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val installationId: Long? = null
 )
 
 interface GitHubOAuthClient {
@@ -196,6 +328,12 @@ interface GitHubOAuthClient {
     ): GitHubOAuthToken
 
     fun fetchUser(accessToken: String): GitHubUser
+}
+
+interface GitHubAppClient {
+    fun repositoryInstallationId(appJwt: String, repo: CmsRepoConfig): Long?
+
+    fun createInstallationAccessToken(appJwt: String, installationId: Long, repo: CmsRepoConfig): String
 }
 
 data class GitHubOAuthToken(
@@ -251,7 +389,6 @@ class DefaultGitHubOAuthClient(
             .header("Accept", "application/vnd.github+json")
             .header("Authorization", "Bearer $accessToken")
             .header("User-Agent", "statik-cms")
-            .header("X-GitHub-Api-Version", "2022-11-28")
             .GET()
             .build()
 
@@ -275,4 +412,70 @@ class DefaultGitHubOAuthClient(
         return value?.takeIf { it.isNotBlank() }
             ?: throw IllegalArgumentException("Missing required CMS auth setting: $name")
     }
+}
+
+class DefaultGitHubAppApiClient(
+    private val httpClient: HttpClient = HttpClient.newHttpClient(),
+    private val json: Json = Json { ignoreUnknownKeys = true }
+) : GitHubAppClient {
+    override fun repositoryInstallationId(appJwt: String, repo: CmsRepoConfig): Long? {
+        val request = HttpRequest.newBuilder(URI.create("https://api.github.com/repos/${repo.ownerPart()}/${repo.namePart()}/installation"))
+            .header("Accept", "application/vnd.github+json")
+            .header("Authorization", "Bearer $appJwt")
+            .header("User-Agent", "statik-cms")
+            .GET()
+            .build()
+
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() == 404) {
+            return null
+        }
+        if (response.statusCode() >= 400) {
+            throw IllegalStateException("GitHub App installation lookup failed with status ${response.statusCode()}")
+        }
+
+        val payload = json.parseToJsonElement(response.body()).jsonObject
+        return payload["id"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+            ?: throw IllegalStateException("GitHub App installation lookup did not return an installation id")
+    }
+
+    override fun createInstallationAccessToken(appJwt: String, installationId: Long, repo: CmsRepoConfig): String {
+        val requestBody = json.encodeToString(
+            JsonObject.serializer(),
+            buildJsonObject {
+                put("repositories", buildJsonArray { add(JsonPrimitive(repo.namePart())) })
+            }
+        )
+
+        val request = HttpRequest.newBuilder(URI.create("https://api.github.com/app/installations/$installationId/access_tokens"))
+            .header("Accept", "application/vnd.github+json")
+            .header("Authorization", "Bearer $appJwt")
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "statik-cms")
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+            .build()
+
+        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() >= 400) {
+            throw IllegalStateException("GitHub App installation token request failed with status ${response.statusCode()}")
+        }
+
+        val payload = json.parseToJsonElement(response.body()).jsonObject
+        return payload["token"]?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalStateException("GitHub App installation token response did not contain a token")
+    }
+}
+
+internal fun CmsRepoConfig.fullName(): String {
+    return "${ownerPart()}/${namePart()}"
+}
+
+internal fun CmsRepoConfig.ownerPart(): String {
+    return owner?.takeIf { it.isNotBlank() }
+        ?: throw IllegalArgumentException("Missing required CMS repo setting: cms.repo.owner")
+}
+
+internal fun CmsRepoConfig.namePart(): String {
+    return name?.takeIf { it.isNotBlank() }
+        ?: throw IllegalArgumentException("Missing required CMS repo setting: cms.repo.name")
 }

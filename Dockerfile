@@ -16,5 +16,7 @@ RUN ./amper build
 # Verify amper still exists after build
 RUN ls -la ./amper && ./amper --help || echo "amper help failed"
 
+EXPOSE 3000
+
 ENTRYPOINT ["./amper"]
 CMD ["run"]

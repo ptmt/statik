@@ -3,6 +3,7 @@ package com.potomushto.statik
 import com.potomushto.statik.cms.CmsService
 import com.potomushto.statik.cms.CmsAuthService
 import com.potomushto.statik.cms.CmsPermissionDeniedException
+import com.potomushto.statik.cms.CmsWorkspaceManager
 import com.potomushto.statik.cms.installCmsRoutes
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.SiteGenerator
@@ -14,7 +15,6 @@ import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.http.*
-import io.ktor.server.http.content.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.nio.file.*
@@ -26,41 +26,54 @@ class BlogEngine {
         private val logger = LoggerFactory.getLogger(BlogEngine::class.java)
 
         fun run(path: String, watch: Boolean = false, portOverride: Int? = null, cmsOverride: Boolean = false) {
+            val hostRoot = Paths.get(path)
             val config = BlogConfig.load(path)
             val cmsEnabled = cmsOverride || config.cms.enabled
+            val managedRepoEnabled = cmsEnabled && config.cms.repo.enabled
+            validateCmsConfiguration(config, cmsEnabled)
             val shouldServe = watch || cmsEnabled
             val resolvedPort = portOverride ?: config.devServer.port
 
             // Override baseUrl for development mode
-            val devBaseUrl = if (watch) "http://localhost:$resolvedPort/" else null
-            val generator = SiteGenerator(path, config, devBaseUrl, enableLiveReload = watch, isDevelopment = watch)
-
-            // Generate site initially
-            logger.info("Generating site...")
-            if (devBaseUrl != null) {
-                logger.info("Development mode: using baseUrl=$devBaseUrl (overriding ${config.baseUrl})")
+            val devBaseUrl = if (watch && !managedRepoEnabled) "http://localhost:$resolvedPort/" else null
+            val generator = if (managedRepoEnabled) {
+                null
+            } else {
+                SiteGenerator(path, config, devBaseUrl, enableLiveReload = watch, isDevelopment = watch).also {
+                    logger.info("Generating site...")
+                    if (devBaseUrl != null) {
+                        logger.info("Development mode: using baseUrl=$devBaseUrl (overriding ${config.baseUrl})")
+                    }
+                    it.generate()
+                }
             }
-            generator.generate()
 
-            val cmsService = if (cmsEnabled) {
-                CmsService(Paths.get(path), config, generator).also {
+            val cmsService = if (cmsEnabled && !managedRepoEnabled) {
+                CmsService(Paths.get(path), config, requireNotNull(generator)).also {
                     it.bootstrap()
                     logger.info("CMS enabled at ${config.cms.basePath}")
                 }
             } else {
                 null
             }
+            val workspaceManager = if (cmsEnabled && managedRepoEnabled) {
+                CmsWorkspaceManager(hostRoot, config).also {
+                    logger.info("CMS managed checkout enabled for ${it.repositoryName()}")
+                }
+            } else {
+                null
+            }
             val authService = if (cmsEnabled && config.cms.auth.enabled) {
-                CmsAuthService(config.cms.auth).also {
+                CmsAuthService(config.cms.auth, hostRoot = hostRoot).also {
                     logger.info("CMS GitHub OAuth enabled for ${config.cms.auth.allowedUser}")
                 }
             } else {
                 null
             }
 
-            val liveReloadState = if (watch) LiveReloadState() else null
+            val liveReloadState = if (watch && !managedRepoEnabled) LiveReloadState() else null
 
-            if (watch) {
+            if (watch && generator != null) {
                 Thread {
                     watchForChanges(path, config, generator, liveReloadState!!, cmsService)
                 }.apply {
@@ -70,16 +83,17 @@ class BlogEngine {
             }
 
             if (shouldServe) {
-                startServer(path, config, resolvedPort, liveReloadState, cmsService, authService)
+                startServer(hostRoot, config, resolvedPort, liveReloadState, cmsService, workspaceManager, authService)
             }
         }
 
         private fun startServer(
-            rootPath: String,
+            rootPath: Path,
             config: BlogConfig,
             port: Int,
             liveReloadState: LiveReloadState?,
             cmsService: CmsService?,
+            workspaceManager: CmsWorkspaceManager?,
             authService: CmsAuthService?
         ) {
             val json = Json {
@@ -134,11 +148,21 @@ class BlogEngine {
 
                     if (cmsService != null) {
                         installCmsRoutes(
-                            siteName = config.siteName,
+                            siteNameProvider = { workspaceManager?.siteName() ?: config.siteName },
                             basePath = CmsService.normalizeBasePath(config.cms.basePath),
-                            cmsService = cmsService,
+                            cmsServiceProvider = { workspaceManager?.serviceOrNull() ?: cmsService },
                             authService = authService,
-                            json = json
+                            json = json,
+                            workspaceManager = workspaceManager
+                        )
+                    } else if (workspaceManager != null) {
+                        installCmsRoutes(
+                            siteNameProvider = { workspaceManager.siteName() },
+                            basePath = CmsService.normalizeBasePath(config.cms.basePath),
+                            cmsServiceProvider = { workspaceManager.serviceOrNull() },
+                            authService = authService,
+                            json = json,
+                            workspaceManager = workspaceManager
                         )
                     }
 
@@ -147,17 +171,78 @@ class BlogEngine {
                         call.respondRedirect("/posts/", permanent = false)
                     }
 
-                    staticFiles(
-                        "/",
-                        Paths.get(rootPath, config.theme.output).toFile()
-                    ) {
+                    get("/") {
+                        serveGeneratedSite(call, resolvePublicRoot(rootPath, config, workspaceManager), "")
+                    }
 
+                    get("{path...}") {
+                        val requestedPath = call.parameters.getAll("path")
+                            ?.joinToString("/")
+                            .orEmpty()
+                        serveGeneratedSite(
+                            call,
+                            resolvePublicRoot(rootPath, config, workspaceManager),
+                            requestedPath
+                        )
                     }
                 }
             }
 
             logger.info("HTTP server started at http://localhost:$port")
             server.start(wait = true)
+        }
+
+        private suspend fun serveGeneratedSite(call: ApplicationCall, publicRoot: Path, requestedPath: String) {
+            val resolvedFile = resolvePublicFile(publicRoot, requestedPath)
+            if (resolvedFile != null) {
+                call.respondFile(resolvedFile.toFile())
+                return
+            }
+            call.respondText(text = "404: Page Not Found", status = HttpStatusCode.NotFound)
+        }
+
+        private fun resolvePublicRoot(rootPath: Path, config: BlogConfig, workspaceManager: CmsWorkspaceManager?): Path {
+            return workspaceManager?.publicRoot() ?: rootPath.resolve(config.theme.output).normalize()
+        }
+
+        private fun resolvePublicFile(publicRoot: Path, requestedPath: String): Path? {
+            val normalizedRoot = publicRoot.toAbsolutePath().normalize()
+            if (!Files.exists(normalizedRoot)) {
+                return null
+            }
+
+            val relativePath = requestedPath.trim().removePrefix("/").removeSuffix("/")
+            val candidates = if (relativePath.isBlank()) {
+                listOf(normalizedRoot.resolve("index.html"))
+            } else {
+                buildList {
+                    val direct = normalizedRoot.resolve(relativePath).normalize()
+                    add(direct)
+                    if (!relativePath.substringAfterLast('/', "").contains('.')) {
+                        add(direct.resolve("index.html").normalize())
+                    }
+                }
+            }
+
+            return candidates.firstOrNull { candidate ->
+                candidate.startsWith(normalizedRoot) && Files.isRegularFile(candidate)
+            }
+        }
+
+        private fun validateCmsConfiguration(config: BlogConfig, cmsEnabled: Boolean) {
+            if (!cmsEnabled || !config.cms.repo.enabled) {
+                return
+            }
+
+            require(config.cms.auth.enabled) {
+                "Managed CMS checkout requires cms.auth.enabled = true"
+            }
+            require(!config.cms.repo.owner.isNullOrBlank()) {
+                "Managed CMS checkout requires cms.repo.owner"
+            }
+            require(!config.cms.repo.name.isNullOrBlank()) {
+                "Managed CMS checkout requires cms.repo.name"
+            }
         }
 
         private fun watchForChanges(

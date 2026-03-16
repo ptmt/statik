@@ -10,7 +10,8 @@ class CmsService(
     private val config: BlogConfig,
     private val generator: SiteGenerator,
     private val contentFileService: ContentFileService = ContentFileService(rootPath, config),
-    private val repository: CmsRepository = CmsRepository(resolveDatabasePath(rootPath, config.cms.databasePath)),
+    databasePath: Path? = null,
+    private val repository: CmsRepository = CmsRepository(databasePath ?: resolveDatabasePath(rootPath, config.cms.databasePath)),
     private val gitSyncService: GitSyncService = GitSyncService(rootPath, config.cms.git)
 ) {
     private val lock = Any()
@@ -87,6 +88,8 @@ class CmsService(
         return CmsStatusResponse(
             enabled = true,
             basePath = basePath,
+            ready = true,
+            repository = null,
             items = repository.count(),
             dirty = repository.dirtyCount(),
             lastSyncedAt = repository.lastSyncedAt(),

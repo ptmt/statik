@@ -124,6 +124,31 @@ internal object CmsWebAssets {
         """.trimIndent()
     }
 
+    fun installHtml(siteName: String, basePath: String, repositoryName: String): String {
+        return """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>$siteName CMS Setup</title>
+              <link rel="stylesheet" href="$basePath/styles.css">
+            </head>
+            <body>
+              <main class="login-shell">
+                <section class="login-card">
+                  <p class="eyebrow">Statik CMS</p>
+                  <h1>Install Access</h1>
+                  <p class="muted">The configured repository <strong>$repositoryName</strong> is not connected yet.</p>
+                  <p class="muted">Continue to GitHub, install the app on that repository, and Statik will create the checkout inside this host automatically.</p>
+                  <a class="login-button" href="$basePath/install">Install GitHub App</a>
+                </section>
+              </main>
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
     val stylesCss: String = """
         :root {
           --bg: #f5f0e6;
@@ -478,11 +503,15 @@ internal object CmsWebAssets {
 
           function renderStatus(status) {
             const chips = [
+              chip(status.ready ? "checkout ready" : "checkout required", !status.ready),
               chip(`${'$'}{status.items} indexed`, false),
               chip(`${'$'}{status.dirty} dirty`, status.dirty > 0),
               chip(status.git.available ? `git ${'$'}{status.git.branch || "detached"}` : "git unavailable", !status.git.available),
               chip(status.git.remoteUrl || "no remote configured", false)
             ];
+            if (status.repository) {
+              chips.splice(1, 0, chip(status.repository, false));
+            }
             if (status.auth?.enabled) {
               chips.unshift(chip(`viewer ${'$'}{status.auth.viewer || "signed out"}`, !status.auth.authenticated));
               chips.push(chip(`allowed ${'$'}{status.auth.allowedUser}`, false));

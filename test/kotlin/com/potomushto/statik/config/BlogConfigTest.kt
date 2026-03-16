@@ -64,7 +64,16 @@ class BlogConfigTest {
         assertEquals(false, config.cms.git.pushOnSync)
         assertEquals(false, config.cms.auth.enabled)
         assertEquals(null, config.cms.auth.allowedUser)
+        assertEquals(null, config.cms.auth.appId)
+        assertEquals(null, config.cms.auth.appSlug)
+        assertEquals(null, config.cms.auth.privateKeyPath)
+        assertEquals(null, config.cms.auth.setupUrl)
         assertEquals(listOf("repo"), config.cms.auth.scopes)
+        assertEquals(false, config.cms.repo.enabled)
+        assertEquals(null, config.cms.repo.owner)
+        assertEquals(null, config.cms.repo.name)
+        assertEquals(null, config.cms.repo.branch)
+        assertEquals(".statik/checkout", config.cms.repo.checkoutDir)
         assertEquals("datasource", config.staticDatasource.outputDir)
         assertEquals("data-collect", config.staticDatasource.collectAttribute)
         assertEquals("images.json", config.staticDatasource.imagesFileName)
@@ -147,7 +156,18 @@ class BlogConfigTest {
                   "clientId": "github-client-id",
                   "clientSecretEnv": "GITHUB_CLIENT_SECRET",
                   "callbackUrl": "https://cms.example.com/editor/auth/github/callback",
+                  "appId": "123456",
+                  "appSlug": "statik-cms",
+                  "privateKeyPath": "keys/statik-cms.pem",
+                  "setupUrl": "https://cms.example.com/editor/auth/github/setup",
                   "scopes": ["repo", "read:user"]
+                },
+                "repo": {
+                  "enabled": true,
+                  "owner": "potomushto",
+                  "name": "statik-site",
+                  "branch": "main",
+                  "checkoutDir": ".cache/checkout"
                 }
               }
             }
@@ -173,7 +193,16 @@ class BlogConfigTest {
         assertEquals("github-client-id", config.cms.auth.clientId)
         assertEquals("GITHUB_CLIENT_SECRET", config.cms.auth.clientSecretEnv)
         assertEquals("https://cms.example.com/editor/auth/github/callback", config.cms.auth.callbackUrl)
+        assertEquals("123456", config.cms.auth.appId)
+        assertEquals("statik-cms", config.cms.auth.appSlug)
+        assertEquals("keys/statik-cms.pem", config.cms.auth.privateKeyPath)
+        assertEquals("https://cms.example.com/editor/auth/github/setup", config.cms.auth.setupUrl)
         assertEquals(listOf("repo", "read:user"), config.cms.auth.scopes)
+        assertEquals(true, config.cms.repo.enabled)
+        assertEquals("potomushto", config.cms.repo.owner)
+        assertEquals("statik-site", config.cms.repo.name)
+        assertEquals("main", config.cms.repo.branch)
+        assertEquals(".cache/checkout", config.cms.repo.checkoutDir)
     }
 
     @Test

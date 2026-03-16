@@ -34,7 +34,7 @@ This is my first post!
 
 That's it! No templates required - Statik includes clean, minimal built-in templates to get you started.
 
-To run the hosted CMS against the same site repo:
+To run the hosted CMS server:
 ```bash
 ./amper run -- --root-path . --cms
 ```
@@ -157,10 +157,21 @@ Example `config.json`:
     "auth": {
       "enabled": true,
       "allowedUser": "potomushto",
-      "clientId": "github-oauth-client-id",
+      "clientId": "github-app-client-id",
       "clientSecretEnv": "GITHUB_CLIENT_SECRET",
       "callbackUrl": "https://cms.example.com/__statik__/cms/auth/github/callback",
+      "appId": "123456",
+      "appSlug": "statik-cms",
+      "privateKeyPath": "keys/statik-cms.private-key.pem",
+      "setupUrl": "https://cms.example.com/__statik__/cms/auth/github/setup",
       "scopes": ["repo", "read:user"]
+    },
+    "repo": {
+      "enabled": true,
+      "owner": "potomushto",
+      "name": "my-blog",
+      "branch": "main",
+      "checkoutDir": ".statik/checkout"
     }
   },
   "staticDatasource": {
@@ -196,12 +207,21 @@ Example `config.json`:
 - `cms.git.branch`: Optional branch override for pushes. When omitted, the current checked-out branch is used.
 - `cms.git.pushOnSync`: Push after each manual sync.
 - `cms.git.tokenEnv`: Optional env var containing a GitHub token for authenticated push.
-- `cms.auth.enabled`: Protect the CMS behind GitHub OAuth.
+- `cms.auth.enabled`: Protect the CMS behind GitHub sign-in.
 - `cms.auth.allowedUser`: The only GitHub login allowed to access the editor. Any other user gets `permissions denied`.
-- `cms.auth.clientId`: GitHub OAuth app client id.
-- `cms.auth.clientSecretEnv`: Env var containing the GitHub OAuth app client secret.
-- `cms.auth.callbackUrl`: OAuth callback URL registered in the GitHub OAuth app.
-- `cms.auth.scopes`: Requested GitHub OAuth scopes. `repo` is the safe default when the CMS needs to push.
+- `cms.auth.clientId`: GitHub App client id used for the user sign-in flow.
+- `cms.auth.clientSecretEnv`: Env var containing the GitHub App client secret.
+- `cms.auth.callbackUrl`: Sign-in callback URL registered in the GitHub App.
+- `cms.auth.appId`: Numeric GitHub App id used to mint installation tokens.
+- `cms.auth.appSlug`: GitHub App slug used to open the install screen.
+- `cms.auth.privateKeyPath`: Private key path for the GitHub App PEM file.
+- `cms.auth.setupUrl`: Setup URL registered in the GitHub App. This should point to `${cms.basePath}/auth/github/setup` on your host.
+- `cms.auth.scopes`: Requested GitHub user scopes for the sign-in flow. `repo` plus `read:user` is the practical hosted default.
+- `cms.repo.enabled`: Turn on managed repo checkout mode for hosted/container CMS deployments.
+- `cms.repo.owner`: Repository owner for the single repo the CMS may edit.
+- `cms.repo.name`: Repository name for the single repo the CMS may edit.
+- `cms.repo.branch`: Optional branch to clone, pull, and push. When omitted, the remote default branch is used.
+- `cms.repo.checkoutDir`: Working directory where Statik clones the configured repo.
 - `rss.enabled`: Enable RSS feed generation (default `true`).
 - `rss.fileName`: RSS feed filename (default `feed.xml`).
 - `rss.maxItems`: Maximum number of posts in the RSS feed (default `20`).
@@ -233,20 +253,22 @@ Read the full guide in [documentation/pages/static-datasources.md](documentation
 
 ## CMS
 
-Statik now includes a lightweight CMS that mounts next to the generated site. It indexes the configured `posts/` and `pages/` folders into SQLite, serves a web editor, writes changes back to the repository, regenerates affected pages, and can commit those source changes back to git.
+Statik now includes a lightweight CMS that mounts next to the generated site. In hosted mode it signs one allowed GitHub user in, verifies that the configured GitHub App is installed on one configured repository, clones that repo into a managed checkout, indexes the configured `posts/` and `pages/` folders into SQLite, serves a web editor, writes changes back to source files, regenerates affected pages, and can commit and push those source changes back to GitHub.
 
 Typical flow:
-- Run `./amper run -- --root-path . --cms` on a checked-out site repository.
+- Run `./amper run -- --root-path . --cms` on the host config directory. This directory stores `config.json`, the SQLite file, the GitHub App private key, and the managed checkout.
 - Open `http://localhost:3000/__statik__/cms`.
-- Sign in with GitHub OAuth as the configured `cms.auth.allowedUser`.
+- Sign in with GitHub as `cms.auth.allowedUser`. Any other GitHub login gets `permissions denied` immediately.
+- If the GitHub App is not yet installed on `cms.repo.owner/cms.repo.name`, the CMS sends you to the install flow for that app and repo.
+- After installation, Statik clones the configured repo into `cms.repo.checkoutDir`, indexes it into SQLite, and opens the editor.
 - Edit a post or page, save it, and let Statik rebuild the affected output.
 - Use `Commit Sync` to create a git commit for the dirty CMS-managed source files.
 
 Git sync notes:
 - The CMS commits only the edited content source files, not the generated `build/` output.
-- If the editor is signed in through GitHub OAuth, the session access token is used for authenticated pushes. `cms.git.tokenEnv` remains available as a fallback.
-- The repo must already be checked out on disk; the CMS sync layer works against that local checkout.
-- If the OAuth callback resolves to any GitHub login other than `cms.auth.allowedUser`, the CMS returns `permissions denied` immediately.
+- In managed checkout mode, sync uses a GitHub App installation token scoped to the configured repository.
+- `cms.git.tokenEnv` remains available as a fallback for non-managed local checkout mode.
+- The checkout is created and refreshed by Statik; you do not need to mount a pre-existing repo into the container.
 
 ### GitHub Actions Usage
 

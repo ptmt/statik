@@ -13,24 +13,55 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 
 fun Routing.installCmsRoutes(
-    siteName: String,
+    siteNameProvider: () -> String,
     basePath: String,
-    cmsService: CmsService,
+    cmsServiceProvider: () -> CmsService?,
     authService: CmsAuthService?,
-    json: Json
+    json: Json,
+    workspaceManager: CmsWorkspaceManager? = null
 ) {
-    get(basePath) {
-        if (authService?.isEnabled() == true) {
-            if (!ensureHtmlSession(call, basePath, authService)) return@get
+    suspend fun renderCmsShell(call: ApplicationCall) {
+        val session = if (authService?.isEnabled() == true) {
+            requireHtmlSession(call, basePath, authService) ?: return
+        } else {
+            null
         }
-        call.respondText(CmsWebAssets.indexHtml(siteName, basePath), ContentType.Text.Html)
+
+        val service = resolveCmsService(
+            cmsServiceProvider = cmsServiceProvider,
+            workspaceManager = workspaceManager,
+            authService = authService,
+            session = session
+        )
+
+        if (workspaceManager != null && service == null) {
+            call.respondText(
+                CmsWebAssets.installHtml(
+                    siteName = siteNameProvider(),
+                    basePath = basePath,
+                    repositoryName = workspaceManager.repositoryName()
+                ),
+                ContentType.Text.Html
+            )
+            return
+        }
+
+        if (service == null) {
+            throw IllegalStateException("CMS service is not available")
+        }
+
+        call.respondText(
+            CmsWebAssets.indexHtml(siteNameProvider(), basePath),
+            ContentType.Text.Html
+        )
+    }
+
+    get(basePath) {
+        renderCmsShell(call)
     }
 
     get("$basePath/") {
-        if (authService?.isEnabled() == true) {
-            if (!ensureHtmlSession(call, basePath, authService)) return@get
-        }
-        call.respondText(CmsWebAssets.indexHtml(siteName, basePath), ContentType.Text.Html)
+        renderCmsShell(call)
     }
 
     get("$basePath/login") {
@@ -47,7 +78,20 @@ fun Routing.installCmsRoutes(
             return@get
         }
 
-        call.respondText(CmsWebAssets.loginHtml(siteName, basePath), ContentType.Text.Html)
+        call.respondText(CmsWebAssets.loginHtml(siteNameProvider(), basePath), ContentType.Text.Html)
+    }
+
+    get("$basePath/install") {
+        val auth = requireAuthService(authService)
+        val manager = requireManagedWorkspace(workspaceManager)
+        val session = requireHtmlSession(call, basePath, auth) ?: return@get
+
+        if (resolveCmsService(cmsServiceProvider, manager, auth, session) != null) {
+            call.respondRedirect(basePath)
+            return@get
+        }
+
+        call.respondRedirect(auth.startInstallation(session.id))
     }
 
     get("$basePath/auth/github") {
@@ -65,11 +109,29 @@ fun Routing.installCmsRoutes(
         try {
             val session = auth.completeAuthorization(code, state)
             call.response.cookies.append(sessionCookie(basePath, session.id))
+
+            if (workspaceManager != null) {
+                resolveCmsService(cmsServiceProvider, workspaceManager, auth, session)
+            }
+
             call.respondRedirect(basePath)
         } catch (_: CmsPermissionDeniedException) {
             call.response.cookies.append(expiredSessionCookie(basePath))
             call.respondText("permissions denied", status = HttpStatusCode.Forbidden)
         }
+    }
+
+    get("$basePath/auth/github/setup") {
+        val auth = requireAuthService(authService)
+        val manager = requireManagedWorkspace(workspaceManager)
+        val session = requireHtmlSession(call, basePath, auth) ?: return@get
+        val state = call.request.queryParameters["state"]
+            ?: throw IllegalArgumentException("Missing query parameter: state")
+        val installationId = call.request.queryParameters["installation_id"]?.toLongOrNull()
+            ?: throw IllegalArgumentException("Missing or invalid query parameter: installation_id")
+
+        manager.completeInstallation(auth, session, state, installationId)
+        call.respondRedirect(basePath)
     }
 
     post("$basePath/logout") {
@@ -88,58 +150,130 @@ fun Routing.installCmsRoutes(
 
     get("$basePath/api/status") {
         val session = requireApiSession(call, basePath, authService) ?: return@get
-        val status = cmsService.status().copy(
-            auth = authService?.status(session?.id)
-        )
-        call.respondJson(json, status)
+        val authStatus = authService?.status(session?.id)
+
+        if (workspaceManager != null) {
+            resolveCmsService(cmsServiceProvider, workspaceManager, authService, session)
+            call.respondJson(json, workspaceManager.status(authStatus))
+            return@get
+        }
+
+        val service = cmsServiceProvider()
+            ?: throw IllegalStateException("CMS service is not available")
+        call.respondJson(json, service.status().copy(auth = authStatus))
     }
 
     get("$basePath/api/content") {
-        requireApiSession(call, basePath, authService) ?: return@get
+        val session = requireApiSession(call, basePath, authService) ?: return@get
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@get
         val type = CmsContentType.fromString(call.request.queryParameters["type"])
-        call.respondJson(json, cmsService.list(type))
+        call.respondJson(json, service.list(type))
     }
 
     get("$basePath/api/content/item") {
-        requireApiSession(call, basePath, authService) ?: return@get
+        val session = requireApiSession(call, basePath, authService) ?: return@get
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@get
         val sourcePath = call.request.queryParameters["sourcePath"]
             ?: throw IllegalArgumentException("Missing query parameter: sourcePath")
-        call.respondJson(json, cmsService.get(sourcePath))
+        call.respondJson(json, service.get(sourcePath))
     }
 
     post("$basePath/api/content") {
         val session = requireApiSession(call, basePath, authService) ?: return@post
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsSaveRequest>(call.receiveText())
-        call.respondJson(json, cmsService.save(payload, session?.accessToken))
+        call.respondJson(json, service.save(payload, accessToken(authService, workspaceManager, session)))
     }
 
     post("$basePath/api/refresh") {
-        requireApiSession(call, basePath, authService) ?: return@post
-        call.respondJson(json, cmsService.refreshIndex())
+        val session = requireApiSession(call, basePath, authService) ?: return@post
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
+        call.respondJson(json, service.refreshIndex())
     }
 
     post("$basePath/api/sync") {
         val session = requireApiSession(call, basePath, authService) ?: return@post
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsSyncRequest>(call.receiveText())
-        call.respondJson(json, cmsService.sync(payload.commitMessage, payload.push, session?.accessToken))
+        call.respondJson(
+            json,
+            service.sync(
+                commitMessage = payload.commitMessage,
+                push = payload.push,
+                accessToken = accessToken(authService, workspaceManager, session)
+            )
+        )
     }
 }
 
-private suspend fun ensureHtmlSession(
+private fun resolveCmsService(
+    cmsServiceProvider: () -> CmsService?,
+    workspaceManager: CmsWorkspaceManager?,
+    authService: CmsAuthService?,
+    session: CmsAuthSession?
+): CmsService? {
+    workspaceManager?.serviceOrNull()?.let { return it }
+
+    if (workspaceManager != null && authService != null && session != null) {
+        if (workspaceManager.ensureReady(authService, session)) {
+            return workspaceManager.serviceOrNull()
+        }
+        return null
+    }
+
+    return cmsServiceProvider()
+}
+
+private suspend fun requireCmsService(
+    call: ApplicationCall,
+    cmsServiceProvider: () -> CmsService?,
+    workspaceManager: CmsWorkspaceManager?,
+    authService: CmsAuthService?,
+    session: CmsAuthSession?
+): CmsService? {
+    val service = resolveCmsService(cmsServiceProvider, workspaceManager, authService, session)
+    if (service != null) {
+        return service
+    }
+
+    val message = if (workspaceManager != null) {
+        "GitHub App installation required for ${workspaceManager.repositoryName()}"
+    } else {
+        "CMS service is not available"
+    }
+    call.respondText(message, status = HttpStatusCode.Conflict)
+    return null
+}
+
+private fun accessToken(
+    authService: CmsAuthService?,
+    workspaceManager: CmsWorkspaceManager?,
+    session: CmsAuthSession?
+): String? {
+    if (session == null) {
+        return null
+    }
+    return if (workspaceManager != null && authService != null) {
+        workspaceManager.createAccessToken(authService, session)
+    } else {
+        session.accessToken
+    }
+}
+
+private suspend fun requireHtmlSession(
     call: ApplicationCall,
     basePath: String,
     authService: CmsAuthService
-): Boolean {
+): CmsAuthSession? {
     return try {
         authService.requireSession(call.request.cookies[CMS_SESSION_COOKIE])
-        true
     } catch (_: CmsAuthenticationRequiredException) {
         call.respondRedirect("$basePath/login")
-        false
+        null
     } catch (_: CmsPermissionDeniedException) {
         call.response.cookies.append(expiredSessionCookie(basePath))
         call.respondText("permissions denied", status = HttpStatusCode.Forbidden)
-        false
+        null
     }
 }
 
@@ -167,6 +301,11 @@ private suspend fun requireApiSession(
 private fun requireAuthService(authService: CmsAuthService?): CmsAuthService {
     return authService?.takeIf { it.isEnabled() }
         ?: throw IllegalArgumentException("CMS auth is not enabled")
+}
+
+private fun requireManagedWorkspace(workspaceManager: CmsWorkspaceManager?): CmsWorkspaceManager {
+    return workspaceManager
+        ?: throw IllegalArgumentException("CMS managed checkout is not enabled")
 }
 
 private fun sessionCookie(basePath: String, sessionId: String): Cookie {

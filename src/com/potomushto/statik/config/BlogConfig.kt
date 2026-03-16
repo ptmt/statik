@@ -80,7 +80,8 @@ data class CmsConfig(
     val databasePath: String = ".statik/cms.db",
     val autoSyncOnSave: Boolean = false,
     val git: CmsGitConfig = CmsGitConfig(),
-    val auth: CmsAuthConfig = CmsAuthConfig()
+    val auth: CmsAuthConfig = CmsAuthConfig(),
+    val repo: CmsRepoConfig = CmsRepoConfig()
 )
 
 @Serializable
@@ -101,7 +102,20 @@ data class CmsAuthConfig(
     val clientId: String? = null,
     val clientSecretEnv: String? = null,
     val callbackUrl: String? = null,
+    val appId: String? = null,
+    val appSlug: String? = null,
+    val privateKeyPath: String? = null,
+    val setupUrl: String? = null,
     val scopes: List<String> = listOf("repo")
+)
+
+@Serializable
+data class CmsRepoConfig(
+    val enabled: Boolean = false,
+    val owner: String? = null,
+    val name: String? = null,
+    val branch: String? = null,
+    val checkoutDir: String = ".statik/checkout"
 )
 
 @Serializable

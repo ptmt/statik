@@ -119,6 +119,8 @@ data class CmsAuthStatus(
 data class CmsStatusResponse(
     val enabled: Boolean,
     val basePath: String,
+    val ready: Boolean = true,
+    val repository: String? = null,
     val items: Int,
     val dirty: Int,
     val lastSyncedAt: Long? = null,
