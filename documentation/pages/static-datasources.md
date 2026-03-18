@@ -1,6 +1,6 @@
 ---
 title: Static Datasources
-nav_order: 5
+nav_order: 6
 ---
 
 Static datasources let you ship machine-friendly JSON alongside the generated HTML so your front-end code can power dynamic widgets without needing a live API. Think of it as **generating your own API at build time**—all the benefits of structured data endpoints without running a server.

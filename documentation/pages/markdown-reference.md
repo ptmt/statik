@@ -1,6 +1,6 @@
 ---
 title: Markdown Reference
-nav_order: 6
+nav_order: 7
 description: "Supported Markdown syntax, metadata, and Statik-specific extensions."
 ---
 

@@ -1,6 +1,5 @@
 ---
 title: "Getting Started with Statik"
-layout: "main"
 nav_order: 1
 ---
 
@@ -101,7 +100,7 @@ Highlights:
 - Tweak `devServer.port` if the default `3000` conflicts with another process.
 - Enable advanced features like RSS or static datasources when you need them.
 
-For datasource details, continue to [Static Datasources](./static-datasources.md); for templating tips, see [Custom HTML and Template Files](./custom-html.md).
+For datasource details, continue to [Static Datasources](./static-datasources.md); for templating tips, see [Custom HTML and Template Files](./custom-html.md); for deployment and editing from the browser, see [Hosted CMS](./hosted-cms.md).
 
 ## Writing Content
 
