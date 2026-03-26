@@ -93,6 +93,5 @@ jobs:
         env:
           TINYSERVE_DEPLOY_TOKEN: ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}
         run: |
-          curl -X POST "https://api.tinyserve.org/webhook/deploy/statik-cms?timeout=240" \
-            -H "Authorization: Bearer $TINYSERVE_DEPLOY_TOKEN" \
-            --fail-with-body
+          curl -X POST "https://api.tinyserve.org/webhook/deploy/statik-cms" \
+            -H "Authorization: Bearer $TINYSERVE_DEPLOY_TOKEN"
