@@ -38,6 +38,8 @@ data class CmsContentSummary(
     val title: String,
     val extension: String,
     val publishedAt: String? = null,
+    val navOrder: Int? = null,
+    val isDraft: Boolean = false,
     val dirty: Boolean,
     val updatedAt: Long
 )
@@ -52,6 +54,8 @@ data class CmsContentDocument(
     val frontmatter: String,
     val body: String,
     val publishedAt: String? = null,
+    val navOrder: Int? = null,
+    val isDraft: Boolean = false,
     val dirty: Boolean,
     val updatedAt: Long,
     val lastSyncedAt: Long? = null
@@ -142,6 +146,8 @@ internal fun CmsContentEntry.toSummary(): CmsContentSummary {
         title = title,
         extension = extension,
         publishedAt = publishedAt,
+        navOrder = metadata.cmsNavOrder(),
+        isDraft = metadata.cmsIsDraft(),
         dirty = dirty,
         updatedAt = updatedAt
     )
@@ -157,8 +163,19 @@ internal fun CmsContentEntry.toDocument(): CmsContentDocument {
         frontmatter = frontmatter,
         body = body,
         publishedAt = publishedAt,
+        navOrder = metadata.cmsNavOrder(),
+        isDraft = metadata.cmsIsDraft(),
         dirty = dirty,
         updatedAt = updatedAt,
         lastSyncedAt = lastSyncedAt
     )
+}
+
+private fun Map<String, Any?>.cmsIsDraft(): Boolean {
+    return this["draft"]?.toString()?.lowercase() in setOf("true", "yes", "1")
+}
+
+private fun Map<String, Any?>.cmsNavOrder(): Int? {
+    return this["nav_order"]?.toString()?.toIntOrNull()
+        ?: this["navOrder"]?.toString()?.toIntOrNull()
 }

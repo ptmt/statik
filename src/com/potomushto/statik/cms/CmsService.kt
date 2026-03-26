@@ -4,6 +4,7 @@ import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.SiteGenerator
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.LocalDateTime
 
 class CmsService(
     private val rootPath: Path,
@@ -28,7 +29,9 @@ class CmsService(
     }
 
     fun list(type: CmsContentType? = null): CmsContentListResponse {
-        val items = repository.list(type).map { it.toSummary() }
+        val items = repository.list(type)
+            .sortedWith(contentOrdering())
+            .map { it.toSummary() }
         return CmsContentListResponse(
             items = items,
             total = items.size,
@@ -126,6 +129,60 @@ class CmsService(
     }
 
     companion object {
+        private fun contentOrdering(): Comparator<CmsContentEntry> {
+            return Comparator { left, right ->
+                when {
+                    left.type != right.type -> left.type.name.compareTo(right.type.name)
+                    left.type == CmsContentType.POST -> comparePosts(left, right)
+                    else -> comparePages(left, right)
+                }
+            }
+        }
+
+        private fun comparePosts(left: CmsContentEntry, right: CmsContentEntry): Int {
+            val leftDraft = left.metadata["draft"]?.toString()?.lowercase() in setOf("true", "yes", "1")
+            val rightDraft = right.metadata["draft"]?.toString()?.lowercase() in setOf("true", "yes", "1")
+            if (leftDraft != rightDraft) {
+                return leftDraft.compareTo(rightDraft)
+            }
+
+            val leftDate = left.publishedAt.parseCmsDateOrNull() ?: LocalDateTime.MIN
+            val rightDate = right.publishedAt.parseCmsDateOrNull() ?: LocalDateTime.MIN
+            val byDate = rightDate.compareTo(leftDate)
+            if (byDate != 0) {
+                return byDate
+            }
+
+            return compareByTitleThenPath(left, right)
+        }
+
+        private fun comparePages(left: CmsContentEntry, right: CmsContentEntry): Int {
+            val leftNav = left.metadata["nav_order"]?.toString()?.toIntOrNull()
+                ?: left.metadata["navOrder"]?.toString()?.toIntOrNull()
+                ?: Int.MAX_VALUE
+            val rightNav = right.metadata["nav_order"]?.toString()?.toIntOrNull()
+                ?: right.metadata["navOrder"]?.toString()?.toIntOrNull()
+                ?: Int.MAX_VALUE
+            val byNav = leftNav.compareTo(rightNav)
+            if (byNav != 0) {
+                return byNav
+            }
+
+            return compareByTitleThenPath(left, right)
+        }
+
+        private fun compareByTitleThenPath(left: CmsContentEntry, right: CmsContentEntry): Int {
+            val byTitle = left.title.lowercase().compareTo(right.title.lowercase())
+            if (byTitle != 0) {
+                return byTitle
+            }
+            return left.sourcePath.compareTo(right.sourcePath)
+        }
+
+        private fun String?.parseCmsDateOrNull(): LocalDateTime? {
+            return runCatching { this?.let(LocalDateTime::parse) }.getOrNull()
+        }
+
         private fun resolveDatabasePath(rootPath: Path, configuredPath: String): Path {
             val path = Paths.get(configuredPath)
             return if (path.isAbsolute) path else rootPath.resolve(path).normalize()

@@ -12,82 +12,91 @@ internal object CmsWebAssets {
               <link rel="stylesheet" href="$basePath/styles.css">
             </head>
             <body>
-              <div class="shell">
-                <aside class="sidebar">
-                  <div class="brand">
+              <div class="workbench">
+                <aside class="rail">
+                  <header class="rail-header">
                     <p class="eyebrow">Statik CMS</p>
                     <h1>$siteName</h1>
-                    <p class="muted">SQLite-backed editor with git sync.</p>
-                  </div>
-                  <div class="toolbar">
-                    <button id="new-post" class="primary" type="button">New Post</button>
-                    <button id="new-page" type="button">New Page</button>
-                  </div>
-                  <div class="filters">
-                    <button data-filter="ALL" class="filter active" type="button">All</button>
-                    <button data-filter="POST" class="filter" type="button">Posts</button>
-                    <button data-filter="PAGE" class="filter" type="button">Pages</button>
-                  </div>
-                  <div id="content-list" class="content-list"></div>
+                    <p class="muted">Minimal editor for source content.</p>
+                  </header>
+
+                  <div id="status-chips" class="status-strip"></div>
+
+                  <section class="tree-section">
+                    <div class="tree-section-header">
+                      <span>Posts</span>
+                      <button id="new-post" class="tree-action" type="button">+ New</button>
+                    </div>
+                    <div id="post-tree" class="tree-root"></div>
+                  </section>
+
+                  <section class="tree-section">
+                    <div class="tree-section-header">
+                      <span>Pages</span>
+                      <button id="new-page" class="tree-action" type="button">+ New</button>
+                    </div>
+                    <div id="page-tree" class="tree-root"></div>
+                  </section>
                 </aside>
 
-                <main class="editor">
-                  <header class="topbar">
-                    <div>
-                      <p class="eyebrow">Status</p>
-                      <div id="status-chips" class="status-chips"></div>
+                <main class="editor-pane">
+                  <header class="editor-header">
+                    <div class="editor-heading">
+                      <p class="eyebrow">Editing</p>
+                      <h2 id="editor-title">Select a file</h2>
+                      <p id="editor-subtitle" class="muted">Choose a post or page from the left.</p>
                     </div>
-                    <div class="actions">
-                      <button id="refresh-index" type="button">Refresh Index</button>
-                      <button id="sync-button" class="primary" type="button">Commit Sync</button>
+                    <div class="header-actions">
+                      <a href="/" target="_blank" rel="noreferrer">Open site</a>
+                      <button id="refresh-index" type="button">Refresh</button>
+                      <button id="sync-button" type="button">Commit Sync</button>
                       <button id="logout-button" type="button">Logout</button>
                     </div>
                   </header>
 
-                  <section class="editor-card">
-                    <div class="field-grid">
-                      <label>
+                  <section class="editor-card meta-card">
+                    <div class="meta-grid">
+                      <label class="compact-field compact-type">
                         <span>Type</span>
                         <select id="content-type">
                           <option value="POST">Post</option>
                           <option value="PAGE">Page</option>
                         </select>
                       </label>
-                      <label>
-                        <span>Source Path</span>
+
+                      <label class="compact-field compact-path">
+                        <span>Path</span>
                         <input id="source-path" type="text" placeholder="posts/hello-world.md">
                       </label>
-                    </div>
 
-                    <label>
-                      <span>Frontmatter</span>
-                      <textarea id="frontmatter" spellcheck="false" class="meta-area"></textarea>
-                    </label>
-
-                    <label>
-                      <span>Body</span>
-                      <textarea id="body" spellcheck="false" class="body-area"></textarea>
-                    </label>
-
-                    <div class="field-grid">
-                      <label>
+                      <label class="compact-field compact-commit">
                         <span>Commit Message</span>
                         <input id="commit-message" type="text" placeholder="cms: update post">
                       </label>
-                      <label class="checkbox-row">
-                        <input id="sync-on-save" type="checkbox">
-                        <span>Commit right after save</span>
-                      </label>
-                    </div>
 
-                    <div class="footer-actions">
-                      <button id="save-button" class="primary" type="button">Save And Rebuild</button>
-                      <a href="/" target="_blank" rel="noreferrer">Open site</a>
+                      <label class="compact-check">
+                        <input id="sync-on-save" type="checkbox">
+                        <span>Sync on save</span>
+                      </label>
                     </div>
                   </section>
 
-                  <section class="activity-card">
-                    <p class="eyebrow">Activity</p>
+                  <section class="editor-card frontmatter-card">
+                    <label class="editor-label">
+                      <span>Frontmatter</span>
+                      <textarea id="frontmatter" spellcheck="false" class="meta-area"></textarea>
+                    </label>
+                  </section>
+
+                  <section class="editor-card body-card">
+                    <div class="body-toolbar">
+                      <span>Content</span>
+                      <button id="save-button" class="primary" type="button">Save And Rebuild</button>
+                    </div>
+                    <textarea id="body" spellcheck="false" class="body-area"></textarea>
+                  </section>
+
+                  <section class="editor-card activity-card">
                     <pre id="activity-log">Loading CMS state…</pre>
                   </section>
                 </main>
@@ -151,31 +160,40 @@ internal object CmsWebAssets {
 
     val stylesCss: String = """
         :root {
-          --bg: #f5f0e6;
-          --panel: rgba(255, 251, 245, 0.92);
-          --panel-strong: #fff9f1;
-          --line: rgba(101, 77, 48, 0.22);
-          --text: #2f2418;
-          --muted: #7c6a57;
-          --accent: #d46a2e;
-          --accent-dark: #9e4312;
-          --green: #3d7f57;
-          --shadow: 0 18px 50px rgba(84, 54, 27, 0.12);
+          --bg: #f4efe8;
+          --rail: #ebe4d9;
+          --panel: rgba(255, 251, 246, 0.92);
+          --panel-strong: #fffdf9;
+          --line: rgba(82, 63, 38, 0.14);
+          --line-strong: rgba(82, 63, 38, 0.26);
+          --text: #241b12;
+          --muted: #756553;
+          --accent: #2f5d50;
+          --accent-soft: rgba(47, 93, 80, 0.12);
+          --warn: #9a4e2c;
+          --warn-soft: rgba(154, 78, 44, 0.12);
+          --editor-bg: rgba(255, 255, 255, 0.65);
+          --shadow: 0 18px 48px rgba(42, 28, 15, 0.08);
+          --radius: 18px;
         }
 
         * {
           box-sizing: border-box;
         }
 
+        html,
         body {
           margin: 0;
-          min-height: 100vh;
+          min-height: 100%;
+        }
+
+        body {
           font-family: "IBM Plex Sans", "Avenir Next", sans-serif;
           color: var(--text);
           background:
-            radial-gradient(circle at top left, rgba(212, 106, 46, 0.18), transparent 26%),
-            radial-gradient(circle at bottom right, rgba(61, 127, 87, 0.16), transparent 24%),
-            linear-gradient(135deg, #f7f1e7, #efe2cf);
+            radial-gradient(circle at top left, rgba(47, 93, 80, 0.10), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(154, 78, 44, 0.10), transparent 26%),
+            linear-gradient(180deg, #f6f1ea, #eee7dd);
         }
 
         button,
@@ -186,167 +204,272 @@ internal object CmsWebAssets {
           color: inherit;
         }
 
-        .shell {
-          display: grid;
-          grid-template-columns: 360px 1fr;
+        a {
+          color: var(--accent);
+          text-decoration: none;
+        }
+
+        .workbench {
           min-height: 100vh;
-        }
-
-        .sidebar {
-          padding: 28px 20px;
-          border-right: 1px solid var(--line);
-          background: rgba(255, 248, 238, 0.8);
-          backdrop-filter: blur(18px);
-        }
-
-        .editor {
-          padding: 28px;
           display: grid;
-          grid-template-rows: auto 1fr auto;
-          gap: 18px;
+          grid-template-columns: 320px minmax(0, 1fr);
         }
 
-        .brand h1 {
+        .rail {
+          padding: 18px 14px;
+          background: linear-gradient(180deg, rgba(239, 233, 224, 0.96), rgba(232, 224, 212, 0.96));
+          border-right: 1px solid var(--line);
+          display: grid;
+          grid-template-rows: auto auto minmax(0, 1fr);
+          gap: 12px;
+          backdrop-filter: blur(16px);
+        }
+
+        .rail-header h1,
+        .editor-heading h2 {
           margin: 0;
-          font-size: 2rem;
-          line-height: 1;
+          font-size: 1.4rem;
+          line-height: 1.1;
         }
 
         .eyebrow {
-          margin: 0 0 8px;
-          font-size: 0.78rem;
+          margin: 0 0 6px;
+          font-size: 0.72rem;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: var(--accent-dark);
+          color: var(--muted);
         }
 
         .muted {
+          margin: 0;
           color: var(--muted);
-          line-height: 1.5;
+          line-height: 1.45;
         }
 
-        .toolbar,
-        .filters,
-        .actions,
-        .footer-actions,
-        .status-chips {
+        .status-strip {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .toolbar,
-        .filters {
-          margin-top: 20px;
-        }
-
-        button,
-        .filter {
-          border: 1px solid var(--line);
-          background: var(--panel-strong);
-          border-radius: 999px;
-          padding: 10px 14px;
-          cursor: pointer;
-          transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
-        }
-
-        button:hover,
-        .filter:hover {
-          transform: translateY(-1px);
-          border-color: rgba(212, 106, 46, 0.4);
-        }
-
-        button.primary,
-        .filter.active {
-          background: linear-gradient(135deg, var(--accent), #e39237);
-          color: white;
-          border-color: transparent;
-        }
-
-        .content-list,
-        .editor-card,
-        .activity-card {
-          background: var(--panel);
-          border: 1px solid var(--line);
-          border-radius: 28px;
-          box-shadow: var(--shadow);
-        }
-
-        .content-list {
-          margin-top: 20px;
-          overflow: auto;
-          max-height: calc(100vh - 260px);
-        }
-
-        .content-item {
-          width: 100%;
-          padding: 16px 18px;
-          border: 0;
-          border-bottom: 1px solid rgba(101, 77, 48, 0.12);
-          background: transparent;
-          text-align: left;
-          border-radius: 0;
-        }
-
-        .content-item:last-child {
-          border-bottom: 0;
-        }
-
-        .content-item.active {
-          background: rgba(212, 106, 46, 0.1);
-        }
-
-        .content-item strong {
-          display: block;
-          margin-bottom: 6px;
-          font-size: 0.98rem;
-        }
-
-        .content-meta {
-          display: flex;
           gap: 8px;
-          flex-wrap: wrap;
-          color: var(--muted);
-          font-size: 0.86rem;
-        }
-
-        .topbar,
-        .editor-card,
-        .activity-card {
-          padding: 22px;
-        }
-
-        .topbar {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 16px;
         }
 
         .chip {
-          padding: 8px 12px;
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 8px;
           border-radius: 999px;
-          background: rgba(61, 127, 87, 0.12);
-          color: #27543a;
-          font-size: 0.88rem;
+          font-size: 0.74rem;
+          border: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.55);
+          color: var(--muted);
         }
 
         .chip.warn {
-          background: rgba(212, 106, 46, 0.12);
-          color: var(--accent-dark);
+          background: var(--warn-soft);
+          color: var(--warn);
+          border-color: rgba(154, 78, 44, 0.18);
         }
 
-        .field-grid {
+        .tree-section {
+          min-height: 0;
+          background: rgba(255, 251, 246, 0.5);
+          border: 1px solid var(--line);
+          border-radius: var(--radius);
+          overflow: hidden;
           display: grid;
-          grid-template-columns: 220px 1fr;
-          gap: 14px;
+          grid-template-rows: auto minmax(0, 1fr);
         }
 
-        label {
-          display: grid;
+        .tree-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           gap: 8px;
-          margin-bottom: 16px;
-          font-size: 0.92rem;
+          padding: 10px 12px;
+          border-bottom: 1px solid var(--line);
+          font-size: 0.78rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--muted);
+        }
+
+        .tree-action,
+        .header-actions button,
+        .header-actions a,
+        .login-button {
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.72);
+          padding: 8px 10px;
+          cursor: pointer;
+          transition: border-color 120ms ease, background 120ms ease;
+        }
+
+        .tree-action:hover,
+        .header-actions button:hover,
+        .header-actions a:hover,
+        .login-button:hover {
+          border-color: var(--line-strong);
+          background: rgba(255, 255, 255, 0.95);
+        }
+
+        .tree-root {
+          overflow: auto;
+          padding: 8px 0;
+        }
+
+        .tree-empty {
+          margin: 0;
+          padding: 12px;
+          color: var(--muted);
+          font-size: 0.88rem;
+        }
+
+        .tree-folder {
+          padding: 8px 12px 6px calc(12px + var(--depth, 0) * 14px);
+          color: var(--muted);
+          font-size: 0.78rem;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .tree-file {
+          width: 100%;
+          text-align: left;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          border-left: 2px solid transparent;
+          padding: 9px 12px 9px calc(12px + var(--depth, 0) * 14px);
+          cursor: pointer;
+        }
+
+        .tree-file:hover {
+          background: rgba(255, 255, 255, 0.55);
+        }
+
+        .tree-file.active {
+          background: rgba(47, 93, 80, 0.10);
+          border-left-color: var(--accent);
+        }
+
+        .tree-file-main,
+        .tree-file-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .tree-file-main {
+          justify-content: space-between;
+        }
+
+        .tree-file-name {
+          font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+          font-size: 0.86rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .tree-file-meta {
+          margin-top: 5px;
+          color: var(--muted);
+          font-size: 0.74rem;
+          min-height: 1em;
+        }
+
+        .tree-file-badges {
+          display: flex;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 6px;
+          border-radius: 999px;
+          background: var(--accent-soft);
+          color: var(--accent);
+          font-size: 0.68rem;
+          line-height: 1;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .badge.warn {
+          background: var(--warn-soft);
+          color: var(--warn);
+        }
+
+        .editor-pane {
+          min-width: 0;
+          padding: 18px;
+          display: grid;
+          grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+          gap: 12px;
+        }
+
+        .editor-header,
+        .editor-card,
+        .login-card {
+          background: var(--panel);
+          border: 1px solid var(--line);
+          border-radius: 22px;
+          box-shadow: var(--shadow);
+        }
+
+        .editor-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 16px 18px;
+        }
+
+        .header-actions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 8px;
+        }
+
+        .editor-card {
+          padding: 12px 14px;
+        }
+
+        .meta-grid {
+          display: grid;
+          grid-template-columns: 110px minmax(0, 1fr) minmax(240px, 320px) auto;
+          gap: 10px;
+          align-items: end;
+        }
+
+        .compact-field,
+        .editor-label {
+          display: grid;
+          gap: 6px;
+          min-width: 0;
+        }
+
+        .compact-field span,
+        .editor-label span {
+          font-size: 0.74rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--muted);
+        }
+
+        .compact-check {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          align-self: center;
+          margin-top: 18px;
+          white-space: nowrap;
+          color: var(--muted);
+          font-size: 0.88rem;
         }
 
         input,
@@ -354,42 +477,62 @@ internal object CmsWebAssets {
         textarea {
           width: 100%;
           border: 1px solid var(--line);
-          border-radius: 18px;
-          background: rgba(255, 255, 255, 0.72);
-          padding: 12px 14px;
+          border-radius: 12px;
+          background: var(--editor-bg);
+          padding: 10px 12px;
         }
 
         textarea {
-          resize: vertical;
           font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-          font-size: 0.92rem;
-          line-height: 1.5;
+          line-height: 1.55;
+          resize: vertical;
         }
 
         .meta-area {
-          min-height: 180px;
+          min-height: 116px;
+        }
+
+        .body-card {
+          min-height: 0;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 10px;
+        }
+
+        .body-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          color: var(--muted);
+          font-size: 0.82rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .body-toolbar .primary {
+          border: 0;
+          background: var(--accent);
+          color: #fff;
+          border-radius: 10px;
+          padding: 9px 12px;
+          cursor: pointer;
         }
 
         .body-area {
           min-height: 420px;
-        }
-
-        .checkbox-row {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-top: 28px;
-        }
-
-        .checkbox-row input {
-          width: auto;
+          height: 100%;
         }
 
         .activity-card pre {
           margin: 0;
+          min-height: 72px;
+          max-height: 120px;
+          overflow: auto;
           white-space: pre-wrap;
           word-break: break-word;
           font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+          font-size: 0.83rem;
           color: var(--muted);
         }
 
@@ -402,47 +545,52 @@ internal object CmsWebAssets {
 
         .login-card {
           max-width: 460px;
-          padding: 36px;
-          border-radius: 30px;
-          background: var(--panel);
-          border: 1px solid var(--line);
-          box-shadow: var(--shadow);
+          padding: 30px;
         }
 
         .login-button {
           display: inline-flex;
           margin-top: 18px;
-          padding: 12px 18px;
-          border-radius: 999px;
-          background: linear-gradient(135deg, var(--accent), #e39237);
-          color: white;
+          background: rgba(47, 93, 80, 0.12);
+          color: var(--accent);
+          border-color: rgba(47, 93, 80, 0.2);
         }
 
-        a {
-          color: var(--accent-dark);
-          text-decoration: none;
-        }
-
-        @media (max-width: 980px) {
-          .shell {
+        @media (max-width: 1100px) {
+          .workbench {
             grid-template-columns: 1fr;
           }
 
-          .sidebar {
+          .rail {
+            grid-template-rows: auto auto auto auto;
             border-right: 0;
             border-bottom: 1px solid var(--line);
           }
 
-          .field-grid {
+          .meta-grid {
             grid-template-columns: 1fr;
           }
 
-          .content-list {
-            max-height: 280px;
+          .compact-check {
+            margin-top: 0;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .editor-pane {
+            padding: 12px;
           }
 
-          .topbar {
+          .editor-header {
             flex-direction: column;
+          }
+
+          .header-actions {
+            justify-content: flex-start;
+          }
+
+          .body-area {
+            min-height: 320px;
           }
         }
     """.trimIndent()
@@ -450,13 +598,19 @@ internal object CmsWebAssets {
     val appJs: String = """
         (() => {
           const basePath = window.STATIK_CMS_BASE_PATH || "/__statik__/cms";
-          const apiBase = `${'$'}{basePath}/api`;
-          const state = { items: [], filter: "ALL", selected: null };
+          const apiBase = basePath + "/api";
+          const state = {
+            items: [],
+            selected: null
+          };
 
           const elements = {
-            list: document.getElementById("content-list"),
+            postTree: document.getElementById("post-tree"),
+            pageTree: document.getElementById("page-tree"),
             status: document.getElementById("status-chips"),
             log: document.getElementById("activity-log"),
+            editorTitle: document.getElementById("editor-title"),
+            editorSubtitle: document.getElementById("editor-subtitle"),
             type: document.getElementById("content-type"),
             sourcePath: document.getElementById("source-path"),
             frontmatter: document.getElementById("frontmatter"),
@@ -473,11 +627,11 @@ internal object CmsWebAssets {
 
           function log(message) {
             const stamp = new Date().toLocaleTimeString();
-            elements.log.textContent = `[${'$'}{stamp}] ${'$'}{message}\n` + elements.log.textContent;
+            elements.log.textContent = "[" + stamp + "] " + message + "\n" + elements.log.textContent;
           }
 
           async function api(path, options = {}) {
-            const response = await fetch(`${'$'}{apiBase}${'$'}{path}`, {
+            const response = await fetch(apiBase + path, {
               headers: {
                 "Content-Type": "application/json",
                 ...(options.headers || {})
@@ -487,11 +641,11 @@ internal object CmsWebAssets {
 
             if (!response.ok) {
               if (response.status === 401) {
-                window.location.href = `${'$'}{basePath}/login`;
+                window.location.href = basePath + "/login";
                 return null;
               }
               const text = await response.text();
-              throw new Error(text || `Request failed with ${'$'}{response.status}`);
+              throw new Error(text || ("Request failed with " + response.status));
             }
 
             const contentType = response.headers.get("content-type") || "";
@@ -501,61 +655,173 @@ internal object CmsWebAssets {
             return null;
           }
 
-          function renderStatus(status) {
-            const chips = [
-              chip(status.ready ? "checkout ready" : "checkout required", !status.ready),
-              chip(`${'$'}{status.items} indexed`, false),
-              chip(`${'$'}{status.dirty} dirty`, status.dirty > 0),
-              chip(status.git.available ? `git ${'$'}{status.git.branch || "detached"}` : "git unavailable", !status.git.available),
-              chip(status.git.remoteUrl || "no remote configured", false)
-            ];
-            if (status.repository) {
-              chips.splice(1, 0, chip(status.repository, false));
-            }
-            if (status.auth?.enabled) {
-              chips.unshift(chip(`viewer ${'$'}{status.auth.viewer || "signed out"}`, !status.auth.authenticated));
-              chips.push(chip(`allowed ${'$'}{status.auth.allowedUser}`, false));
-            }
-            elements.status.innerHTML = chips.join("");
-          }
-
-          function chip(text, warn) {
-            return `<span class="chip ${'$'}{warn ? "warn" : ""}">${'$'}{escapeHtml(text)}</span>`;
-          }
-
-          function renderList() {
-            const visible = state.items.filter(item => state.filter === "ALL" || item.type === state.filter);
-            if (visible.length === 0) {
-              elements.list.innerHTML = `<div class="content-item"><strong>No content</strong><div class="content-meta">Create a new entry or refresh the index.</div></div>`;
-              return;
-            }
-
-            elements.list.innerHTML = visible.map(item => {
-              const active = state.selected === item.sourcePath ? "active" : "";
-              const dirtyLabel = item.dirty ? "dirty" : "clean";
-              return `
-                <button class="content-item ${'$'}{active}" data-source-path="${'$'}{escapeHtml(item.sourcePath)}" type="button">
-                  <strong>${'$'}{escapeHtml(item.title)}</strong>
-                  <div class="content-meta">
-                    <span>${'$'}{item.type}</span>
-                    <span>${'$'}{escapeHtml(item.sourcePath)}</span>
-                    <span>${'$'}{dirtyLabel}</span>
-                  </div>
-                </button>
-              `;
-            }).join("");
-
-            elements.list.querySelectorAll("[data-source-path]").forEach(node => {
-              node.addEventListener("click", () => openEntry(node.getAttribute("data-source-path")));
-            });
-          }
-
           function escapeHtml(value) {
-            return (value || "")
+            return String(value || "")
               .replaceAll("&", "&amp;")
               .replaceAll("<", "&lt;")
               .replaceAll(">", "&gt;")
               .replaceAll('"', "&quot;");
+          }
+
+          function chip(text, warn) {
+            return '<span class="chip' + (warn ? ' warn' : '') + '">' + escapeHtml(text) + "</span>";
+          }
+
+          function renderStatus(status) {
+            const chips = [
+              chip(status.ready ? "ready" : "checkout needed", !status.ready),
+              chip(String(status.dirty) + " dirty", status.dirty > 0)
+            ];
+
+            if (status.git && status.git.branch) {
+              chips.push(chip("git " + status.git.branch, false));
+            }
+            if (status.auth && status.auth.viewer) {
+              chips.push(chip("@" + status.auth.viewer, false));
+            }
+            if (status.repository) {
+              chips.push(chip(status.repository, false));
+            }
+
+            elements.status.innerHTML = chips.join("");
+          }
+
+          function groupItems(type) {
+            return state.items.filter(item => item.type === type);
+          }
+
+          function fileNameFromPath(sourcePath) {
+            const parts = sourcePath.split("/");
+            return parts[parts.length - 1] || sourcePath;
+          }
+
+          function stripExtension(fileName) {
+            const index = fileName.lastIndexOf(".");
+            return index >= 0 ? fileName.slice(0, index) : fileName;
+          }
+
+          function formatPublished(publishedAt) {
+            if (!publishedAt) {
+              return "";
+            }
+            return publishedAt.slice(0, 10);
+          }
+
+          function secondaryMeta(item) {
+            const fileName = fileNameFromPath(item.sourcePath);
+            const parts = [];
+            const normalizedTitle = String(item.title || "").trim().toLowerCase();
+            const normalizedStem = stripExtension(fileName).trim().toLowerCase();
+
+            if (normalizedTitle && normalizedTitle !== normalizedStem) {
+              parts.push(item.title);
+            }
+            if (item.type === "POST" && item.publishedAt) {
+              parts.push(formatPublished(item.publishedAt));
+            }
+            if (item.type === "PAGE" && item.navOrder !== null && item.navOrder !== undefined) {
+              parts.push("nav " + item.navOrder);
+            }
+
+            return parts.join(" · ");
+          }
+
+          function buildTree(items, rootLabel) {
+            const root = {
+              kind: "folder",
+              name: rootLabel,
+              children: [],
+              folders: Object.create(null)
+            };
+
+            items.forEach(item => {
+              const segments = item.sourcePath.split("/").slice(1);
+              let cursor = root;
+
+              segments.forEach((segment, index) => {
+                const isLeaf = index === segments.length - 1;
+                if (isLeaf) {
+                  cursor.children.push({
+                    kind: "file",
+                    name: segment,
+                    item: item
+                  });
+                  return;
+                }
+
+                if (!cursor.folders[segment]) {
+                  const folder = {
+                    kind: "folder",
+                    name: segment,
+                    children: [],
+                    folders: Object.create(null)
+                  };
+                  cursor.folders[segment] = folder;
+                  cursor.children.push(folder);
+                }
+                cursor = cursor.folders[segment];
+              });
+            });
+
+            return root.children;
+          }
+
+          function renderBadges(item) {
+            const badges = [];
+            if (item.isDraft) {
+              badges.push('<span class="badge warn">draft</span>');
+            }
+            if (item.dirty) {
+              badges.push('<span class="badge">dirty</span>');
+            }
+            return badges.join("");
+          }
+
+          function renderTreeNodes(nodes, depth) {
+            return nodes.map(node => {
+              if (node.kind === "folder") {
+                return '<div class="tree-folder-block">' +
+                  '<div class="tree-folder" style="--depth:' + depth + '">' + escapeHtml(node.name) + "</div>" +
+                  renderTreeNodes(node.children, depth + 1) +
+                  "</div>";
+              }
+
+              const item = node.item;
+              const active = state.selected === item.sourcePath ? " active" : "";
+              const meta = secondaryMeta(item);
+              return '<button class="tree-file' + active + '" type="button" data-source-path="' + escapeHtml(item.sourcePath) + '" style="--depth:' + depth + '">' +
+                '<div class="tree-file-main">' +
+                  '<span class="tree-file-name">' + escapeHtml(node.name) + "</span>" +
+                  '<span class="tree-file-badges">' + renderBadges(item) + "</span>" +
+                "</div>" +
+                '<div class="tree-file-meta">' + escapeHtml(meta) + "</div>" +
+              "</button>";
+            }).join("");
+          }
+
+          function renderTree(target, items, label) {
+            if (!items.length) {
+              target.innerHTML = '<p class="tree-empty">No ' + label.toLowerCase() + " yet.</p>";
+              return;
+            }
+
+            target.innerHTML = renderTreeNodes(buildTree(items, label), 0);
+            target.querySelectorAll("[data-source-path]").forEach(node => {
+              node.addEventListener("click", () => {
+                const sourcePath = node.getAttribute("data-source-path");
+                openEntry(sourcePath).catch(error => log(error.message));
+              });
+            });
+          }
+
+          function renderList() {
+            renderTree(elements.postTree, groupItems("POST"), "Posts");
+            renderTree(elements.pageTree, groupItems("PAGE"), "Pages");
+          }
+
+          function setEditorHeading(title, subtitle) {
+            elements.editorTitle.textContent = title;
+            elements.editorSubtitle.textContent = subtitle;
           }
 
           async function loadStatus() {
@@ -565,37 +831,61 @@ internal object CmsWebAssets {
           }
 
           async function loadList() {
-            const typeQuery = state.filter === "ALL" ? "" : `?type=${'$'}{encodeURIComponent(state.filter)}`;
-            const response = await api(`/content${'$'}{typeQuery}`);
+            const response = await api("/content");
             if (!response) return;
             state.items = response.items;
             renderList();
 
-            if (!state.selected && state.items.length > 0) {
-              await openEntry(state.items[0].sourcePath);
+            const stillExists = state.selected && state.items.some(item => item.sourcePath === state.selected);
+            if (stillExists) {
+              return;
+            }
+
+            if (state.items.length > 0) {
+              const preferred = state.items.find(item => item.type === "POST") || state.items[0];
+              await openEntry(preferred.sourcePath);
+            } else {
+              state.selected = null;
+              setEditorHeading("Select a file", "Choose a post or page from the left.");
             }
           }
 
           async function openEntry(sourcePath) {
-            const response = await api(`/content/item?sourcePath=${'$'}{encodeURIComponent(sourcePath)}`);
+            const response = await api("/content/item?sourcePath=" + encodeURIComponent(sourcePath));
             if (!response) return;
+
             state.selected = response.sourcePath;
             elements.type.value = response.type;
             elements.sourcePath.value = response.sourcePath;
             elements.frontmatter.value = response.frontmatter || "";
             elements.body.value = response.body || "";
+
+            const titleSuffix = response.isDraft ? "draft" : response.type.toLowerCase();
+            setEditorHeading(fileNameFromPath(response.sourcePath), titleSuffix + " · " + response.title);
             renderList();
-            log(`Loaded ${'$'}{response.sourcePath}`);
+            log("Loaded " + response.sourcePath);
+          }
+
+          function defaultPath(type) {
+            return type === "POST" ? "posts/untitled.md" : "pages/untitled.md";
+          }
+
+          function defaultFrontmatter(type) {
+            if (type === "POST") {
+              return "title: Untitled\npublished: " + new Date().toISOString().slice(0, 19) + "\ndraft: true";
+            }
+            return "title: Untitled";
           }
 
           function startNew(type) {
             state.selected = null;
             elements.type.value = type;
-            elements.frontmatter.value = type === "POST" ? "title: Untitled\npublished: " + new Date().toISOString().slice(0, 19) : "title: Untitled";
+            elements.sourcePath.value = defaultPath(type);
+            elements.frontmatter.value = defaultFrontmatter(type);
             elements.body.value = "";
-            elements.sourcePath.value = type === "POST" ? "posts/untitled.md" : "pages/untitled.md";
+            setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new " + type.toLowerCase());
             renderList();
-            log(`Preparing a new ${'$'}{type.toLowerCase()} draft`);
+            log("Preparing a new " + type.toLowerCase() + ".");
           }
 
           async function save() {
@@ -615,13 +905,13 @@ internal object CmsWebAssets {
             if (!response) return;
 
             state.selected = response.item.sourcePath;
-            log(`Saved ${'$'}{response.item.sourcePath} and rebuilt the site.`);
-
+            log("Saved " + response.item.sourcePath + " and rebuilt the site.");
             if (response.sync) {
               log(response.sync.message);
             }
 
             await Promise.all([loadStatus(), loadList()]);
+            await openEntry(response.item.sourcePath);
           }
 
           async function sync() {
@@ -633,31 +923,29 @@ internal object CmsWebAssets {
               })
             });
             if (!response) return;
-            log(response.message + (response.commitId ? ` Commit ${'$'}{response.commitId.slice(0, 7)}.` : ""));
+            log(response.message + (response.commitId ? " Commit " + response.commitId.slice(0, 7) + "." : ""));
             await Promise.all([loadStatus(), loadList()]);
           }
 
           async function refreshIndex() {
             const response = await api("/refresh", { method: "POST" });
             if (!response) return;
-            log(`Refreshed index: ${'$'}{response.items} item(s), ${'$'}{response.dirty} dirty.`);
-            state.selected = null;
+            log("Refreshed index: " + response.items + " item(s), " + response.dirty + " dirty.");
             await Promise.all([loadStatus(), loadList()]);
           }
 
           async function logout() {
-            await fetch(`${'$'}{basePath}/logout`, { method: "POST" });
-            window.location.href = `${'$'}{basePath}/login`;
+            await fetch(basePath + "/logout", { method: "POST" });
+            window.location.href = basePath + "/login";
           }
 
-          document.querySelectorAll("[data-filter]").forEach(button => {
-            button.addEventListener("click", async () => {
-              document.querySelectorAll("[data-filter]").forEach(node => node.classList.remove("active"));
-              button.classList.add("active");
-              state.filter = button.getAttribute("data-filter");
-              state.selected = null;
-              await loadList();
-            });
+          document.addEventListener("keydown", event => {
+            const saveShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
+            if (!saveShortcut) {
+              return;
+            }
+            event.preventDefault();
+            save().catch(error => log(error.message));
           });
 
           elements.newPost.addEventListener("click", () => startNew("POST"));

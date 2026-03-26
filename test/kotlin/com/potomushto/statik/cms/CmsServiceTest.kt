@@ -132,6 +132,71 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `list follows site ordering and marks drafts`() {
+        createPost(
+            "posts/older.md",
+            """
+                ---
+                title: Older
+                published: 2024-01-01T09:30:00
+                ---
+                Older body.
+            """.trimIndent()
+        )
+        createPost(
+            "posts/draft.md",
+            """
+                ---
+                title: Draft
+                published: 2024-01-02T09:30:00
+                draft: true
+                ---
+                Draft body.
+            """.trimIndent()
+        )
+        createPost(
+            "posts/newer.md",
+            """
+                ---
+                title: Newer
+                published: 2024-01-03T09:30:00
+                ---
+                Newer body.
+            """.trimIndent()
+        )
+        createPage(
+            "pages/docs.md",
+            """
+                ---
+                title: Docs
+                nav_order: 2
+                ---
+                Docs page.
+            """.trimIndent()
+        )
+        createPage(
+            "pages/about.md",
+            """
+                ---
+                title: About
+                nav_order: 1
+                ---
+                About page.
+            """.trimIndent()
+        )
+
+        val service = createCmsService()
+
+        val pageItems = service.list(CmsContentType.PAGE).items
+        assertEquals(listOf("pages/about.md", "pages/docs.md"), pageItems.map { it.sourcePath })
+        assertEquals(listOf(1, 2), pageItems.map { it.navOrder })
+
+        val postItems = service.list(CmsContentType.POST).items
+        assertEquals(listOf("posts/newer.md", "posts/older.md", "posts/draft.md"), postItems.map { it.sourcePath })
+        assertEquals(listOf(false, false, true), postItems.map { it.isDraft })
+    }
+
+    @Test
     fun `sync commits dirty CMS changes and clears dirty state`() {
         createPost(
             "posts/hello.md",
