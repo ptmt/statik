@@ -79,3 +79,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Redeploy statik-cms on tinyserve
+        run: |
+          curl -X POST "https://api.tinyserve.org/webhook/deploy/statik-cms?timeout=240" \
+            -H "Authorization: Bearer ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}" \
+            --fail-with-body
