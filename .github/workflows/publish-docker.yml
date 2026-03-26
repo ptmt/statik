@@ -80,8 +80,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Redeploy statik-cms on tinyserve
+      - name: Verify tinyserve deploy token is set
+        env:
+          TINYSERVE_DEPLOY_TOKEN: ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$TINYSERVE_DEPLOY_TOKEN" ]; then
+            echo "Missing required secret: TINYSERVE_DEPLOY_TOKEN"
+            exit 1
+          fi
+
+      - name: Deploy to tinyserve
+        env:
+          TINYSERVE_DEPLOY_TOKEN: ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}
         run: |
           curl -X POST "https://api.tinyserve.org/webhook/deploy/statik-cms?timeout=240" \
-            -H "Authorization: Bearer ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}" \
+            -H "Authorization: Bearer $TINYSERVE_DEPLOY_TOKEN" \
             --fail-with-body
