@@ -30,6 +30,18 @@ data class CmsContentEntry(
     val lastSyncedAt: Long?
 )
 
+data class CmsMediaEntry(
+    val sourcePath: String,
+    val rootPath: String,
+    val fileName: String,
+    val size: Long,
+    val contentType: String?,
+    val dirty: Boolean,
+    val deleted: Boolean,
+    val updatedAt: Long,
+    val lastSyncedAt: Long?
+)
+
 @Serializable
 data class CmsContentSummary(
     val type: CmsContentType,
@@ -64,6 +76,27 @@ data class CmsContentDocument(
 @Serializable
 data class CmsContentListResponse(
     val items: List<CmsContentSummary>,
+    val total: Int,
+    val dirty: Int
+)
+
+@Serializable
+data class CmsMediaItem(
+    val sourcePath: String,
+    val rootPath: String,
+    val fileName: String,
+    val size: Long,
+    val contentType: String? = null,
+    val publicPath: String,
+    val isImage: Boolean = false,
+    val dirty: Boolean,
+    val updatedAt: Long
+)
+
+@Serializable
+data class CmsMediaListResponse(
+    val items: List<CmsMediaItem>,
+    val roots: List<String>,
     val total: Int,
     val dirty: Int
 )
@@ -138,6 +171,31 @@ data class CmsRefreshResponse(
     val dirty: Int
 )
 
+@Serializable
+data class CmsMediaUploadRequest(
+    val targetDirectory: String,
+    val fileName: String,
+    val contentsBase64: String
+)
+
+@Serializable
+data class CmsMediaRenameRequest(
+    val sourcePath: String,
+    val targetPath: String
+)
+
+@Serializable
+data class CmsMediaDeleteRequest(
+    val sourcePath: String
+)
+
+@Serializable
+data class CmsMediaMutationResponse(
+    val message: String,
+    val selectedPath: String? = null,
+    val affectedPaths: List<String> = emptyList()
+)
+
 internal fun CmsContentEntry.toSummary(): CmsContentSummary {
     return CmsContentSummary(
         type = type,
@@ -168,6 +226,20 @@ internal fun CmsContentEntry.toDocument(): CmsContentDocument {
         dirty = dirty,
         updatedAt = updatedAt,
         lastSyncedAt = lastSyncedAt
+    )
+}
+
+internal fun CmsMediaEntry.toItem(publicPath: String): CmsMediaItem {
+    return CmsMediaItem(
+        sourcePath = sourcePath,
+        rootPath = rootPath,
+        fileName = fileName,
+        size = size,
+        contentType = contentType,
+        publicPath = publicPath,
+        isImage = contentType?.startsWith("image/") == true,
+        dirty = dirty,
+        updatedAt = updatedAt
     )
 }
 

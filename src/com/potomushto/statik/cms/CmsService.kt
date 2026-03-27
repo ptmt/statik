@@ -1,6 +1,8 @@
 package com.potomushto.statik.cms
 
 import com.potomushto.statik.config.BlogConfig
+import com.potomushto.statik.generators.AssetManager
+import com.potomushto.statik.generators.FileWalker
 import com.potomushto.statik.generators.SiteGenerator
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -11,9 +13,11 @@ class CmsService(
     private val config: BlogConfig,
     private val generator: SiteGenerator,
     private val contentFileService: ContentFileService = ContentFileService(rootPath, config),
+    private val mediaFileService: MediaFileService = MediaFileService(rootPath, config),
     databasePath: Path? = null,
     private val repository: CmsRepository = CmsRepository(databasePath ?: resolveDatabasePath(rootPath, config.cms.databasePath)),
-    private val gitSyncService: GitSyncService = GitSyncService(rootPath, config.cms.git)
+    private val gitSyncService: GitSyncService = GitSyncService(rootPath, config.cms.git),
+    private val assetManager: AssetManager = AssetManager(rootPath.toString(), config, FileWalker(rootPath.toString()))
 ) {
     private val lock = Any()
     private val basePath = normalizeBasePath(config.cms.basePath)
@@ -43,6 +47,20 @@ class CmsService(
         val normalized = normalizeSourcePath(sourcePath)
         return repository.find(normalized)?.toDocument()
             ?: throw IllegalArgumentException("CMS content not found: $sourcePath")
+    }
+
+    fun listMedia(): CmsMediaListResponse {
+        val items = repository.listMedia()
+            .mapNotNull { entry ->
+                assetManager.publicPathForSourcePath(entry.sourcePath)?.let(entry::toItem)
+            }
+
+        return CmsMediaListResponse(
+            items = items,
+            roots = mediaFileService.managedRoots(),
+            total = items.size,
+            dirty = repository.mediaDirtyCount()
+        )
     }
 
     fun save(request: CmsSaveRequest, accessToken: String? = null): CmsSaveResponse {
@@ -75,6 +93,74 @@ class CmsService(
         }
     }
 
+    fun uploadMedia(request: CmsMediaUploadRequest): CmsMediaMutationResponse {
+        synchronized(lock) {
+            val existing = repository.findMedia(composeMediaPath(request.targetDirectory, request.fileName))
+            val uploaded = mediaFileService.upload(request)
+            assetManager.copySingleAsset(rootPath.resolve(uploaded.sourcePath).normalize())
+            repository.upsertMedia(
+                uploaded.copy(
+                    dirty = true,
+                    deleted = false,
+                    updatedAt = System.currentTimeMillis(),
+                    lastSyncedAt = existing?.lastSyncedAt
+                )
+            )
+
+            return CmsMediaMutationResponse(
+                message = "Uploaded ${uploaded.fileName}.",
+                selectedPath = uploaded.sourcePath,
+                affectedPaths = listOf(uploaded.sourcePath)
+            )
+        }
+    }
+
+    fun renameMedia(request: CmsMediaRenameRequest): CmsMediaMutationResponse {
+        synchronized(lock) {
+            val mutation = mediaFileService.rename(request.sourcePath, request.targetPath)
+
+            mutation.deletedPaths.forEach { sourcePath ->
+                markMediaDeleted(sourcePath)
+                assetManager.deleteSingleAsset(sourcePath)
+            }
+
+            mutation.updatedEntries.forEach { entry ->
+                val existing = repository.findMedia(entry.sourcePath)
+                repository.upsertMedia(
+                    entry.copy(
+                        dirty = true,
+                        deleted = false,
+                        updatedAt = System.currentTimeMillis(),
+                        lastSyncedAt = existing?.lastSyncedAt
+                    )
+                )
+                assetManager.copySingleAsset(rootPath.resolve(entry.sourcePath).normalize())
+            }
+
+            return CmsMediaMutationResponse(
+                message = "Renamed ${mutation.deletedPaths.size} media file(s).",
+                selectedPath = mutation.updatedEntries.firstOrNull()?.sourcePath ?: request.targetPath,
+                affectedPaths = mutation.deletedPaths + mutation.updatedEntries.map { it.sourcePath }
+            )
+        }
+    }
+
+    fun deleteMedia(request: CmsMediaDeleteRequest): CmsMediaMutationResponse {
+        synchronized(lock) {
+            val mutation = mediaFileService.delete(request.sourcePath)
+            mutation.deletedPaths.forEach { sourcePath ->
+                markMediaDeleted(sourcePath)
+                assetManager.deleteSingleAsset(sourcePath)
+            }
+
+            return CmsMediaMutationResponse(
+                message = "Deleted ${mutation.deletedPaths.size} media file(s).",
+                selectedPath = null,
+                affectedPaths = mutation.deletedPaths
+            )
+        }
+    }
+
     fun refreshIndex(): CmsRefreshResponse {
         synchronized(lock) {
             return refreshIndexLocked()
@@ -93,9 +179,9 @@ class CmsService(
             basePath = basePath,
             ready = true,
             repository = null,
-            items = repository.count(),
-            dirty = repository.dirtyCount(),
-            lastSyncedAt = repository.lastSyncedAt(),
+            items = repository.count() + repository.mediaCount(),
+            dirty = repository.dirtyCount() + repository.mediaDirtyCount(),
+            lastSyncedAt = maxOfNullable(repository.lastSyncedAt(), repository.mediaLastSyncedAt()),
             git = gitSyncService.status()
         )
     }
@@ -103,18 +189,24 @@ class CmsService(
     private fun refreshIndexLocked(): CmsRefreshResponse {
         val scannedEntries = contentFileService.scanAll()
         repository.replaceFromScan(scannedEntries)
+        val scannedMedia = mediaFileService.scanAll()
+        repository.replaceMediaFromScan(scannedMedia)
         return CmsRefreshResponse(
-            items = repository.count(),
-            dirty = repository.dirtyCount()
+            items = repository.count() + repository.mediaCount(),
+            dirty = repository.dirtyCount() + repository.mediaDirtyCount()
         )
     }
 
     private fun syncLocked(commitMessage: String?, push: Boolean?, accessToken: String?): CmsSyncResponse {
-        val dirtyPaths = repository.dirtySourcePaths()
+        val dirtyContentPaths = repository.dirtySourcePaths()
+        val dirtyMediaPaths = repository.dirtyMediaSourcePaths()
+        val dirtyPaths = dirtyContentPaths + dirtyMediaPaths
         val outcome = gitSyncService.sync(dirtyPaths, commitMessage, push, accessToken)
 
         if (outcome.committed) {
-            repository.markSynced(dirtyPaths, System.currentTimeMillis())
+            val timestamp = System.currentTimeMillis()
+            repository.markSynced(dirtyContentPaths, timestamp)
+            repository.markMediaSynced(dirtyMediaPaths, timestamp)
         }
 
         return CmsSyncResponse(
@@ -124,8 +216,41 @@ class CmsService(
             pushAttempted = outcome.pushAttempted,
             pushSucceeded = outcome.pushSucceeded,
             files = outcome.files,
-            dirtyRemaining = repository.dirtyCount()
+            dirtyRemaining = repository.dirtyCount() + repository.mediaDirtyCount()
         )
+    }
+
+    private fun markMediaDeleted(sourcePath: String) {
+        val existing = repository.findMedia(sourcePath)
+        repository.upsertMedia(
+            CmsMediaEntry(
+                sourcePath = sourcePath,
+                rootPath = existing?.rootPath ?: mediaRootForPath(sourcePath),
+                fileName = existing?.fileName ?: sourcePath.substringAfterLast('/'),
+                size = 0,
+                contentType = existing?.contentType,
+                dirty = true,
+                deleted = true,
+                updatedAt = System.currentTimeMillis(),
+                lastSyncedAt = existing?.lastSyncedAt
+            )
+        )
+    }
+
+    private fun composeMediaPath(targetDirectory: String, fileName: String): String {
+        val directory = targetDirectory.trim().trimEnd('/').removePrefix("/")
+        return listOf(directory, fileName.trim().removePrefix("/"))
+            .filter { it.isNotBlank() }
+            .joinToString("/")
+            .replace('\\', '/')
+    }
+
+    private fun mediaRootForPath(sourcePath: String): String {
+        val normalized = sourcePath.trim().removePrefix("/").replace('\\', '/')
+        return config.theme.assets
+            .sortedByDescending { it.length }
+            .firstOrNull { normalized == it || normalized.startsWith("$it/") }
+            ?: throw IllegalArgumentException("Unsupported media path: $sourcePath")
     }
 
     companion object {
@@ -186,6 +311,14 @@ class CmsService(
         private fun resolveDatabasePath(rootPath: Path, configuredPath: String): Path {
             val path = Paths.get(configuredPath)
             return if (path.isAbsolute) path else rootPath.resolve(path).normalize()
+        }
+
+        private fun maxOfNullable(left: Long?, right: Long?): Long? {
+            return when {
+                left == null -> right
+                right == null -> left
+                else -> maxOf(left, right)
+            }
         }
 
         internal fun normalizeBasePath(basePath: String): String {

@@ -71,7 +71,7 @@ class GitSyncService(
                     return GitSyncOutcome(
                         committed = false,
                         commitId = null,
-                        message = "No git changes detected for CMS content.",
+                        message = "No git changes detected for CMS files.",
                         pushAttempted = false,
                         pushSucceeded = false,
                         files = relativePaths
@@ -159,7 +159,7 @@ class GitSyncService(
         return if (paths.size == 1) {
             "cms: update ${paths.first()}"
         } else {
-            "cms: sync ${paths.size} content files"
+            "cms: sync ${paths.size} files"
         }
     }
 }

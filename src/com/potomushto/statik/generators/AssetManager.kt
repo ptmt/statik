@@ -33,22 +33,31 @@ class AssetManager(
      * Copy a single asset file to the output directory
      */
     fun copySingleAsset(assetFile: Path) {
-        // Determine which asset directory this file belongs to
-        val assetEntry = assetDirectories
-            .firstOrNull { (_, directory) -> assetFile.startsWith(directory) }
-
-        if (assetEntry == null) {
+        val target = resolveTarget(assetFile) ?: run {
             logger.warn { "Asset file $assetFile does not belong to any configured asset directory" }
             return
         }
 
-        val (assetPath, assetDir) = assetEntry
-        val relativePath = assetDir.relativize(assetFile)
-        val destination = resolveDestination(assetPath, relativePath)
+        Files.createDirectories(target.destination.parent)
+        Files.copy(assetFile, target.destination, StandardCopyOption.REPLACE_EXISTING)
+        logger.debug { "Copied asset: ${target.relativePath}" }
+    }
 
-        Files.createDirectories(destination.parent)
-        Files.copy(assetFile, destination, StandardCopyOption.REPLACE_EXISTING)
-        logger.debug { "Copied asset: $relativePath" }
+    fun deleteSingleAsset(sourcePath: String) {
+        val target = resolveTarget(sourcePath) ?: run {
+            logger.warn { "Asset path $sourcePath does not belong to any configured asset directory" }
+            return
+        }
+
+        Files.deleteIfExists(target.destination)
+        pruneEmptyDirectories(target.destination.parent, target.destinationRoot)
+        logger.debug { "Deleted asset: ${target.relativePath}" }
+    }
+
+    fun publicPathForSourcePath(sourcePath: String): String? {
+        val target = resolveTarget(sourcePath) ?: return null
+        val relative = outputPath.relativize(target.destination).toString().replace('\\', '/')
+        return "/" + relative.removePrefix("/")
     }
 
     /**
@@ -70,14 +79,47 @@ class AssetManager(
             }
     }
 
+    private fun resolveTarget(sourcePath: String): AssetTarget? {
+        val normalized = sourcePath.trim().removePrefix("/").replace('\\', '/')
+        val assetEntry = assetDirectories
+            .firstOrNull { (assetPath, _) -> normalized == assetPath || normalized.startsWith("$assetPath/") }
+            ?: return null
+
+        val (assetPath, assetDir) = assetEntry
+        val relativePath = Paths.get(normalized.removePrefix(assetPath).removePrefix("/"))
+        val destinationRoot = destinationRoot(assetPath)
+        return AssetTarget(
+            relativePath = relativePath,
+            destination = destinationRoot.resolve(relativePath),
+            destinationRoot = destinationRoot
+        )
+    }
+
+    private fun resolveTarget(assetFile: Path): AssetTarget? {
+        val assetEntry = assetDirectories
+            .firstOrNull { (_, directory) -> assetFile.startsWith(directory) }
+            ?: return null
+
+        val (assetPath, assetDir) = assetEntry
+        val relativePath = assetDir.relativize(assetFile)
+        val destinationRoot = destinationRoot(assetPath)
+        return AssetTarget(
+            relativePath = relativePath,
+            destination = destinationRoot.resolve(relativePath),
+            destinationRoot = destinationRoot
+        )
+    }
+
     private fun resolveDestination(assetPath: String, relativePath: Path): Path {
-        val destinationRoot = if (shouldFlatten(assetPath)) {
+        return destinationRoot(assetPath).resolve(relativePath)
+    }
+
+    private fun destinationRoot(assetPath: String): Path {
+        return if (shouldFlatten(assetPath)) {
             outputPath
         } else {
             outputPath.resolve(Paths.get(assetPath))
         }
-
-        return destinationRoot.resolve(relativePath)
     }
 
     private fun shouldFlatten(assetPath: String): Boolean {
@@ -85,4 +127,22 @@ class AssetManager(
         val lastSegment = Paths.get(normalized).fileName?.toString() ?: normalized
         return lastSegment == "public" || lastSegment == "static"
     }
+
+    private fun pruneEmptyDirectories(start: Path?, stopAt: Path) {
+        var current = start
+        while (current != null && current.startsWith(stopAt) && current != stopAt) {
+            val isEmpty = Files.list(current).use { stream -> !stream.findFirst().isPresent }
+            if (!isEmpty) {
+                return
+            }
+            Files.deleteIfExists(current)
+            current = current.parent
+        }
+    }
+
+    private data class AssetTarget(
+        val relativePath: Path,
+        val destination: Path,
+        val destinationRoot: Path
+    )
 }

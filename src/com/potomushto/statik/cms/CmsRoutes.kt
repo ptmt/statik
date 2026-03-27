@@ -178,11 +178,38 @@ fun Routing.installCmsRoutes(
         call.respondJson(json, service.get(sourcePath))
     }
 
+    get("$basePath/api/media") {
+        val session = requireApiSession(call, basePath, authService) ?: return@get
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@get
+        call.respondJson(json, service.listMedia())
+    }
+
     post("$basePath/api/content") {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsSaveRequest>(call.receiveText())
         call.respondJson(json, service.save(payload, accessToken(authService, workspaceManager, session)))
+    }
+
+    post("$basePath/api/media/upload") {
+        val session = requireApiSession(call, basePath, authService) ?: return@post
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
+        val payload = json.decodeFromString<CmsMediaUploadRequest>(call.receiveText())
+        call.respondJson(json, service.uploadMedia(payload))
+    }
+
+    post("$basePath/api/media/rename") {
+        val session = requireApiSession(call, basePath, authService) ?: return@post
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
+        val payload = json.decodeFromString<CmsMediaRenameRequest>(call.receiveText())
+        call.respondJson(json, service.renameMedia(payload))
+    }
+
+    post("$basePath/api/media/delete") {
+        val session = requireApiSession(call, basePath, authService) ?: return@post
+        val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
+        val payload = json.decodeFromString<CmsMediaDeleteRequest>(call.receiveText())
+        call.respondJson(json, service.deleteMedia(payload))
     }
 
     post("$basePath/api/refresh") {
