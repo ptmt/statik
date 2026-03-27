@@ -17,7 +17,6 @@ internal object CmsWebAssets {
                   <header class="rail-header">
                     <p class="eyebrow">Statik CMS</p>
                     <h1>$siteName</h1>
-                    <p class="muted">Minimal editor for source content.</p>
                   </header>
 
                   <div id="status-chips" class="status-strip"></div>
@@ -50,50 +49,25 @@ internal object CmsWebAssets {
                       <a href="/" target="_blank" rel="noreferrer">Open site</a>
                       <button id="refresh-index" type="button">Refresh</button>
                       <button id="sync-button" type="button">Commit Sync</button>
-                      <button id="logout-button" type="button">Logout</button>
                     </div>
                   </header>
 
                   <section class="editor-card meta-card">
+                    <input id="content-type" type="hidden">
                     <div class="meta-grid">
-                      <label class="compact-field compact-type">
-                        <span>Type</span>
-                        <select id="content-type">
-                          <option value="POST">Post</option>
-                          <option value="PAGE">Page</option>
-                        </select>
-                      </label>
-
                       <label class="compact-field compact-path">
                         <span>Path</span>
                         <input id="source-path" type="text" placeholder="posts/hello-world.md">
                       </label>
-
-                      <label class="compact-field compact-commit">
-                        <span>Commit Message</span>
-                        <input id="commit-message" type="text" placeholder="cms: update post">
-                      </label>
-
-                      <label class="compact-check">
-                        <input id="sync-on-save" type="checkbox">
-                        <span>Sync on save</span>
-                      </label>
                     </div>
                   </section>
 
-                  <section class="editor-card frontmatter-card">
-                    <label class="editor-label">
-                      <span>Frontmatter</span>
-                      <textarea id="frontmatter" spellcheck="false" class="meta-area"></textarea>
-                    </label>
-                  </section>
-
-                  <section class="editor-card body-card">
-                    <div class="body-toolbar">
-                      <span>Content</span>
+                  <section class="editor-card source-card">
+                    <div class="editor-toolbar">
+                      <span>Source</span>
                       <button id="save-button" class="primary" type="button">Save And Rebuild</button>
                     </div>
-                    <textarea id="body" spellcheck="false" class="body-area"></textarea>
+                    <textarea id="source-document" spellcheck="false" class="source-area"></textarea>
                   </section>
 
                   <section class="editor-card activity-card">
@@ -101,6 +75,26 @@ internal object CmsWebAssets {
                   </section>
                 </main>
               </div>
+
+              <dialog id="sync-dialog" class="sync-dialog">
+                <form method="dialog" class="sync-form">
+                  <div class="sync-dialog-copy">
+                    <p class="eyebrow">Git Sync</p>
+                    <h3>Commit changes</h3>
+                    <p class="muted">Leave the message blank to use the default commit message.</p>
+                  </div>
+
+                  <label class="compact-field">
+                    <span>Commit Message</span>
+                    <input id="sync-commit-message" type="text" placeholder="cms: sync content changes">
+                  </label>
+
+                  <div class="dialog-actions">
+                    <button type="submit" value="cancel">Cancel</button>
+                    <button type="submit" value="confirm" class="primary">Sync</button>
+                  </div>
+                </form>
+              </dialog>
 
               <script>window.STATIK_CMS_BASE_PATH = ${jsonString(basePath)};</script>
               <script src="$basePath/app.js"></script>
@@ -407,7 +401,7 @@ internal object CmsWebAssets {
           min-width: 0;
           padding: 18px;
           display: grid;
-          grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+          grid-template-rows: auto auto minmax(0, 1fr) auto;
           gap: 12px;
         }
 
@@ -441,35 +435,23 @@ internal object CmsWebAssets {
 
         .meta-grid {
           display: grid;
-          grid-template-columns: 110px minmax(0, 1fr) minmax(240px, 320px) auto;
+          grid-template-columns: minmax(0, 1fr);
           gap: 10px;
           align-items: end;
         }
 
-        .compact-field,
-        .editor-label {
+        .compact-field {
           display: grid;
           gap: 6px;
           min-width: 0;
         }
 
         .compact-field span,
-        .editor-label span {
+        .editor-toolbar {
           font-size: 0.74rem;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: var(--muted);
-        }
-
-        .compact-check {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          align-self: center;
-          margin-top: 18px;
-          white-space: nowrap;
-          color: var(--muted);
-          font-size: 0.88rem;
         }
 
         input,
@@ -488,29 +470,21 @@ internal object CmsWebAssets {
           resize: vertical;
         }
 
-        .meta-area {
-          min-height: 116px;
-        }
-
-        .body-card {
+        .source-card {
           min-height: 0;
           display: grid;
           grid-template-rows: auto minmax(0, 1fr);
           gap: 10px;
         }
 
-        .body-toolbar {
+        .editor-toolbar {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          color: var(--muted);
-          font-size: 0.82rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
         }
 
-        .body-toolbar .primary {
+        .editor-toolbar .primary {
           border: 0;
           background: var(--accent);
           color: #fff;
@@ -519,8 +493,8 @@ internal object CmsWebAssets {
           cursor: pointer;
         }
 
-        .body-area {
-          min-height: 420px;
+        .source-area {
+          min-height: 560px;
           height: 100%;
         }
 
@@ -534,6 +508,56 @@ internal object CmsWebAssets {
           font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
           font-size: 0.83rem;
           color: var(--muted);
+        }
+
+        .sync-dialog {
+          width: min(460px, calc(100vw - 32px));
+          padding: 0;
+          border: 1px solid var(--line);
+          border-radius: 22px;
+          background: var(--panel-strong);
+          box-shadow: var(--shadow);
+        }
+
+        .sync-dialog::backdrop {
+          background: rgba(36, 27, 18, 0.28);
+          backdrop-filter: blur(4px);
+        }
+
+        .sync-form {
+          display: grid;
+          gap: 16px;
+          padding: 20px;
+        }
+
+        .sync-dialog-copy {
+          display: grid;
+          gap: 8px;
+        }
+
+        .sync-dialog-copy h3 {
+          margin: 0;
+          font-size: 1.2rem;
+        }
+
+        .dialog-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .dialog-actions button {
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.72);
+          padding: 9px 12px;
+          cursor: pointer;
+        }
+
+        .dialog-actions .primary {
+          border-color: rgba(47, 93, 80, 0.2);
+          background: var(--accent);
+          color: #fff;
         }
 
         .login-shell {
@@ -570,10 +594,6 @@ internal object CmsWebAssets {
           .meta-grid {
             grid-template-columns: 1fr;
           }
-
-          .compact-check {
-            margin-top: 0;
-          }
         }
 
         @media (max-width: 720px) {
@@ -589,7 +609,7 @@ internal object CmsWebAssets {
             justify-content: flex-start;
           }
 
-          .body-area {
+          .source-area {
             min-height: 320px;
           }
         }
@@ -601,7 +621,9 @@ internal object CmsWebAssets {
           const apiBase = basePath + "/api";
           const state = {
             items: [],
-            selected: null
+            selected: null,
+            status: null,
+            lastSync: null
           };
 
           const elements = {
@@ -613,16 +635,14 @@ internal object CmsWebAssets {
             editorSubtitle: document.getElementById("editor-subtitle"),
             type: document.getElementById("content-type"),
             sourcePath: document.getElementById("source-path"),
-            frontmatter: document.getElementById("frontmatter"),
-            body: document.getElementById("body"),
-            commitMessage: document.getElementById("commit-message"),
-            syncOnSave: document.getElementById("sync-on-save"),
+            source: document.getElementById("source-document"),
             save: document.getElementById("save-button"),
             sync: document.getElementById("sync-button"),
-            logout: document.getElementById("logout-button"),
             refresh: document.getElementById("refresh-index"),
             newPost: document.getElementById("new-post"),
-            newPage: document.getElementById("new-page")
+            newPage: document.getElementById("new-page"),
+            syncDialog: document.getElementById("sync-dialog"),
+            syncCommitMessage: document.getElementById("sync-commit-message")
           };
 
           function log(message) {
@@ -667,11 +687,75 @@ internal object CmsWebAssets {
             return '<span class="chip' + (warn ? ' warn' : '') + '">' + escapeHtml(text) + "</span>";
           }
 
+          function formatClock(timestamp) {
+            return new Date(timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit"
+            });
+          }
+
+          function syncBadge(sync) {
+            if (!sync) {
+              return null;
+            }
+
+            if (!sync.committed) {
+              return {
+                text: "sync no changes",
+                warn: false
+              };
+            }
+
+            if (sync.pushAttempted) {
+              return sync.pushSucceeded
+                ? { text: "sync pushed", warn: false }
+                : { text: "sync push failed", warn: true };
+            }
+
+            return {
+              text: "sync local only",
+              warn: false
+            };
+          }
+
+          function syncSummary(sync) {
+            if (!sync) {
+              return "";
+            }
+
+            if (!sync.committed) {
+              return "No new commit was created.";
+            }
+
+            if (sync.pushAttempted) {
+              return sync.pushSucceeded ? "Push succeeded." : "Push failed.";
+            }
+
+            return "Push was not attempted.";
+          }
+
+          function updateSyncState(sync) {
+            state.lastSync = sync;
+            if (state.status) {
+              renderStatus(state.status);
+            }
+          }
+
           function renderStatus(status) {
+            state.status = status;
             const chips = [
               chip(status.ready ? "ready" : "checkout needed", !status.ready),
               chip(String(status.dirty) + " dirty", status.dirty > 0)
             ];
+
+            if (status.lastSyncedAt) {
+              chips.push(chip("synced " + formatClock(status.lastSyncedAt), false));
+            }
+
+            const syncChip = syncBadge(state.lastSync);
+            if (syncChip) {
+              chips.push(chip(syncChip.text, syncChip.warn));
+            }
 
             if (status.git && status.git.branch) {
               chips.push(chip("git " + status.git.branch, false));
@@ -824,6 +908,31 @@ internal object CmsWebAssets {
             elements.editorSubtitle.textContent = subtitle;
           }
 
+          function parseDocument(source) {
+            const match = /^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?([\s\S]*)$/.exec(source || "");
+            if (!match) {
+              return {
+                frontmatter: "",
+                body: source || ""
+              };
+            }
+
+            return {
+              frontmatter: match[1],
+              body: match[2]
+            };
+          }
+
+          function serializeDocument(frontmatter, body) {
+            if (!String(frontmatter || "").trim()) {
+              return body || "";
+            }
+
+            const normalizedFrontmatter = String(frontmatter).replace(/\s+$/, "");
+            const normalizedBody = String(body || "").replace(/^\n/, "");
+            return "---\n" + normalizedFrontmatter + "\n---\n" + normalizedBody;
+          }
+
           async function loadStatus() {
             const status = await api("/status");
             if (!status) return;
@@ -846,6 +955,9 @@ internal object CmsWebAssets {
               await openEntry(preferred.sourcePath);
             } else {
               state.selected = null;
+              elements.type.value = "";
+              elements.sourcePath.value = "";
+              elements.source.value = "";
               setEditorHeading("Select a file", "Choose a post or page from the left.");
             }
           }
@@ -857,11 +969,10 @@ internal object CmsWebAssets {
             state.selected = response.sourcePath;
             elements.type.value = response.type;
             elements.sourcePath.value = response.sourcePath;
-            elements.frontmatter.value = response.frontmatter || "";
-            elements.body.value = response.body || "";
+            elements.source.value = serializeDocument(response.frontmatter || "", response.body || "");
 
-            const titleSuffix = response.isDraft ? "draft" : response.type.toLowerCase();
-            setEditorHeading(fileNameFromPath(response.sourcePath), titleSuffix + " · " + response.title);
+            const subtitle = response.isDraft ? "draft · " + response.title : response.title;
+            setEditorHeading(fileNameFromPath(response.sourcePath), subtitle);
             renderList();
             log("Loaded " + response.sourcePath);
           }
@@ -881,21 +992,19 @@ internal object CmsWebAssets {
             state.selected = null;
             elements.type.value = type;
             elements.sourcePath.value = defaultPath(type);
-            elements.frontmatter.value = defaultFrontmatter(type);
-            elements.body.value = "";
-            setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new " + type.toLowerCase());
+            elements.source.value = serializeDocument(defaultFrontmatter(type), "");
+            setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
             renderList();
-            log("Preparing a new " + type.toLowerCase() + ".");
+            log("Preparing " + elements.sourcePath.value + ".");
           }
 
           async function save() {
+            const parsed = parseDocument(elements.source.value);
             const payload = {
               type: elements.type.value,
               sourcePath: elements.sourcePath.value,
-              frontmatter: elements.frontmatter.value,
-              body: elements.body.value,
-              sync: elements.syncOnSave.checked,
-              commitMessage: elements.commitMessage.value || null
+              frontmatter: parsed.frontmatter,
+              body: parsed.body
             };
 
             const response = await api("/content", {
@@ -907,24 +1016,47 @@ internal object CmsWebAssets {
             state.selected = response.item.sourcePath;
             log("Saved " + response.item.sourcePath + " and rebuilt the site.");
             if (response.sync) {
-              log(response.sync.message);
+              updateSyncState(response.sync);
+              log(response.sync.message + " " + syncSummary(response.sync));
             }
 
             await Promise.all([loadStatus(), loadList()]);
             await openEntry(response.item.sourcePath);
           }
 
-          async function sync() {
+          async function sync(commitMessage) {
             const response = await api("/sync", {
               method: "POST",
               body: JSON.stringify({
-                commitMessage: elements.commitMessage.value || null,
+                commitMessage: commitMessage || null,
                 push: null
               })
             });
             if (!response) return;
-            log(response.message + (response.commitId ? " Commit " + response.commitId.slice(0, 7) + "." : ""));
+            updateSyncState(response);
+            log(
+              response.message +
+              " " + syncSummary(response) +
+              (response.commitId ? " Commit " + response.commitId.slice(0, 7) + "." : "")
+            );
             await Promise.all([loadStatus(), loadList()]);
+          }
+
+          function openSyncDialog() {
+            if (!elements.syncDialog || typeof elements.syncDialog.showModal !== "function") {
+              const value = window.prompt("Commit message (leave blank for default):", "");
+              if (value === null) {
+                return;
+              }
+              sync(value.trim()).catch(error => log(error.message));
+              return;
+            }
+
+            elements.syncCommitMessage.value = "";
+            elements.syncDialog.showModal();
+            window.setTimeout(() => {
+              elements.syncCommitMessage.focus();
+            }, 0);
           }
 
           async function refreshIndex() {
@@ -932,11 +1064,6 @@ internal object CmsWebAssets {
             if (!response) return;
             log("Refreshed index: " + response.items + " item(s), " + response.dirty + " dirty.");
             await Promise.all([loadStatus(), loadList()]);
-          }
-
-          async function logout() {
-            await fetch(basePath + "/logout", { method: "POST" });
-            window.location.href = basePath + "/login";
           }
 
           document.addEventListener("keydown", event => {
@@ -951,9 +1078,17 @@ internal object CmsWebAssets {
           elements.newPost.addEventListener("click", () => startNew("POST"));
           elements.newPage.addEventListener("click", () => startNew("PAGE"));
           elements.save.addEventListener("click", () => save().catch(error => log(error.message)));
-          elements.sync.addEventListener("click", () => sync().catch(error => log(error.message)));
+          elements.sync.addEventListener("click", () => openSyncDialog());
           elements.refresh.addEventListener("click", () => refreshIndex().catch(error => log(error.message)));
-          elements.logout.addEventListener("click", () => logout().catch(error => log(error.message)));
+
+          if (elements.syncDialog) {
+            elements.syncDialog.addEventListener("close", () => {
+              if (elements.syncDialog.returnValue !== "confirm") {
+                return;
+              }
+              sync(elements.syncCommitMessage.value.trim()).catch(error => log(error.message));
+            });
+          }
 
           Promise.all([loadStatus(), loadList()])
             .then(() => log("CMS ready."))
