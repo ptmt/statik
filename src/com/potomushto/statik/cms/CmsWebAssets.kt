@@ -36,6 +36,18 @@ internal object CmsWebAssets {
                     </div>
                     <div id="page-tree" class="tree-root"></div>
                   </section>
+
+                  <section class="tree-section">
+                    <div class="tree-section-header">
+                      <span>Media</span>
+                      <div class="tree-actions">
+                        <button id="upload-media" class="tree-action" type="button">Upload</button>
+                        <button id="rename-media" class="tree-action" type="button" disabled>Rename</button>
+                        <button id="delete-media" class="tree-action" type="button" disabled>Delete</button>
+                      </div>
+                    </div>
+                    <div id="media-tree" class="tree-root"></div>
+                  </section>
                 </aside>
 
                 <main class="editor-pane">
@@ -92,6 +104,63 @@ internal object CmsWebAssets {
                   <div class="dialog-actions">
                     <button type="submit" value="cancel">Cancel</button>
                     <button type="submit" value="confirm" class="primary">Sync</button>
+                  </div>
+                </form>
+              </dialog>
+
+              <input id="media-file-input" type="file" class="hidden-file-input" multiple>
+
+              <dialog id="upload-dialog" class="sync-dialog">
+                <form method="dialog" class="sync-form">
+                  <div class="sync-dialog-copy">
+                    <p class="eyebrow">Media</p>
+                    <h3>Upload files</h3>
+                    <p id="upload-summary" class="muted">Choose where the selected files should be uploaded.</p>
+                  </div>
+
+                  <label class="compact-field">
+                    <span>Target Folder</span>
+                    <input id="upload-target-directory" type="text" placeholder="static/images">
+                  </label>
+
+                  <div class="dialog-actions">
+                    <button type="submit" value="cancel">Cancel</button>
+                    <button type="submit" value="confirm" class="primary">Upload</button>
+                  </div>
+                </form>
+              </dialog>
+
+              <dialog id="rename-dialog" class="sync-dialog">
+                <form method="dialog" class="sync-form">
+                  <div class="sync-dialog-copy">
+                    <p class="eyebrow">Media</p>
+                    <h3>Rename item</h3>
+                    <p id="rename-summary" class="muted">Update the source path for the selected file or folder.</p>
+                  </div>
+
+                  <label class="compact-field">
+                    <span>New Path</span>
+                    <input id="rename-target-path" type="text" placeholder="static/images/renamed.png">
+                  </label>
+
+                  <div class="dialog-actions">
+                    <button type="submit" value="cancel">Cancel</button>
+                    <button type="submit" value="confirm" class="primary">Rename</button>
+                  </div>
+                </form>
+              </dialog>
+
+              <dialog id="delete-dialog" class="sync-dialog">
+                <form method="dialog" class="sync-form">
+                  <div class="sync-dialog-copy">
+                    <p class="eyebrow">Media</p>
+                    <h3>Delete item</h3>
+                    <p id="delete-summary" class="muted">This will remove the selected media path.</p>
+                  </div>
+
+                  <div class="dialog-actions">
+                    <button type="submit" value="cancel">Cancel</button>
+                    <button type="submit" value="confirm" class="primary">Delete</button>
                   </div>
                 </form>
               </dialog>
@@ -214,7 +283,8 @@ internal object CmsWebAssets {
           background: linear-gradient(180deg, rgba(239, 233, 224, 0.96), rgba(232, 224, 212, 0.96));
           border-right: 1px solid var(--line);
           display: grid;
-          grid-template-rows: auto auto minmax(0, 1fr);
+          grid-template-rows: auto auto;
+          grid-auto-rows: minmax(0, 1fr);
           gap: 12px;
           backdrop-filter: blur(16px);
         }
@@ -286,6 +356,13 @@ internal object CmsWebAssets {
           color: var(--muted);
         }
 
+        .tree-actions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+
         .tree-action,
         .header-actions button,
         .header-actions a,
@@ -304,6 +381,11 @@ internal object CmsWebAssets {
         .login-button:hover {
           border-color: var(--line-strong);
           background: rgba(255, 255, 255, 0.95);
+        }
+
+        button:disabled {
+          opacity: 0.52;
+          cursor: not-allowed;
         }
 
         .tree-root {
@@ -560,6 +642,10 @@ internal object CmsWebAssets {
           color: #fff;
         }
 
+        .hidden-file-input {
+          display: none;
+        }
+
         .login-shell {
           min-height: 100vh;
           display: grid;
@@ -586,7 +672,8 @@ internal object CmsWebAssets {
           }
 
           .rail {
-            grid-template-rows: auto auto auto auto;
+            grid-template-rows: auto auto;
+            grid-auto-rows: minmax(180px, auto);
             border-right: 0;
             border-bottom: 1px solid var(--line);
           }
@@ -621,14 +708,20 @@ internal object CmsWebAssets {
           const apiBase = basePath + "/api";
           const state = {
             items: [],
+            mediaItems: [],
+            mediaRoots: [],
             selected: null,
+            selectedMediaPath: null,
+            selectedMediaKind: null,
             status: null,
-            lastSync: null
+            lastSync: null,
+            pendingUploadFiles: []
           };
 
           const elements = {
             postTree: document.getElementById("post-tree"),
             pageTree: document.getElementById("page-tree"),
+            mediaTree: document.getElementById("media-tree"),
             status: document.getElementById("status-chips"),
             log: document.getElementById("activity-log"),
             editorTitle: document.getElementById("editor-title"),
@@ -641,8 +734,20 @@ internal object CmsWebAssets {
             refresh: document.getElementById("refresh-index"),
             newPost: document.getElementById("new-post"),
             newPage: document.getElementById("new-page"),
+            uploadMedia: document.getElementById("upload-media"),
+            renameMedia: document.getElementById("rename-media"),
+            deleteMedia: document.getElementById("delete-media"),
             syncDialog: document.getElementById("sync-dialog"),
-            syncCommitMessage: document.getElementById("sync-commit-message")
+            syncCommitMessage: document.getElementById("sync-commit-message"),
+            mediaFileInput: document.getElementById("media-file-input"),
+            uploadDialog: document.getElementById("upload-dialog"),
+            uploadSummary: document.getElementById("upload-summary"),
+            uploadTargetDirectory: document.getElementById("upload-target-directory"),
+            renameDialog: document.getElementById("rename-dialog"),
+            renameSummary: document.getElementById("rename-summary"),
+            renameTargetPath: document.getElementById("rename-target-path"),
+            deleteDialog: document.getElementById("delete-dialog"),
+            deleteSummary: document.getElementById("delete-summary")
           };
 
           function log(message) {
@@ -743,10 +848,7 @@ internal object CmsWebAssets {
 
           function renderStatus(status) {
             state.status = status;
-            const chips = [
-              chip(status.ready ? "ready" : "checkout needed", !status.ready),
-              chip(String(status.dirty) + " dirty", status.dirty > 0)
-            ];
+            const chips = [chip(String(status.dirty) + " dirty", status.dirty > 0)];
 
             if (status.lastSyncedAt) {
               chips.push(chip("synced " + formatClock(status.lastSyncedAt), false));
@@ -755,16 +857,6 @@ internal object CmsWebAssets {
             const syncChip = syncBadge(state.lastSync);
             if (syncChip) {
               chips.push(chip(syncChip.text, syncChip.warn));
-            }
-
-            if (status.git && status.git.branch) {
-              chips.push(chip("git " + status.git.branch, false));
-            }
-            if (status.auth && status.auth.viewer) {
-              chips.push(chip("@" + status.auth.viewer, false));
-            }
-            if (status.repository) {
-              chips.push(chip(status.repository, false));
             }
 
             elements.status.innerHTML = chips.join("");
@@ -791,6 +883,19 @@ internal object CmsWebAssets {
             return publishedAt.slice(0, 10);
           }
 
+          function formatBytes(size) {
+            if (!Number.isFinite(size)) {
+              return "";
+            }
+            if (size < 1024) {
+              return size + " B";
+            }
+            if (size < 1024 * 1024) {
+              return (size / 1024).toFixed(1).replace(/\.0$/, "") + " KB";
+            }
+            return (size / (1024 * 1024)).toFixed(1).replace(/\.0$/, "") + " MB";
+          }
+
           function secondaryMeta(item) {
             const fileName = fileNameFromPath(item.sourcePath);
             const parts = [];
@@ -807,6 +912,17 @@ internal object CmsWebAssets {
               parts.push("nav " + item.navOrder);
             }
 
+            return parts.join(" · ");
+          }
+
+          function mediaSecondaryMeta(item) {
+            const parts = [];
+            if (item.contentType) {
+              parts.push(item.contentType);
+            }
+            if (item.size !== null && item.size !== undefined) {
+              parts.push(formatBytes(item.size));
+            }
             return parts.join(" · ");
           }
 
@@ -903,6 +1019,182 @@ internal object CmsWebAssets {
             renderTree(elements.pageTree, groupItems("PAGE"), "Pages");
           }
 
+          function buildMediaTree(items, roots) {
+            const rootNodes = roots.map(rootPath => ({
+              kind: "folder",
+              name: fileNameFromPath(rootPath),
+              sourcePath: rootPath,
+              children: [],
+              folders: Object.create(null),
+              isRoot: true
+            }));
+            const rootMap = Object.create(null);
+
+            rootNodes.forEach(node => {
+              rootMap[node.sourcePath] = node;
+            });
+
+            items.forEach(item => {
+              const rootNode = rootMap[item.rootPath];
+              if (!rootNode) {
+                return;
+              }
+
+              const rootDepth = item.rootPath.split("/").length;
+              const segments = item.sourcePath.split("/").slice(rootDepth);
+              let cursor = rootNode;
+              let currentPath = item.rootPath;
+
+              segments.forEach((segment, index) => {
+                const isLeaf = index === segments.length - 1;
+                if (isLeaf) {
+                  cursor.children.push({
+                    kind: "file",
+                    name: segment,
+                    item: item
+                  });
+                  return;
+                }
+
+                currentPath += "/" + segment;
+                if (!cursor.folders[currentPath]) {
+                  const folder = {
+                    kind: "folder",
+                    name: segment,
+                    sourcePath: currentPath,
+                    children: [],
+                    folders: Object.create(null),
+                    isRoot: false
+                  };
+                  cursor.folders[currentPath] = folder;
+                  cursor.children.push(folder);
+                }
+                cursor = cursor.folders[currentPath];
+              });
+            });
+
+            return sortTreeNodes(rootNodes);
+          }
+
+          function sortTreeNodes(nodes) {
+            nodes.sort((left, right) => {
+              if (left.kind !== right.kind) {
+                return left.kind === "folder" ? -1 : 1;
+              }
+              return String(left.name).localeCompare(String(right.name));
+            });
+
+            nodes.forEach(node => {
+              if (node.kind === "folder") {
+                sortTreeNodes(node.children);
+              }
+            });
+
+            return nodes;
+          }
+
+          function renderMediaNodes(nodes, depth) {
+            return nodes.map(node => {
+              if (node.kind === "folder") {
+                const active = state.selectedMediaPath === node.sourcePath && state.selectedMediaKind === "folder" ? " active" : "";
+                const meta = node.isRoot ? "root folder" : "folder";
+                return '<div class="tree-folder-block">' +
+                  '<button class="tree-file' + active + '" type="button" data-media-path="' + escapeHtml(node.sourcePath) + '" data-media-kind="folder" style="--depth:' + depth + '">' +
+                    '<div class="tree-file-main">' +
+                      '<span class="tree-file-name">' + escapeHtml(node.name) + "</span>" +
+                    "</div>" +
+                    '<div class="tree-file-meta">' + escapeHtml(meta) + "</div>" +
+                  "</button>" +
+                  renderMediaNodes(node.children, depth + 1) +
+                  "</div>";
+              }
+
+              const item = node.item;
+              const active = state.selectedMediaPath === item.sourcePath && state.selectedMediaKind === "file" ? " active" : "";
+              const meta = mediaSecondaryMeta(item);
+              return '<button class="tree-file' + active + '" type="button" data-media-path="' + escapeHtml(item.sourcePath) + '" data-media-kind="file" style="--depth:' + depth + '">' +
+                '<div class="tree-file-main">' +
+                  '<span class="tree-file-name">' + escapeHtml(node.name) + "</span>" +
+                  '<span class="tree-file-badges">' + (item.dirty ? '<span class="badge">dirty</span>' : "") + "</span>" +
+                "</div>" +
+                '<div class="tree-file-meta">' + escapeHtml(meta) + "</div>" +
+              "</button>";
+            }).join("");
+          }
+
+          function renderMediaTree() {
+            if (!state.mediaRoots.length) {
+              elements.mediaTree.innerHTML = '<p class="tree-empty">No asset roots configured.</p>';
+              updateMediaActions();
+              return;
+            }
+
+            if (!state.mediaItems.length) {
+              const emptyRoots = state.mediaRoots.map(rootPath => ({
+                kind: "folder",
+                name: fileNameFromPath(rootPath),
+                sourcePath: rootPath,
+                children: [],
+                folders: Object.create(null),
+                isRoot: true
+              }));
+              elements.mediaTree.innerHTML = renderMediaNodes(emptyRoots, 0);
+            } else {
+              elements.mediaTree.innerHTML = renderMediaNodes(buildMediaTree(state.mediaItems, state.mediaRoots), 0);
+            }
+
+            elements.mediaTree.querySelectorAll("[data-media-path]").forEach(node => {
+              node.addEventListener("click", () => {
+                state.selectedMediaPath = node.getAttribute("data-media-path");
+                state.selectedMediaKind = node.getAttribute("data-media-kind");
+                renderMediaTree();
+                updateMediaActions();
+                log("Selected media " + state.selectedMediaPath + ".");
+              });
+            });
+
+            updateMediaActions();
+          }
+
+          function selectedMediaIsRoot() {
+            return state.selectedMediaKind === "folder" && state.mediaRoots.includes(state.selectedMediaPath);
+          }
+
+          function updateMediaActions() {
+            const hasSelection = !!state.selectedMediaPath;
+            const disabled = !hasSelection || selectedMediaIsRoot();
+            elements.renameMedia.disabled = disabled;
+            elements.deleteMedia.disabled = disabled;
+          }
+
+          function currentMediaDirectory() {
+            if (state.selectedMediaKind === "folder" && state.selectedMediaPath) {
+              return state.selectedMediaPath;
+            }
+            if (state.selectedMediaKind === "file" && state.selectedMediaPath) {
+              const lastSlash = state.selectedMediaPath.lastIndexOf("/");
+              return lastSlash >= 0 ? state.selectedMediaPath.slice(0, lastSlash) : "";
+            }
+            return state.mediaRoots[0] || "";
+          }
+
+          function selectedMediaLabel() {
+            return state.selectedMediaPath || "selected media";
+          }
+
+          function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = String(reader.result || "");
+                const commaIndex = result.indexOf(",");
+                resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+              };
+              reader.onerror = () => reject(reader.error || new Error("Failed to read " + file.name));
+              reader.readAsDataURL(file);
+            });
+          }
+
           function setEditorHeading(title, subtitle) {
             elements.editorTitle.textContent = title;
             elements.editorSubtitle.textContent = subtitle;
@@ -953,13 +1245,32 @@ internal object CmsWebAssets {
             if (state.items.length > 0) {
               const preferred = state.items.find(item => item.type === "POST") || state.items[0];
               await openEntry(preferred.sourcePath);
-            } else {
+            } else if (!state.selectedMediaPath) {
               state.selected = null;
               elements.type.value = "";
               elements.sourcePath.value = "";
               elements.source.value = "";
               setEditorHeading("Select a file", "Choose a post or page from the left.");
             }
+          }
+
+          async function loadMedia() {
+            const response = await api("/media");
+            if (!response) return;
+
+            state.mediaItems = response.items || [];
+            state.mediaRoots = response.roots || [];
+
+            const mediaStillExists = state.selectedMediaKind === "folder"
+              ? state.mediaRoots.includes(state.selectedMediaPath) || state.mediaItems.some(item => item.sourcePath.startsWith(state.selectedMediaPath + "/"))
+              : state.mediaItems.some(item => item.sourcePath === state.selectedMediaPath);
+
+            if (!mediaStillExists) {
+              state.selectedMediaPath = null;
+              state.selectedMediaKind = null;
+            }
+
+            renderMediaTree();
           }
 
           async function openEntry(sourcePath) {
@@ -1059,11 +1370,124 @@ internal object CmsWebAssets {
             }, 0);
           }
 
+          function openUploadDialog() {
+            elements.mediaFileInput.value = "";
+            elements.mediaFileInput.click();
+          }
+
+          async function uploadPendingFiles(targetDirectory) {
+            const normalizedTarget = String(targetDirectory || "").trim() || currentMediaDirectory();
+            let lastSelectedPath = null;
+
+            for (const file of state.pendingUploadFiles) {
+              const contentsBase64 = await fileToBase64(file);
+              const response = await api("/media/upload", {
+                method: "POST",
+                body: JSON.stringify({
+                  targetDirectory: normalizedTarget,
+                  fileName: file.name,
+                  contentsBase64: contentsBase64
+                })
+              });
+              if (!response) {
+                continue;
+              }
+              lastSelectedPath = response.selectedPath || lastSelectedPath;
+              log(response.message);
+            }
+
+            state.pendingUploadFiles = [];
+            await Promise.all([loadStatus(), loadMedia()]);
+            if (lastSelectedPath) {
+              state.selectedMediaPath = lastSelectedPath;
+              state.selectedMediaKind = "file";
+              renderMediaTree();
+            }
+          }
+
+          function openRenameDialog() {
+            if (!state.selectedMediaPath || selectedMediaIsRoot()) {
+              return;
+            }
+
+            if (!elements.renameDialog || typeof elements.renameDialog.showModal !== "function") {
+              const value = window.prompt("Rename media path:", state.selectedMediaPath);
+              if (!value || value.trim() === state.selectedMediaPath) {
+                return;
+              }
+              renameMedia(value.trim()).catch(error => log(error.message));
+              return;
+            }
+
+            elements.renameSummary.textContent = "Rename " + selectedMediaLabel() + ".";
+            elements.renameTargetPath.value = state.selectedMediaPath;
+            elements.renameDialog.showModal();
+            window.setTimeout(() => {
+              elements.renameTargetPath.focus();
+              elements.renameTargetPath.select();
+            }, 0);
+          }
+
+          async function renameMedia(targetPath) {
+            const response = await api("/media/rename", {
+              method: "POST",
+              body: JSON.stringify({
+                sourcePath: state.selectedMediaPath,
+                targetPath: targetPath
+              })
+            });
+            if (!response) return;
+
+            log(response.message);
+            await Promise.all([loadStatus(), loadMedia()]);
+            state.selectedMediaPath = response.selectedPath || null;
+            state.selectedMediaKind = state.selectedMediaPath ? "file" : null;
+            renderMediaTree();
+          }
+
+          function openDeleteDialog() {
+            if (!state.selectedMediaPath || selectedMediaIsRoot()) {
+              return;
+            }
+
+            if (!elements.deleteDialog || typeof elements.deleteDialog.showModal !== "function") {
+              if (!window.confirm("Delete " + selectedMediaLabel() + "?")) {
+                return;
+              }
+              deleteMedia().catch(error => log(error.message));
+              return;
+            }
+
+            elements.deleteSummary.textContent = "Delete " + selectedMediaLabel() + ".";
+            elements.deleteDialog.showModal();
+          }
+
+          async function deleteMedia() {
+            const fallbackDirectory = currentMediaDirectory();
+            const response = await api("/media/delete", {
+              method: "POST",
+              body: JSON.stringify({
+                sourcePath: state.selectedMediaPath
+              })
+            });
+            if (!response) return;
+
+            log(response.message);
+            state.selectedMediaPath = fallbackDirectory;
+            state.selectedMediaKind = state.mediaRoots.includes(fallbackDirectory) ? "folder" : null;
+            await Promise.all([loadStatus(), loadMedia()]);
+            if (!state.mediaRoots.includes(state.selectedMediaPath) && !state.mediaItems.some(item => item.sourcePath.startsWith(state.selectedMediaPath + "/"))) {
+              state.selectedMediaPath = null;
+              state.selectedMediaKind = null;
+            }
+            renderMediaTree();
+          }
+
           async function refreshIndex() {
             const response = await api("/refresh", { method: "POST" });
             if (!response) return;
             log("Refreshed index: " + response.items + " item(s), " + response.dirty + " dirty.");
-            await Promise.all([loadStatus(), loadList()]);
+            await Promise.all([loadStatus(), loadList(), loadMedia()]);
           }
 
           document.addEventListener("keydown", event => {
@@ -1077,9 +1501,42 @@ internal object CmsWebAssets {
 
           elements.newPost.addEventListener("click", () => startNew("POST"));
           elements.newPage.addEventListener("click", () => startNew("PAGE"));
+          elements.uploadMedia.addEventListener("click", () => openUploadDialog());
+          elements.renameMedia.addEventListener("click", () => openRenameDialog());
+          elements.deleteMedia.addEventListener("click", () => openDeleteDialog());
           elements.save.addEventListener("click", () => save().catch(error => log(error.message)));
           elements.sync.addEventListener("click", () => openSyncDialog());
           elements.refresh.addEventListener("click", () => refreshIndex().catch(error => log(error.message)));
+
+          elements.mediaFileInput.addEventListener("change", () => {
+            state.pendingUploadFiles = Array.from(elements.mediaFileInput.files || []);
+            if (!state.pendingUploadFiles.length) {
+              return;
+            }
+
+            const targetDirectory = currentMediaDirectory();
+            const summary = state.pendingUploadFiles.length === 1
+              ? state.pendingUploadFiles[0].name
+              : state.pendingUploadFiles.length + " file(s) selected";
+
+            if (!elements.uploadDialog || typeof elements.uploadDialog.showModal !== "function") {
+              const value = window.prompt("Upload target folder:", targetDirectory);
+              if (value === null) {
+                state.pendingUploadFiles = [];
+                return;
+              }
+              uploadPendingFiles(value.trim()).catch(error => log(error.message));
+              return;
+            }
+
+            elements.uploadSummary.textContent = summary;
+            elements.uploadTargetDirectory.value = targetDirectory;
+            elements.uploadDialog.showModal();
+            window.setTimeout(() => {
+              elements.uploadTargetDirectory.focus();
+              elements.uploadTargetDirectory.select();
+            }, 0);
+          });
 
           if (elements.syncDialog) {
             elements.syncDialog.addEventListener("close", () => {
@@ -1090,7 +1547,39 @@ internal object CmsWebAssets {
             });
           }
 
-          Promise.all([loadStatus(), loadList()])
+          if (elements.uploadDialog) {
+            elements.uploadDialog.addEventListener("close", () => {
+              if (elements.uploadDialog.returnValue !== "confirm") {
+                state.pendingUploadFiles = [];
+                return;
+              }
+              uploadPendingFiles(elements.uploadTargetDirectory.value.trim()).catch(error => log(error.message));
+            });
+          }
+
+          if (elements.renameDialog) {
+            elements.renameDialog.addEventListener("close", () => {
+              if (elements.renameDialog.returnValue !== "confirm") {
+                return;
+              }
+              const targetPath = elements.renameTargetPath.value.trim();
+              if (!targetPath || targetPath === state.selectedMediaPath) {
+                return;
+              }
+              renameMedia(targetPath).catch(error => log(error.message));
+            });
+          }
+
+          if (elements.deleteDialog) {
+            elements.deleteDialog.addEventListener("close", () => {
+              if (elements.deleteDialog.returnValue !== "confirm") {
+                return;
+              }
+              deleteMedia().catch(error => log(error.message));
+            });
+          }
+
+          Promise.all([loadStatus(), loadList(), loadMedia()])
             .then(() => log("CMS ready."))
             .catch(error => log(error.message));
         })();
