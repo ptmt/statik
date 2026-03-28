@@ -7,6 +7,7 @@ import com.potomushto.statik.config.PathConfig
 import com.potomushto.statik.config.ThemeConfig
 import com.potomushto.statik.generators.SiteGenerator
 import org.eclipse.jgit.api.Git
+import java.util.Base64
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
@@ -197,6 +198,82 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `media list includes nested assets and public paths`() {
+        (tempRoot / "static" / "media").createDirectories()
+        (tempRoot / "static" / "docs").createDirectories()
+        (tempRoot / "static" / "media" / "hero.png").writeText("hero")
+        (tempRoot / "static" / "docs" / "readme.pdf").writeText("readme")
+
+        val service = createCmsService()
+        val media = service.listMedia()
+
+        assertEquals(listOf("static"), media.roots)
+        assertEquals(2, media.total)
+        assertEquals(0, media.dirty)
+        assertEquals(
+            listOf("static/docs/readme.pdf", "static/media/hero.png"),
+            media.items.map { it.sourcePath }
+        )
+        assertEquals(
+            listOf("/docs/readme.pdf", "/media/hero.png"),
+            media.items.map { it.publicPath }
+        )
+    }
+
+    @Test
+    fun `upload rename and delete media folders updates source and output`() {
+        val service = createCmsService()
+
+        service.uploadMedia(
+            CmsMediaUploadRequest(
+                targetDirectory = "static/gallery",
+                fileName = "hero.png",
+                contentsBase64 = Base64.getEncoder().encodeToString("hero".toByteArray())
+            )
+        )
+        service.uploadMedia(
+            CmsMediaUploadRequest(
+                targetDirectory = "static/gallery/icons",
+                fileName = "icon.svg",
+                contentsBase64 = Base64.getEncoder().encodeToString("icon".toByteArray())
+            )
+        )
+
+        assertTrue((tempRoot / "static" / "gallery" / "hero.png").exists())
+        assertTrue((tempRoot / "static" / "gallery" / "icons" / "icon.svg").exists())
+        assertTrue((tempRoot / "build" / "gallery" / "hero.png").exists())
+        assertTrue((tempRoot / "build" / "gallery" / "icons" / "icon.svg").exists())
+
+        val rename = service.renameMedia(
+            CmsMediaRenameRequest(
+                sourcePath = "static/gallery",
+                targetPath = "static/portfolio"
+            )
+        )
+
+        assertEquals("static/portfolio", rename.selectedPath)
+        assertFalse((tempRoot / "static" / "gallery" / "hero.png").exists())
+        assertFalse((tempRoot / "build" / "gallery" / "hero.png").exists())
+        assertTrue((tempRoot / "static" / "portfolio" / "hero.png").exists())
+        assertTrue((tempRoot / "static" / "portfolio" / "icons" / "icon.svg").exists())
+        assertTrue((tempRoot / "build" / "portfolio" / "hero.png").exists())
+        assertTrue((tempRoot / "build" / "portfolio" / "icons" / "icon.svg").exists())
+        assertEquals(
+            listOf("static/portfolio/hero.png", "static/portfolio/icons/icon.svg"),
+            service.listMedia().items.map { it.sourcePath }
+        )
+
+        val deletion = service.deleteMedia(CmsMediaDeleteRequest("static/portfolio"))
+
+        assertEquals(2, deletion.affectedPaths.size)
+        assertFalse((tempRoot / "static" / "portfolio" / "hero.png").exists())
+        assertFalse((tempRoot / "build" / "portfolio" / "hero.png").exists())
+        assertEquals(0, service.listMedia().total)
+        assertEquals(0, service.listMedia().dirty)
+        assertEquals(0, service.status().dirty)
+    }
+
+    @Test
     fun `sync commits dirty CMS changes and clears dirty state`() {
         createPost(
             "posts/hello.md",
@@ -241,6 +318,39 @@ class CmsServiceTest {
         assertEquals("cms: update hello", latestCommitMessage())
         assertEquals(0, sync.dirtyRemaining)
         assertFalse(service.get("posts/hello.md").dirty)
+        assertEquals(0, service.status().dirty)
+    }
+
+    @Test
+    fun `sync commits dirty media changes and clears dirty state`() {
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        Git.init().setDirectory(tempRoot.toFile()).call().use { git ->
+            git.add().addFilepattern(".").call()
+            git.commit()
+                .setMessage("init")
+                .setAuthor("Init", "init@example.com")
+                .setCommitter("Init", "init@example.com")
+                .call()
+        }
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+
+        service.uploadMedia(
+            CmsMediaUploadRequest(
+                targetDirectory = "static/gallery",
+                fileName = "hero.png",
+                contentsBase64 = Base64.getEncoder().encodeToString("hero".toByteArray())
+            )
+        )
+
+        val sync = service.sync("cms: update media", push = false)
+
+        assertTrue(sync.committed)
+        assertEquals("cms: update media", latestCommitMessage())
+        assertEquals(0, sync.dirtyRemaining)
+        assertEquals(0, service.listMedia().dirty)
         assertEquals(0, service.status().dirty)
     }
 

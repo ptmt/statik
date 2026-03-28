@@ -85,7 +85,7 @@ class AssetManager(
             .firstOrNull { (assetPath, _) -> normalized == assetPath || normalized.startsWith("$assetPath/") }
             ?: return null
 
-        val (assetPath, assetDir) = assetEntry
+        val (assetPath, _) = assetEntry
         val relativePath = Paths.get(normalized.removePrefix(assetPath).removePrefix("/"))
         val destinationRoot = destinationRoot(assetPath)
         return AssetTarget(

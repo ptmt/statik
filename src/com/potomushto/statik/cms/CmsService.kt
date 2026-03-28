@@ -95,8 +95,13 @@ class CmsService(
 
     fun uploadMedia(request: CmsMediaUploadRequest): CmsMediaMutationResponse {
         synchronized(lock) {
-            val existing = repository.findMedia(composeMediaPath(request.targetDirectory, request.fileName))
-            val uploaded = mediaFileService.upload(request)
+            val targetDirectory = request.targetDirectory.trim().ifBlank {
+                mediaFileService.managedRoots().firstOrNull()
+                    ?: throw IllegalStateException("No asset directories configured")
+            }
+            val normalizedRequest = request.copy(targetDirectory = targetDirectory)
+            val existing = repository.findMedia(composeMediaPath(targetDirectory, request.fileName))
+            val uploaded = mediaFileService.upload(normalizedRequest)
             assetManager.copySingleAsset(rootPath.resolve(uploaded.sourcePath).normalize())
             repository.upsertMedia(
                 uploaded.copy(
@@ -118,6 +123,7 @@ class CmsService(
     fun renameMedia(request: CmsMediaRenameRequest): CmsMediaMutationResponse {
         synchronized(lock) {
             val mutation = mediaFileService.rename(request.sourcePath, request.targetPath)
+            val renamedDirectory = mutation.updatedEntries.none { it.sourcePath == request.targetPath }
 
             mutation.deletedPaths.forEach { sourcePath ->
                 markMediaDeleted(sourcePath)
@@ -138,8 +144,12 @@ class CmsService(
             }
 
             return CmsMediaMutationResponse(
-                message = "Renamed ${mutation.deletedPaths.size} media file(s).",
-                selectedPath = mutation.updatedEntries.firstOrNull()?.sourcePath ?: request.targetPath,
+                message = if (renamedDirectory) {
+                    "Renamed folder with ${mutation.updatedEntries.size} file(s)."
+                } else {
+                    "Renamed ${request.sourcePath.substringAfterLast('/')}."
+                },
+                selectedPath = request.targetPath,
                 affectedPaths = mutation.deletedPaths + mutation.updatedEntries.map { it.sourcePath }
             )
         }
@@ -222,6 +232,11 @@ class CmsService(
 
     private fun markMediaDeleted(sourcePath: String) {
         val existing = repository.findMedia(sourcePath)
+        if (existing != null && existing.dirty && existing.lastSyncedAt == null) {
+            repository.deleteMedia(sourcePath)
+            return
+        }
+
         repository.upsertMedia(
             CmsMediaEntry(
                 sourcePath = sourcePath,

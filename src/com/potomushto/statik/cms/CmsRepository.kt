@@ -122,6 +122,15 @@ class CmsRepository(
         }
     }
 
+    fun deleteMedia(sourcePath: String) {
+        withConnection { connection ->
+            connection.prepareStatement("delete from cms_media where source_path = ?").use { statement ->
+                statement.setString(1, sourcePath)
+                statement.executeUpdate()
+            }
+        }
+    }
+
     fun find(sourcePath: String): CmsContentEntry? {
         return withConnection { connection ->
             connection.prepareStatement(

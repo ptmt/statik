@@ -6,6 +6,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Base64
 import java.util.Comparator
+import kotlin.streams.toList
 
 class MediaFileService(
     private val rootPath: Path,
