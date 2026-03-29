@@ -64,7 +64,11 @@ class BlogEngine {
                 null
             }
             val authService = if (cmsEnabled && config.cms.auth.enabled) {
-                CmsAuthService(config.cms.auth, hostRoot = hostRoot).also {
+                CmsAuthService(
+                    config = config.cms.auth,
+                    hostRoot = hostRoot,
+                    databasePath = resolveCmsDatabasePath(hostRoot, config.cms.databasePath)
+                ).also {
                     logger.info("CMS GitHub OAuth enabled for ${config.cms.auth.allowedUser}")
                 }
             } else {
@@ -243,6 +247,11 @@ class BlogEngine {
             require(!config.cms.repo.name.isNullOrBlank()) {
                 "Managed CMS checkout requires cms.repo.name"
             }
+        }
+
+        private fun resolveCmsDatabasePath(hostRoot: Path, configuredPath: String): Path {
+            val path = Paths.get(configuredPath)
+            return if (path.isAbsolute) path else hostRoot.resolve(path).normalize()
         }
 
         private fun watchForChanges(

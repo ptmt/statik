@@ -59,7 +59,8 @@ internal object CmsWebAssets {
                     </div>
                     <div class="header-actions">
                       <a href="/" target="_blank" rel="noreferrer">Preview</a>
-                      <button id="refresh-index" type="button">Refresh</button>
+                      <button id="refresh-index" type="button">Rescan</button>
+                      <button id="logs-button" type="button">Logs</button>
                       <button id="sync-button" type="button">Sync</button>
                     </div>
                   </header>
@@ -82,9 +83,6 @@ internal object CmsWebAssets {
                     <textarea id="source-document" spellcheck="false" class="source-area"></textarea>
                   </section>
 
-                  <section class="editor-card activity-card">
-                    <pre id="activity-log">Loading CMS state…</pre>
-                  </section>
                 </main>
               </div>
 
@@ -168,6 +166,16 @@ internal object CmsWebAssets {
                     <button type="submit" value="confirm" class="primary">Delete</button>
                   </div>
                 </form>
+              </dialog>
+
+              <dialog id="log-dialog" class="log-dialog">
+                <div class="log-shell">
+                  <div class="editor-toolbar">
+                    <span>Logs</span>
+                    <button id="close-logs" type="button">Close</button>
+                  </div>
+                  <pre id="activity-log">Loading CMS state…</pre>
+                </div>
               </dialog>
 
               <script>window.STATIK_CMS_BASE_PATH = ${jsonString(basePath)};</script>
@@ -488,7 +496,7 @@ internal object CmsWebAssets {
           min-width: 0;
           padding: 18px;
           display: grid;
-          grid-template-rows: auto auto minmax(0, 1fr) auto;
+          grid-template-rows: auto auto minmax(0, 1fr);
           gap: 12px;
         }
 
@@ -585,16 +593,50 @@ internal object CmsWebAssets {
           height: 100%;
         }
 
-        .activity-card pre {
+        .log-dialog {
+          width: min(960px, calc(100vw - 32px));
+          height: min(72vh, 760px);
+          padding: 0;
+          border: 1px solid var(--line);
+          border-radius: 22px;
+          background: var(--panel-strong);
+          box-shadow: var(--shadow);
+        }
+
+        .log-dialog::backdrop {
+          background: rgba(36, 27, 18, 0.28);
+          backdrop-filter: blur(4px);
+        }
+
+        .log-shell {
+          height: 100%;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 10px;
+          padding: 16px;
+        }
+
+        .log-shell .editor-toolbar button {
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.72);
+          padding: 9px 12px;
+          cursor: pointer;
+        }
+
+        .log-shell pre {
           margin: 0;
-          min-height: 72px;
-          max-height: 120px;
+          min-height: 0;
           overflow: auto;
           white-space: pre-wrap;
           word-break: break-word;
           font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
           font-size: 0.83rem;
           color: var(--muted);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          background: var(--editor-bg);
+          padding: 14px;
         }
 
         .sync-dialog {
@@ -751,6 +793,9 @@ internal object CmsWebAssets {
             type: document.getElementById("content-type"),
             sourcePath: document.getElementById("source-path"),
             source: document.getElementById("source-document"),
+            logsButton: document.getElementById("logs-button"),
+            logDialog: document.getElementById("log-dialog"),
+            closeLogs: document.getElementById("close-logs"),
             save: document.getElementById("save-button"),
             sync: document.getElementById("sync-button"),
             refresh: document.getElementById("refresh-index"),
@@ -873,6 +918,25 @@ internal object CmsWebAssets {
             elements.sourcePath.readOnly = !editable;
             elements.source.readOnly = !editable;
             elements.save.disabled = !editable;
+          }
+
+          function setSyncBusy(isBusy) {
+            elements.sync.disabled = isBusy;
+            elements.sync.textContent = isBusy ? "Syncing..." : "Sync";
+          }
+
+          function openLogs() {
+            if (!elements.logDialog || typeof elements.logDialog.showModal !== "function") {
+              window.alert(elements.log.textContent.slice(0, 4000));
+              return;
+            }
+            elements.logDialog.showModal();
+          }
+
+          function closeLogs() {
+            if (elements.logDialog && elements.logDialog.open) {
+              elements.logDialog.close();
+            }
           }
 
           function showEmptyEditor() {
@@ -1490,21 +1554,27 @@ internal object CmsWebAssets {
           }
 
           async function sync(commitMessage, push) {
-            const response = await api("/sync", {
-              method: "POST",
-              body: JSON.stringify({
-                commitMessage: commitMessage || null,
-                push: push
-              })
-            });
-            if (!response) return;
-            updateSyncState(response);
-            log(
-              response.message +
-              " " + syncSummary(response) +
-              (response.commitId ? " Commit " + response.commitId.slice(0, 7) + "." : "")
-            );
-            await Promise.all([loadStatus(), loadList()]);
+            setSyncBusy(true);
+            log(push ? "Starting sync and push." : "Starting sync.");
+            try {
+              const response = await api("/sync", {
+                method: "POST",
+                body: JSON.stringify({
+                  commitMessage: commitMessage || null,
+                  push: push
+                })
+              });
+              if (!response) return;
+              updateSyncState(response);
+              log(
+                response.message +
+                " " + syncSummary(response) +
+                (response.commitId ? " Commit " + response.commitId.slice(0, 7) + "." : "")
+              );
+              await Promise.all([loadStatus(), loadList()]);
+            } finally {
+              setSyncBusy(false);
+            }
           }
 
           function openSyncDialog() {
@@ -1643,9 +1713,10 @@ internal object CmsWebAssets {
           }
 
           async function refreshIndex() {
+            log("Rescanning content and media from disk.");
             const response = await api("/refresh", { method: "POST" });
             if (!response) return;
-            log("Refreshed index: " + response.items + " item(s), " + response.dirty + " dirty.");
+            log("Rescan complete: " + response.items + " item(s), " + response.dirty + " dirty.");
             await Promise.all([loadStatus(), loadList(), loadMedia()]);
           }
 
@@ -1660,6 +1731,8 @@ internal object CmsWebAssets {
 
           elements.newPost.addEventListener("click", () => startNew("POST"));
           elements.newPage.addEventListener("click", () => startNew("PAGE"));
+          elements.logsButton.addEventListener("click", () => openLogs());
+          elements.closeLogs.addEventListener("click", () => closeLogs());
           elements.uploadMedia.addEventListener("click", () => openUploadDialog());
           elements.renameMedia.addEventListener("click", () => openRenameDialog());
           elements.deleteMedia.addEventListener("click", () => openDeleteDialog());

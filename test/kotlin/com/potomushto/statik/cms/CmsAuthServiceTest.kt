@@ -92,6 +92,35 @@ class CmsAuthServiceTest {
         assertTrue(queryParam(installationUrl, "state").isNotBlank())
     }
 
+    @Test
+    fun `sessions survive service restart when stored in sqlite`() {
+        val databasePath = tempRoot / ".statik" / "cms.db"
+        val first = CmsAuthService(
+            config = authConfig(),
+            hostRoot = tempRoot,
+            databasePath = databasePath,
+            client = FakeGitHubOAuthClient(login = "potomushto"),
+            secretProvider = { "secret" }
+        )
+
+        val authorizationUrl = first.startAuthorization()
+        val session = first.completeAuthorization(
+            code = "oauth-code",
+            state = queryParam(authorizationUrl, "state")
+        )
+
+        val second = CmsAuthService(
+            config = authConfig(),
+            hostRoot = tempRoot,
+            databasePath = databasePath,
+            client = FakeGitHubOAuthClient(login = "potomushto"),
+            secretProvider = { "secret" }
+        )
+
+        assertEquals("potomushto", second.requireSession(session.id).login)
+        assertTrue(second.status(session.id).authenticated)
+    }
+
     private fun authConfig(): CmsAuthConfig {
         return CmsAuthConfig(
             enabled = true,

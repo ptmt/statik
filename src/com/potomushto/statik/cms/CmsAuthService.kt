@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
 class CmsAuthService(
     private val config: CmsAuthConfig,
     private val hostRoot: Path? = null,
+    databasePath: Path? = null,
     private val client: GitHubOAuthClient = DefaultGitHubOAuthClient(),
     private val appClient: GitHubAppClient = DefaultGitHubAppApiClient(),
     private val secretProvider: (String) -> String? = System::getenv
@@ -41,12 +42,14 @@ class CmsAuthService(
     private val pendingAuthorizations = ConcurrentHashMap<String, PendingAuthorization>()
     private val pendingInstallations = ConcurrentHashMap<String, String>()
     private val sessions = ConcurrentHashMap<String, CmsAuthSession>()
+    private val sessionStore = databasePath?.let(::CmsAuthSessionStore)
     private val secureRandom = SecureRandom()
     private val privateKey: PrivateKey by lazy { loadPrivateKey() }
 
     init {
         if (config.enabled) {
             validateConfigured()
+            sessionStore?.initialize()
         }
     }
 
@@ -103,8 +106,7 @@ class CmsAuthService(
             createdAt = System.currentTimeMillis(),
             installationId = null
         )
-        sessions[session.id] = session
-        return session
+        return persistSession(session)
     }
 
     fun startInstallation(sessionId: String): String {
@@ -135,7 +137,7 @@ class CmsAuthService(
             throw CmsPermissionDeniedException("permissions denied")
         }
 
-        return session.copy(installationId = installationId).also { sessions[it.id] = it }
+        return persistSession(session.copy(installationId = installationId))
     }
 
     fun attachInstallationForRepo(sessionId: String, repo: CmsRepoConfig): CmsAuthSession? {
@@ -145,7 +147,7 @@ class CmsAuthService(
         }
 
         val installationId = appClient.repositoryInstallationId(createAppJwt(), repo) ?: return null
-        return session.copy(installationId = installationId).also { sessions[it.id] = it }
+        return persistSession(session.copy(installationId = installationId))
     }
 
     fun createInstallationAccessToken(sessionId: String, repo: CmsRepoConfig): String {
@@ -162,10 +164,10 @@ class CmsAuthService(
     fun currentSession(sessionId: String?): CmsAuthSession? {
         if (!config.enabled) return null
         purgeExpiredEntries()
-        val session = sessionId?.let { sessions[it] } ?: return null
+        val session = lookupSession(sessionId) ?: return null
         val allowedUser = requireValue(config.allowedUser, "cms.auth.allowedUser")
         if (!session.login.equals(allowedUser, ignoreCase = true)) {
-            sessions.remove(session.id)
+            removeSession(session.id)
             throw CmsPermissionDeniedException("permissions denied")
         }
         return session
@@ -176,8 +178,7 @@ class CmsAuthService(
     }
 
     fun clearSession(sessionId: String?) {
-        if (sessionId == null) return
-        sessions.remove(sessionId)
+        removeSession(sessionId)
     }
 
     fun status(sessionId: String?): CmsAuthStatus {
@@ -214,12 +215,38 @@ class CmsAuthService(
 
     private fun purgeExpiredEntries() {
         val now = System.currentTimeMillis()
+        val createdAtCutoff = now - SESSION_TTL_MS
         pendingAuthorizations.entries.removeIf { now - it.value.createdAt > PENDING_TTL_MS }
+        sessionStore?.deleteExpired(createdAtCutoff)
+        sessions.entries.removeIf { now - it.value.createdAt > SESSION_TTL_MS }
         pendingInstallations.entries.removeIf { entry ->
-            val session = sessions[entry.value]
+            val session = lookupSession(entry.value)
             session == null || now - session.createdAt > SESSION_TTL_MS
         }
-        sessions.entries.removeIf { now - it.value.createdAt > SESSION_TTL_MS }
+    }
+
+    private fun persistSession(session: CmsAuthSession): CmsAuthSession {
+        sessions[session.id] = session
+        sessionStore?.upsert(session)
+        return session
+    }
+
+    private fun lookupSession(sessionId: String?): CmsAuthSession? {
+        if (sessionId == null) {
+            return null
+        }
+        sessions[sessionId]?.let { return it }
+        val persisted = sessionStore?.find(sessionId) ?: return null
+        sessions[persisted.id] = persisted
+        return persisted
+    }
+
+    private fun removeSession(sessionId: String?) {
+        if (sessionId == null) {
+            return
+        }
+        sessions.remove(sessionId)
+        sessionStore?.delete(sessionId)
     }
 
     private fun loadPrivateKey(): PrivateKey {
@@ -303,7 +330,8 @@ class CmsAuthService(
 
     companion object {
         private const val PENDING_TTL_MS = 10 * 60 * 1000L
-        private const val SESSION_TTL_MS = 12 * 60 * 60 * 1000L
+        internal const val SESSION_TTL_SECONDS = 12 * 60 * 60
+        private const val SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000L
     }
 }
 

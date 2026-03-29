@@ -341,6 +341,7 @@ private fun sessionCookie(basePath: String, sessionId: String): Cookie {
         value = sessionId,
         path = basePath,
         httpOnly = true,
+        maxAge = CmsAuthService.SESSION_TTL_SECONDS,
         extensions = mapOf("SameSite" to "Lax")
     )
 }
