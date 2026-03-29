@@ -1492,7 +1492,7 @@ internal object CmsWebAssets {
             scheduleAutosave(0);
           }
 
-          function buildTree(items, rootLabel) {
+          function buildTree(items, rootLabel, type) {
             const root = {
               kind: "folder",
               name: rootLabel,
@@ -1529,7 +1529,49 @@ internal object CmsWebAssets {
               });
             });
 
-            return root.children;
+            return sortContentTreeNodes(root.children, type);
+          }
+
+          function contentSortTimestamp(item) {
+            const timestamp = item && item.publishedAt ? Date.parse(item.publishedAt) : Number.NaN;
+            return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+          }
+
+          function contentNodeSortTimestamp(node) {
+            if (node.kind === "file") {
+              return contentSortTimestamp(node.item);
+            }
+
+            return node.children.reduce((latest, child) => {
+              return Math.max(latest, contentNodeSortTimestamp(child));
+            }, Number.NEGATIVE_INFINITY);
+          }
+
+          function sortContentTreeNodes(nodes, type) {
+            if (type !== "POST") {
+              return nodes;
+            }
+
+            nodes.forEach(node => {
+              if (node.kind === "folder") {
+                sortContentTreeNodes(node.children, type);
+              }
+            });
+
+            nodes.sort((left, right) => {
+              const byTimestamp = contentNodeSortTimestamp(right) - contentNodeSortTimestamp(left);
+              if (byTimestamp !== 0) {
+                return byTimestamp;
+              }
+
+              if (left.kind !== right.kind) {
+                return left.kind === "folder" ? -1 : 1;
+              }
+
+              return String(left.name).localeCompare(String(right.name));
+            });
+
+            return nodes;
           }
 
           function renderBadges(item) {
@@ -1571,13 +1613,13 @@ internal object CmsWebAssets {
             }).join("");
           }
 
-          function renderTree(target, items, label) {
+          function renderTree(target, items, label, type) {
             if (!items.length) {
               target.innerHTML = '<p class="tree-empty">No ' + label.toLowerCase() + " yet.</p>";
               return;
             }
 
-            target.innerHTML = renderTreeNodes(buildTree(items, label), 0);
+            target.innerHTML = renderTreeNodes(buildTree(items, label, type), 0);
             target.querySelectorAll("button[data-source-path]").forEach(node => {
               node.addEventListener("click", async () => {
                 const sourcePath = node.getAttribute("data-source-path");
@@ -1636,7 +1678,8 @@ internal object CmsWebAssets {
             renderTree(
               elements.contentTree,
               groupItems(state.activeContentTab),
-              state.activeContentTab === "POST" ? "Posts" : "Pages"
+              state.activeContentTab === "POST" ? "Posts" : "Pages",
+              state.activeContentTab
             );
           }
 
