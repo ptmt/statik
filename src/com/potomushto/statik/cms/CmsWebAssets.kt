@@ -12,7 +12,7 @@ internal object CmsWebAssets {
               <link rel="stylesheet" href="$basePath/styles.css">
             </head>
             <body>
-              <div class="workbench">
+              <div id="workbench" class="workbench">
                 <aside class="rail">
                   <header class="rail-header">
                     <p class="eyebrow">Statik CMS</p>
@@ -25,19 +25,14 @@ internal object CmsWebAssets {
                   </div>
 
                   <section class="tree-section">
-                    <div class="tree-section-header">
-                      <span>Posts</span>
-                      <button id="new-post" class="tree-action" type="button">+ New</button>
+                    <div class="tree-section-header content-tree-header">
+                      <div class="content-tabs" role="tablist" aria-label="Content type">
+                        <button id="content-tab-posts" class="content-tab active" type="button" role="tab" aria-selected="true" data-content-type="POST">Posts</button>
+                        <button id="content-tab-pages" class="content-tab" type="button" role="tab" aria-selected="false" data-content-type="PAGE">Pages</button>
+                      </div>
+                      <button id="new-content" class="tree-action" type="button">+ New</button>
                     </div>
-                    <div id="post-tree" class="tree-root"></div>
-                  </section>
-
-                  <section class="tree-section">
-                    <div class="tree-section-header">
-                      <span>Pages</span>
-                      <button id="new-page" class="tree-action" type="button">+ New</button>
-                    </div>
-                    <div id="page-tree" class="tree-root"></div>
+                    <div id="content-tree" class="tree-root"></div>
                   </section>
 
                   <section class="tree-section">
@@ -55,10 +50,13 @@ internal object CmsWebAssets {
 
                 <main class="editor-pane">
                   <header class="editor-header">
-                    <div class="editor-heading">
-                      <p class="eyebrow">Editing</p>
-                      <h2 id="editor-title">Select a file</h2>
-                      <p id="editor-subtitle" class="muted">Choose a post, page, or media item from the left.</p>
+                    <div class="editor-heading-wrap">
+                      <button id="rail-toggle" class="rail-toggle" type="button" aria-label="Collapse navigation" aria-pressed="false">&lt;</button>
+                      <div class="editor-heading">
+                        <p class="eyebrow">Editing</p>
+                        <h2 id="editor-title">Select a file</h2>
+                        <p id="editor-subtitle" class="muted">Choose a post, page, or media item from the left.</p>
+                      </div>
                     </div>
                     <div class="header-actions">
                       <a href="/" target="_blank" rel="noreferrer">Preview</a>
@@ -286,6 +284,10 @@ internal object CmsWebAssets {
           grid-template-columns: 320px minmax(0, 1fr);
         }
 
+        .workbench.rail-collapsed {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
         .rail {
           padding: 18px 14px;
           background: linear-gradient(180deg, rgba(239, 233, 224, 0.96), rgba(232, 224, 212, 0.96));
@@ -295,6 +297,10 @@ internal object CmsWebAssets {
           grid-auto-rows: minmax(0, 1fr);
           gap: 12px;
           backdrop-filter: blur(16px);
+        }
+
+        .workbench.rail-collapsed .rail {
+          display: none;
         }
 
         .rail-header h1,
@@ -366,6 +372,40 @@ internal object CmsWebAssets {
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: var(--muted);
+        }
+
+        .content-tree-header {
+          align-items: center;
+        }
+
+        .content-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .content-tab {
+          border: 1px solid transparent;
+          border-radius: 999px;
+          background: transparent;
+          padding: 6px 10px;
+          font-size: 0.74rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--muted);
+          cursor: pointer;
+          transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+        }
+
+        .content-tab:hover {
+          border-color: var(--line);
+          background: rgba(255, 255, 255, 0.55);
+        }
+
+        .content-tab.active {
+          border-color: var(--line);
+          background: rgba(255, 255, 255, 0.82);
+          color: var(--text);
         }
 
         .tree-actions {
@@ -533,11 +573,41 @@ internal object CmsWebAssets {
           padding: 16px 18px;
         }
 
+        .editor-heading-wrap {
+          min-width: 0;
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .editor-heading {
+          min-width: 0;
+        }
+
         .header-actions {
           display: flex;
           flex-wrap: wrap;
           justify-content: flex-end;
           gap: 8px;
+        }
+
+        .rail-toggle {
+          width: 30px;
+          height: 30px;
+          flex: 0 0 auto;
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.72);
+          padding: 0;
+          cursor: pointer;
+          line-height: 1;
+          font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+          transition: border-color 120ms ease, background 120ms ease;
+        }
+
+        .rail-toggle:hover {
+          border-color: var(--line-strong);
+          background: rgba(255, 255, 255, 0.95);
         }
 
         .editor-card {
@@ -775,6 +845,10 @@ internal object CmsWebAssets {
             justify-content: flex-start;
           }
 
+          .editor-heading-wrap {
+            width: 100%;
+          }
+
           .source-area {
             min-height: 320px;
           }
@@ -786,10 +860,13 @@ internal object CmsWebAssets {
           const basePath = window.STATIK_CMS_BASE_PATH || "/__statik__/cms";
           const apiBase = basePath + "/api";
           const AUTOSAVE_DELAY_MS = 700;
+          const RAIL_COLLAPSED_KEY = "statik.cms.railCollapsed";
           const state = {
             items: [],
             mediaItems: [],
             mediaRoots: [],
+            activeContentTab: "POST",
+            railCollapsed: false,
             selected: null,
             selectedMediaPath: null,
             selectedMediaKind: null,
@@ -801,8 +878,11 @@ internal object CmsWebAssets {
           };
 
           const elements = {
-            postTree: document.getElementById("post-tree"),
-            pageTree: document.getElementById("page-tree"),
+            workbench: document.getElementById("workbench"),
+            railToggle: document.getElementById("rail-toggle"),
+            contentTree: document.getElementById("content-tree"),
+            contentTabPosts: document.getElementById("content-tab-posts"),
+            contentTabPages: document.getElementById("content-tab-pages"),
             mediaTree: document.getElementById("media-tree"),
             status: document.getElementById("status-chips"),
             log: document.getElementById("activity-log"),
@@ -817,8 +897,7 @@ internal object CmsWebAssets {
             closeLogs: document.getElementById("close-logs"),
             sync: document.getElementById("sync-button"),
             refresh: document.getElementById("refresh-index"),
-            newPost: document.getElementById("new-post"),
-            newPage: document.getElementById("new-page"),
+            newContent: document.getElementById("new-content"),
             uploadMedia: document.getElementById("upload-media"),
             renameMedia: document.getElementById("rename-media"),
             deleteMedia: document.getElementById("delete-media"),
@@ -1114,6 +1193,37 @@ internal object CmsWebAssets {
             }
 
             elements.status.innerHTML = chips.join("");
+          }
+
+          function setRailCollapsed(collapsed) {
+            state.railCollapsed = collapsed;
+            if (elements.workbench) {
+              elements.workbench.classList.toggle("rail-collapsed", collapsed);
+            }
+            if (elements.railToggle) {
+              elements.railToggle.textContent = collapsed ? ">" : "<";
+              elements.railToggle.setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+              elements.railToggle.setAttribute("aria-pressed", collapsed ? "true" : "false");
+            }
+            try {
+              window.localStorage.setItem(RAIL_COLLAPSED_KEY, collapsed ? "1" : "0");
+            } catch (_error) {
+              // Ignore storage failures in private browsing or locked-down contexts.
+            }
+          }
+
+          function setActiveContentTab(type) {
+            state.activeContentTab = type === "PAGE" ? "PAGE" : "POST";
+            if (elements.contentTabPosts) {
+              const postsActive = state.activeContentTab === "POST";
+              elements.contentTabPosts.classList.toggle("active", postsActive);
+              elements.contentTabPosts.setAttribute("aria-selected", postsActive ? "true" : "false");
+            }
+            if (elements.contentTabPages) {
+              const pagesActive = state.activeContentTab === "PAGE";
+              elements.contentTabPages.classList.toggle("active", pagesActive);
+              elements.contentTabPages.setAttribute("aria-selected", pagesActive ? "true" : "false");
+            }
           }
 
           function virtualContentItem(type, sourcePath) {
@@ -1522,8 +1632,12 @@ internal object CmsWebAssets {
           }
 
           function renderList() {
-            renderTree(elements.postTree, groupItems("POST"), "Posts");
-            renderTree(elements.pageTree, groupItems("PAGE"), "Pages");
+            setActiveContentTab(state.activeContentTab);
+            renderTree(
+              elements.contentTree,
+              groupItems(state.activeContentTab),
+              state.activeContentTab === "POST" ? "Posts" : "Pages"
+            );
           }
 
           function buildMediaTree(items, roots) {
@@ -1804,6 +1918,7 @@ internal object CmsWebAssets {
             state.renamingContentPath = null;
             state.selectedMediaPath = null;
             state.selectedMediaKind = null;
+            setActiveContentTab(response.type);
             elements.type.value = response.type;
             elements.sourcePath.value = response.sourcePath;
             elements.source.value = serializeDocument(response.frontmatter || "", response.body || "");
@@ -1836,6 +1951,7 @@ internal object CmsWebAssets {
             state.renamingContentPath = null;
             state.selectedMediaPath = null;
             state.selectedMediaKind = null;
+            setActiveContentTab(type);
             elements.type.value = type;
             elements.sourcePath.value = defaultPath(type);
             elements.source.value = serializeDocument(defaultFrontmatter(type), "");
@@ -2063,21 +2179,24 @@ internal object CmsWebAssets {
             save({ autosave: false }).catch(error => log(error.message));
           });
 
-          elements.newPost.addEventListener("click", async () => {
+          elements.contentTabPosts.addEventListener("click", () => {
+            setActiveContentTab("POST");
+            renderList();
+          });
+          elements.contentTabPages.addEventListener("click", () => {
+            setActiveContentTab("PAGE");
+            renderList();
+          });
+          elements.newContent.addEventListener("click", async () => {
             try {
               await flushAutosave();
-              startNew("POST");
+              startNew(state.activeContentTab);
             } catch (error) {
               log(error.message);
             }
           });
-          elements.newPage.addEventListener("click", async () => {
-            try {
-              await flushAutosave();
-              startNew("PAGE");
-            } catch (error) {
-              log(error.message);
-            }
+          elements.railToggle.addEventListener("click", () => {
+            setRailCollapsed(!state.railCollapsed);
           });
           elements.logsButton.addEventListener("click", () => openLogs());
           elements.closeLogs.addEventListener("click", () => closeLogs());
@@ -2195,6 +2314,13 @@ internal object CmsWebAssets {
               }
               deleteMedia().catch(error => log(error.message));
             });
+          }
+
+          setActiveContentTab(state.activeContentTab);
+          try {
+            setRailCollapsed(window.localStorage.getItem(RAIL_COLLAPSED_KEY) === "1");
+          } catch (_error) {
+            setRailCollapsed(false);
           }
 
           Promise.all([loadStatus(), loadList(), loadMedia()])
