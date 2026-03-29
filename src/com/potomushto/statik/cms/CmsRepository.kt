@@ -49,6 +49,13 @@ class CmsRepository(
                     )
                     """.trimIndent()
                 )
+                statement.execute(
+                    """
+                    create table if not exists cms_content_deleted (
+                        source_path text primary key
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }
@@ -113,6 +120,30 @@ class CmsRepository(
     fun upsert(entry: CmsContentEntry) {
         withConnection { connection ->
             upsert(connection, entry)
+        }
+    }
+
+    fun deleteContent(sourcePath: String) {
+        withConnection { connection ->
+            connection.prepareStatement("delete from cms_content where source_path = ?").use { statement ->
+                statement.setString(1, sourcePath)
+                statement.executeUpdate()
+            }
+        }
+    }
+
+    fun markContentDeleted(sourcePath: String) {
+        withConnection { connection ->
+            connection.prepareStatement(
+                """
+                insert into cms_content_deleted (source_path)
+                values (?)
+                on conflict(source_path) do nothing
+                """.trimIndent()
+            ).use { statement ->
+                statement.setString(1, sourcePath)
+                statement.executeUpdate()
+            }
         }
     }
 
@@ -227,7 +258,7 @@ class CmsRepository(
 
     fun dirtySourcePaths(): List<String> {
         return withConnection { connection ->
-            connection.prepareStatement(
+            val dirtyContent = connection.prepareStatement(
                 """
                 select source_path
                 from cms_content
@@ -243,6 +274,24 @@ class CmsRepository(
                     }
                 }
             }
+
+            val deletedContent = connection.prepareStatement(
+                """
+                select source_path
+                from cms_content_deleted
+                order by source_path asc
+                """.trimIndent()
+            ).use { statement ->
+                statement.executeQuery().use { resultSet ->
+                    buildList {
+                        while (resultSet.next()) {
+                            add(resultSet.getString("source_path"))
+                        }
+                    }
+                }
+            }
+
+            (dirtyContent + deletedContent).distinct().sorted()
         }
     }
 
@@ -283,6 +332,18 @@ class CmsRepository(
                     sourcePaths.forEach { sourcePath ->
                         statement.setLong(1, timestamp)
                         statement.setString(2, sourcePath)
+                        statement.addBatch()
+                    }
+                    statement.executeBatch()
+                }
+                connection.prepareStatement(
+                    """
+                    delete from cms_content_deleted
+                    where source_path = ?
+                    """.trimIndent()
+                ).use { statement ->
+                    sourcePaths.forEach { sourcePath ->
+                        statement.setString(1, sourcePath)
                         statement.addBatch()
                     }
                     statement.executeBatch()
@@ -360,12 +421,19 @@ class CmsRepository(
     }
 
     fun dirtyCount(): Int = withConnection { connection ->
-        connection.prepareStatement("select count(*) as total from cms_content where dirty = 1").use { statement ->
+        val dirtyContent = connection.prepareStatement("select count(*) as total from cms_content where dirty = 1").use { statement ->
             statement.executeQuery().use { resultSet ->
                 resultSet.next()
                 resultSet.getInt("total")
             }
         }
+        val deletedContent = connection.prepareStatement("select count(*) as total from cms_content_deleted").use { statement ->
+            statement.executeQuery().use { resultSet ->
+                resultSet.next()
+                resultSet.getInt("total")
+            }
+        }
+        dirtyContent + deletedContent
     }
 
     fun mediaDirtyCount(): Int = withConnection { connection ->
@@ -432,6 +500,10 @@ class CmsRepository(
             } else {
                 statement.setNull(12, Types.BIGINT)
             }
+            statement.executeUpdate()
+        }
+        connection.prepareStatement("delete from cms_content_deleted where source_path = ?").use { statement ->
+            statement.setString(1, entry.sourcePath)
             statement.executeUpdate()
         }
     }

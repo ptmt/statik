@@ -20,6 +20,9 @@ internal object CmsWebAssets {
                   </header>
 
                   <div id="status-chips" class="status-strip"></div>
+                  <div class="rail-actions">
+                    <button id="refresh-index" class="tree-action" type="button">Rescan</button>
+                  </div>
 
                   <section class="tree-section">
                     <div class="tree-section-header">
@@ -59,26 +62,18 @@ internal object CmsWebAssets {
                     </div>
                     <div class="header-actions">
                       <a href="/" target="_blank" rel="noreferrer">Preview</a>
-                      <button id="refresh-index" type="button">Rescan</button>
                       <button id="logs-button" type="button">Logs</button>
                       <button id="sync-button" type="button">Sync</button>
                     </div>
                   </header>
 
-                  <section class="editor-card meta-card">
-                    <input id="content-type" type="hidden">
-                    <div class="meta-grid">
-                      <label class="compact-field compact-path">
-                        <span>Path</span>
-                        <input id="source-path" type="text" placeholder="posts/hello-world.md">
-                      </label>
-                    </div>
-                  </section>
+                  <input id="content-type" type="hidden">
+                  <input id="source-path" type="hidden">
 
                   <section class="editor-card source-card">
                     <div class="editor-toolbar">
                       <span>Source</span>
-                      <button id="save-button" class="primary" type="button">Save And Rebuild</button>
+                      <span id="autosave-status" class="toolbar-status">Autosave on</span>
                     </div>
                     <textarea id="source-document" spellcheck="false" class="source-area"></textarea>
                   </section>
@@ -329,6 +324,10 @@ internal object CmsWebAssets {
           gap: 8px;
         }
 
+        .rail-actions {
+          display: flex;
+        }
+
         .chip {
           display: inline-flex;
           align-items: center;
@@ -441,6 +440,12 @@ internal object CmsWebAssets {
           border-left-color: var(--accent);
         }
 
+        .tree-file.tree-file-editing {
+          cursor: default;
+          background: rgba(255, 255, 255, 0.7);
+          border-left-color: var(--accent);
+        }
+
         .tree-file-main,
         .tree-file-meta {
           display: flex;
@@ -474,6 +479,17 @@ internal object CmsWebAssets {
           flex-shrink: 0;
         }
 
+        .tree-inline-input {
+          width: 100%;
+          border: 1px solid rgba(47, 93, 80, 0.2);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.92);
+          padding: 8px 10px;
+          font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+          font-size: 0.84rem;
+          line-height: 1.3;
+        }
+
         .badge {
           display: inline-flex;
           align-items: center;
@@ -496,7 +512,7 @@ internal object CmsWebAssets {
           min-width: 0;
           padding: 18px;
           display: grid;
-          grid-template-rows: auto auto minmax(0, 1fr);
+          grid-template-rows: auto minmax(0, 1fr);
           gap: 12px;
         }
 
@@ -579,13 +595,13 @@ internal object CmsWebAssets {
           gap: 12px;
         }
 
-        .editor-toolbar .primary {
-          border: 0;
-          background: var(--accent);
-          color: #fff;
-          border-radius: 10px;
-          padding: 9px 12px;
-          cursor: pointer;
+        .toolbar-status {
+          text-transform: none;
+          letter-spacing: 0;
+        }
+
+        .toolbar-status.warn {
+          color: var(--warn);
         }
 
         .source-area {
@@ -769,6 +785,7 @@ internal object CmsWebAssets {
         (() => {
           const basePath = window.STATIK_CMS_BASE_PATH || "/__statik__/cms";
           const apiBase = basePath + "/api";
+          const AUTOSAVE_DELAY_MS = 700;
           const state = {
             items: [],
             mediaItems: [],
@@ -776,6 +793,7 @@ internal object CmsWebAssets {
             selected: null,
             selectedMediaPath: null,
             selectedMediaKind: null,
+            renamingContentPath: null,
             mode: "empty",
             status: null,
             lastSync: null,
@@ -793,10 +811,10 @@ internal object CmsWebAssets {
             type: document.getElementById("content-type"),
             sourcePath: document.getElementById("source-path"),
             source: document.getElementById("source-document"),
+            autosaveStatus: document.getElementById("autosave-status"),
             logsButton: document.getElementById("logs-button"),
             logDialog: document.getElementById("log-dialog"),
             closeLogs: document.getElementById("close-logs"),
-            save: document.getElementById("save-button"),
             sync: document.getElementById("sync-button"),
             refresh: document.getElementById("refresh-index"),
             newPost: document.getElementById("new-post"),
@@ -817,6 +835,11 @@ internal object CmsWebAssets {
             deleteDialog: document.getElementById("delete-dialog"),
             deleteSummary: document.getElementById("delete-summary")
           };
+          let autosaveTimer = null;
+          let saveInFlight = false;
+          let saveQueued = false;
+          let savePromise = null;
+          let lastSavedSnapshot = null;
 
           function log(message) {
             const stamp = new Date().toLocaleTimeString();
@@ -917,7 +940,133 @@ internal object CmsWebAssets {
           function setEditorEditable(editable) {
             elements.sourcePath.readOnly = !editable;
             elements.source.readOnly = !editable;
-            elements.save.disabled = !editable;
+            if (!editable) {
+              setAutosaveStatus("Read only");
+            }
+          }
+
+          function setAutosaveStatus(text, warn = false) {
+            if (!elements.autosaveStatus) {
+              return;
+            }
+            elements.autosaveStatus.textContent = text;
+            elements.autosaveStatus.classList.toggle("warn", warn);
+          }
+
+          function contentSnapshot() {
+            if (!elements.type.value || state.mode !== "content") {
+              return null;
+            }
+            return JSON.stringify({
+              type: elements.type.value,
+              sourcePath: elements.sourcePath.value,
+              source: elements.source.value
+            });
+          }
+
+          function rememberSavedSnapshot(statusText = "Autosave on") {
+            lastSavedSnapshot = contentSnapshot();
+            if (lastSavedSnapshot) {
+              setAutosaveStatus(statusText);
+            } else {
+              setAutosaveStatus("Read only");
+            }
+          }
+
+          function currentContentPath() {
+            if (state.mode !== "content") {
+              return null;
+            }
+            return String(elements.sourcePath.value || "").trim();
+          }
+
+          function currentContentType() {
+            if (state.mode !== "content") {
+              return null;
+            }
+            return elements.type.value || null;
+          }
+
+          function activeContentPath() {
+            return currentContentPath() || state.selected;
+          }
+
+          async function runAutosave() {
+            autosaveTimer = null;
+            const snapshot = contentSnapshot();
+            if (!snapshot || snapshot === lastSavedSnapshot) {
+              return;
+            }
+            if (saveInFlight) {
+              saveQueued = true;
+              return savePromise;
+            }
+
+            saveInFlight = true;
+            setAutosaveStatus("Saving...");
+            let promise;
+            promise = (async () => {
+              try {
+                await save({ autosave: true });
+              } catch (error) {
+                setAutosaveStatus("Save failed", true);
+                throw error;
+              } finally {
+                saveInFlight = false;
+                if (saveQueued) {
+                  saveQueued = false;
+                  scheduleAutosave(0);
+                }
+                if (savePromise === promise) {
+                  savePromise = null;
+                }
+              }
+            })();
+            savePromise = promise;
+            return promise;
+          }
+
+          function scheduleAutosave(delay = AUTOSAVE_DELAY_MS) {
+            if (autosaveTimer !== null) {
+              window.clearTimeout(autosaveTimer);
+            }
+
+            const snapshot = contentSnapshot();
+            if (!snapshot || snapshot === lastSavedSnapshot) {
+              return;
+            }
+
+            setAutosaveStatus("Unsaved changes");
+            autosaveTimer = window.setTimeout(() => {
+              runAutosave().catch(error => log(error.message));
+            }, delay);
+          }
+
+          async function flushAutosave() {
+            if (autosaveTimer !== null) {
+              window.clearTimeout(autosaveTimer);
+              autosaveTimer = null;
+            }
+
+            while (true) {
+              const snapshot = contentSnapshot();
+              if (!snapshot || snapshot === lastSavedSnapshot) {
+                if (savePromise) {
+                  await savePromise;
+                }
+                return;
+              }
+
+              if (saveInFlight) {
+                if (savePromise) {
+                  await savePromise;
+                  continue;
+                }
+                return;
+              }
+
+              await runAutosave();
+            }
           }
 
           function setSyncBusy(isBusy) {
@@ -942,10 +1091,12 @@ internal object CmsWebAssets {
           function showEmptyEditor() {
             state.mode = "empty";
             state.selected = null;
+            state.renamingContentPath = null;
             elements.type.value = "";
             elements.sourcePath.value = "";
             elements.source.value = "";
             setEditorEditable(false);
+            lastSavedSnapshot = null;
             setEditorHeading("Select a file", "Choose a post, page, or media item from the left.");
           }
 
@@ -965,8 +1116,49 @@ internal object CmsWebAssets {
             elements.status.innerHTML = chips.join("");
           }
 
+          function virtualContentItem(type, sourcePath) {
+            const fileName = fileNameFromPath(sourcePath);
+            return {
+              type: type,
+              sourcePath: sourcePath,
+              outputPath: "",
+              title: stripExtension(fileName),
+              extension: fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".") + 1) : "",
+              publishedAt: null,
+              navOrder: null,
+              isDraft: true,
+              dirty: contentSnapshot() !== lastSavedSnapshot,
+              updatedAt: Date.now()
+            };
+          }
+
           function groupItems(type) {
-            return state.items.filter(item => item.type === type);
+            const currentType = currentContentType();
+            const currentPath = currentContentPath();
+            const hasCurrentPath = !!currentPath && state.items.some(item => item.sourcePath === currentPath);
+            let items = state.items.filter(item => item.type === type);
+
+            if (
+              state.mode === "content" &&
+              currentType === type &&
+              state.selected &&
+              currentPath &&
+              state.selected !== currentPath &&
+              !hasCurrentPath
+            ) {
+              items = items.filter(item => item.sourcePath !== state.selected);
+            }
+
+            if (
+              state.mode === "content" &&
+              currentType === type &&
+              currentPath &&
+              !items.some(item => item.sourcePath === currentPath)
+            ) {
+              items = items.concat(virtualContentItem(type, currentPath));
+            }
+
+            return items;
           }
 
           function fileNameFromPath(sourcePath) {
@@ -1109,6 +1301,7 @@ internal object CmsWebAssets {
           function selectMedia(sourcePath, kind) {
             state.mode = "media";
             state.selected = null;
+            state.renamingContentPath = null;
             state.selectedMediaPath = sourcePath;
             state.selectedMediaKind = kind;
             elements.type.value = "";
@@ -1119,6 +1312,74 @@ internal object CmsWebAssets {
             renderList();
             renderMediaTree();
             updateMediaActions();
+          }
+
+          function focusContentRenameInput() {
+            const input = document.getElementById("content-path-rename");
+            if (!input) {
+              return;
+            }
+
+            input.focus();
+            const value = input.value;
+            const start = Math.max(value.lastIndexOf("/") + 1, 0);
+            const dotIndex = value.lastIndexOf(".");
+            const end = dotIndex > start ? dotIndex : value.length;
+            input.setSelectionRange(start, end);
+          }
+
+          function beginContentRename(sourcePath) {
+            if (!sourcePath || state.mode !== "content") {
+              return;
+            }
+            state.renamingContentPath = sourcePath;
+            renderList();
+            window.setTimeout(() => focusContentRenameInput(), 0);
+          }
+
+          function cancelContentRename() {
+            state.renamingContentPath = null;
+            renderList();
+          }
+
+          function commitContentRename(nextPath) {
+            const normalizedPath = String(nextPath || "")
+              .trim()
+              .replace(/^\/+/, "")
+              .replaceAll("\\", "/");
+            const currentPath = currentContentPath();
+
+            if (!currentPath) {
+              state.renamingContentPath = null;
+              renderList();
+              return;
+            }
+
+            if (!normalizedPath) {
+              log("Source path cannot be blank.");
+              renderList();
+              window.setTimeout(() => focusContentRenameInput(), 0);
+              return;
+            }
+
+            const conflictingItem = state.items.find(item => item.sourcePath === normalizedPath);
+            if (conflictingItem && conflictingItem.sourcePath !== state.selected) {
+              log("A file already exists at " + normalizedPath + ".");
+              renderList();
+              window.setTimeout(() => focusContentRenameInput(), 0);
+              return;
+            }
+
+            state.renamingContentPath = null;
+            if (normalizedPath === currentPath) {
+              renderList();
+              return;
+            }
+
+            elements.sourcePath.value = normalizedPath;
+            elements.editorTitle.textContent = fileNameFromPath(normalizedPath);
+            renderList();
+            scheduleAutosave(0);
           }
 
           function buildTree(items, rootLabel) {
@@ -1182,8 +1443,14 @@ internal object CmsWebAssets {
               }
 
               const item = node.item;
-              const active = state.selected === item.sourcePath ? " active" : "";
+              const active = activeContentPath() === item.sourcePath ? " active" : "";
               const meta = secondaryMeta(item);
+              if (state.renamingContentPath === item.sourcePath) {
+                return '<div class="tree-file tree-file-editing' + active + '" style="--depth:' + depth + '">' +
+                  '<input id="content-path-rename" class="tree-inline-input" type="text" value="' + escapeHtml(item.sourcePath) + '" aria-label="Source path">' +
+                  '<div class="tree-file-meta">' + escapeHtml(meta || "Press Enter to rename") + "</div>" +
+                "</div>";
+              }
               return '<button class="tree-file' + active + '" type="button" data-source-path="' + escapeHtml(item.sourcePath) + '" style="--depth:' + depth + '">' +
                 '<div class="tree-file-main">' +
                   '<span class="tree-file-name">' + escapeHtml(node.name) + "</span>" +
@@ -1201,12 +1468,57 @@ internal object CmsWebAssets {
             }
 
             target.innerHTML = renderTreeNodes(buildTree(items, label), 0);
-            target.querySelectorAll("[data-source-path]").forEach(node => {
-              node.addEventListener("click", () => {
+            target.querySelectorAll("button[data-source-path]").forEach(node => {
+              node.addEventListener("click", async () => {
                 const sourcePath = node.getAttribute("data-source-path");
-                openEntry(sourcePath).catch(error => log(error.message));
+                try {
+                  await flushAutosave();
+                  await openEntry(sourcePath);
+                } catch (error) {
+                  log(error.message);
+                }
+              });
+              node.addEventListener("dblclick", async event => {
+                event.preventDefault();
+                const sourcePath = node.getAttribute("data-source-path");
+                try {
+                  await flushAutosave();
+                  if (currentContentPath() !== sourcePath || state.mode !== "content") {
+                    await openEntry(sourcePath, { logLoad: false });
+                  }
+                  beginContentRename(sourcePath);
+                } catch (error) {
+                  log(error.message);
+                }
               });
             });
+
+            const renameInput = target.querySelector("#content-path-rename");
+            if (renameInput) {
+              let completed = false;
+              const finish = commit => {
+                if (completed) {
+                  return;
+                }
+                completed = true;
+                if (commit) {
+                  commitContentRename(renameInput.value);
+                } else {
+                  cancelContentRename();
+                }
+              };
+
+              renameInput.addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  finish(true);
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  finish(false);
+                }
+              });
+              renameInput.addEventListener("blur", () => finish(true));
+            }
           }
 
           function renderList() {
@@ -1339,11 +1651,16 @@ internal object CmsWebAssets {
             }
 
             elements.mediaTree.querySelectorAll("[data-media-path]").forEach(node => {
-              node.addEventListener("click", () => {
+              node.addEventListener("click", async () => {
                 const sourcePath = node.getAttribute("data-media-path");
                 const kind = node.getAttribute("data-media-kind");
-                selectMedia(sourcePath, kind);
-                log("Selected media " + sourcePath + ".");
+                try {
+                  await flushAutosave();
+                  selectMedia(sourcePath, kind);
+                  log("Selected media " + sourcePath + ".");
+                } catch (error) {
+                  log(error.message);
+                }
               });
             });
 
@@ -1477,12 +1794,14 @@ internal object CmsWebAssets {
             }
           }
 
-          async function openEntry(sourcePath) {
+          async function openEntry(sourcePath, options = {}) {
+            const logLoad = options.logLoad !== false;
             const response = await api("/content/item?sourcePath=" + encodeURIComponent(sourcePath));
             if (!response) return;
 
             state.mode = "content";
             state.selected = response.sourcePath;
+            state.renamingContentPath = null;
             state.selectedMediaPath = null;
             state.selectedMediaKind = null;
             elements.type.value = response.type;
@@ -1494,7 +1813,10 @@ internal object CmsWebAssets {
             setEditorHeading(fileNameFromPath(response.sourcePath), subtitle);
             renderList();
             renderMediaTree();
-            log("Loaded " + response.sourcePath);
+            rememberSavedSnapshot("Autosave on");
+            if (logLoad) {
+              log("Loaded " + response.sourcePath);
+            }
           }
 
           function defaultPath(type) {
@@ -1511,6 +1833,7 @@ internal object CmsWebAssets {
           function startNew(type) {
             state.mode = "content";
             state.selected = null;
+            state.renamingContentPath = null;
             state.selectedMediaPath = null;
             state.selectedMediaKind = null;
             elements.type.value = type;
@@ -1520,18 +1843,27 @@ internal object CmsWebAssets {
             setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
             renderList();
             renderMediaTree();
+            rememberSavedSnapshot("Autosave on");
+            beginContentRename(elements.sourcePath.value);
             log("Preparing " + elements.sourcePath.value + ".");
           }
 
-          async function save() {
+          async function save(options = {}) {
+            const autosave = options.autosave === true;
             if (!elements.type.value) {
               throw new Error("Select or create a post or page before saving.");
+            }
+
+            const currentPath = String(elements.sourcePath.value || "").trim();
+            if (!currentPath) {
+              throw new Error("Source path cannot be blank.");
             }
 
             const parsed = parseDocument(elements.source.value);
             const payload = {
               type: elements.type.value,
-              sourcePath: elements.sourcePath.value,
+              sourcePath: currentPath,
+              previousSourcePath: state.selected && state.selected !== currentPath ? state.selected : null,
               frontmatter: parsed.frontmatter,
               body: parsed.body
             };
@@ -1543,14 +1875,16 @@ internal object CmsWebAssets {
             if (!response) return;
 
             state.selected = response.item.sourcePath;
-            log("Saved " + response.item.sourcePath + " and rebuilt the site.");
+            state.renamingContentPath = null;
+            log((autosave ? "Autosaved " : "Saved ") + response.item.sourcePath + " and rebuilt the site.");
             if (response.sync) {
               updateSyncState(response.sync);
               log(response.sync.message + " " + syncSummary(response.sync));
             }
 
             await Promise.all([loadStatus(), loadList()]);
-            await openEntry(response.item.sourcePath);
+            await openEntry(response.item.sourcePath, { logLoad: false });
+            rememberSavedSnapshot("Saved");
           }
 
           async function sync(commitMessage, push) {
@@ -1571,7 +1905,7 @@ internal object CmsWebAssets {
                 " " + syncSummary(response) +
                 (response.commitId ? " Commit " + response.commitId.slice(0, 7) + "." : "")
               );
-              await Promise.all([loadStatus(), loadList()]);
+              await Promise.all([loadStatus(), loadList(), loadMedia()]);
             } finally {
               setSyncBusy(false);
             }
@@ -1726,19 +2060,68 @@ internal object CmsWebAssets {
               return;
             }
             event.preventDefault();
-            save().catch(error => log(error.message));
+            save({ autosave: false }).catch(error => log(error.message));
           });
 
-          elements.newPost.addEventListener("click", () => startNew("POST"));
-          elements.newPage.addEventListener("click", () => startNew("PAGE"));
+          elements.newPost.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              startNew("POST");
+            } catch (error) {
+              log(error.message);
+            }
+          });
+          elements.newPage.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              startNew("PAGE");
+            } catch (error) {
+              log(error.message);
+            }
+          });
           elements.logsButton.addEventListener("click", () => openLogs());
           elements.closeLogs.addEventListener("click", () => closeLogs());
-          elements.uploadMedia.addEventListener("click", () => openUploadDialog());
-          elements.renameMedia.addEventListener("click", () => openRenameDialog());
-          elements.deleteMedia.addEventListener("click", () => openDeleteDialog());
-          elements.save.addEventListener("click", () => save().catch(error => log(error.message)));
-          elements.sync.addEventListener("click", () => openSyncDialog());
-          elements.refresh.addEventListener("click", () => refreshIndex().catch(error => log(error.message)));
+          elements.uploadMedia.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              openUploadDialog();
+            } catch (error) {
+              log(error.message);
+            }
+          });
+          elements.renameMedia.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              openRenameDialog();
+            } catch (error) {
+              log(error.message);
+            }
+          });
+          elements.deleteMedia.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              openDeleteDialog();
+            } catch (error) {
+              log(error.message);
+            }
+          });
+          elements.sync.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              openSyncDialog();
+            } catch (error) {
+              log(error.message);
+            }
+          });
+          elements.refresh.addEventListener("click", async () => {
+            try {
+              await flushAutosave();
+              await refreshIndex();
+            } catch (error) {
+              log(error.message);
+            }
+          });
+          elements.source.addEventListener("input", () => scheduleAutosave());
 
           elements.mediaFileInput.addEventListener("change", () => {
             state.pendingUploadFiles = Array.from(elements.mediaFileInput.files || []);

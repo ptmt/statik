@@ -133,6 +133,43 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `save with previous source path renames content and cleans previous output`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val service = createCmsService()
+
+        val response = service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/renamed.md",
+                previousSourcePath = "posts/hello.md",
+                frontmatter = """
+                    title: After
+                    published: 2024-01-02T10:45:00
+                """.trimIndent(),
+                body = "Renamed content."
+            )
+        )
+
+        assertEquals("posts/renamed.md", response.item.sourcePath)
+        assertFalse((tempRoot / "posts" / "hello.md").exists())
+        assertTrue((tempRoot / "posts" / "renamed.md").exists())
+        assertFalse((tempRoot / "build" / "hello").exists())
+        assertTrue((tempRoot / "build" / "renamed" / "index.html").exists())
+        assertEquals(listOf("posts/renamed.md"), service.list().items.map { it.sourcePath })
+        assertEquals(2, service.status().dirty)
+    }
+
+    @Test
     fun `list follows site ordering and marks drafts`() {
         createPost(
             "posts/older.md",
@@ -319,6 +356,59 @@ class CmsServiceTest {
         assertEquals(0, sync.dirtyRemaining)
         assertFalse(service.get("posts/hello.md").dirty)
         assertEquals(0, service.status().dirty)
+    }
+
+    @Test
+    fun `sync after content rename stages new and deleted paths`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+
+        Git.init().setDirectory(tempRoot.toFile()).call().use { git ->
+            git.add().addFilepattern(".").call()
+            git.commit()
+                .setMessage("init")
+                .setAuthor("Init", "init@example.com")
+                .setCommitter("Init", "init@example.com")
+                .call()
+        }
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+
+        service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/renamed.md",
+                previousSourcePath = "posts/hello.md",
+                frontmatter = """
+                    title: Renamed
+                    published: 2024-01-03T11:00:00
+                """.trimIndent(),
+                body = "Renamed content."
+            )
+        )
+
+        val sync = service.sync("cms: rename hello", push = false)
+
+        assertTrue(sync.committed)
+        assertEquals("cms: rename hello", latestCommitMessage())
+        assertEquals(0, sync.dirtyRemaining)
+        Git.open(tempRoot.toFile()).use { git ->
+            val status = git.status().call()
+            assertTrue(status.isClean)
+        }
+        assertFalse((tempRoot / "posts" / "hello.md").exists())
+        assertTrue((tempRoot / "posts" / "renamed.md").exists())
     }
 
     @Test

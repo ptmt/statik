@@ -6,6 +6,7 @@ import com.potomushto.statik.processors.FrontmatterParser
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import kotlin.io.path.extension
 import kotlin.io.path.nameWithoutExtension
 
@@ -54,6 +55,26 @@ class ContentFileService(
         Files.writeString(absolutePath, serialized)
 
         return scanFile(absolutePath, location.type, location.contentRoot)
+    }
+
+    fun rename(sourcePath: String, targetPath: String, expectedType: CmsContentType): CmsContentEntry {
+        val source = resolveLocation(sourcePath, expectedType)
+            ?: throw IllegalArgumentException("Unsupported content path: $sourcePath")
+        val target = resolveLocation(targetPath, expectedType)
+            ?: throw IllegalArgumentException("Unsupported content path: $targetPath")
+
+        require(source.sourcePath != target.sourcePath) { "Content target path matches source path" }
+
+        val sourceAbsolutePath = rootPath.resolve(source.sourcePath).normalize()
+        val targetAbsolutePath = rootPath.resolve(target.sourcePath).normalize()
+        require(Files.exists(sourceAbsolutePath)) { "Content path does not exist: ${source.sourcePath}" }
+        require(!Files.exists(targetAbsolutePath)) { "Content target already exists: ${target.sourcePath}" }
+
+        targetAbsolutePath.parent?.let { Files.createDirectories(it) }
+        Files.move(sourceAbsolutePath, targetAbsolutePath, StandardCopyOption.ATOMIC_MOVE)
+        cleanupEmptyParents(sourceAbsolutePath.parent, rootPath.resolve(source.contentRoot).normalize())
+
+        return scanFile(targetAbsolutePath, target.type, target.contentRoot)
     }
 
     private fun scanFile(file: Path, type: CmsContentType, contentRoot: String): CmsContentEntry {
@@ -130,6 +151,18 @@ class ContentFileService(
 
     private fun matchesRoot(path: String, root: String): Boolean {
         return path == root || path.startsWith("$root/")
+    }
+
+    private fun cleanupEmptyParents(start: Path?, stopAt: Path) {
+        var current = start
+        while (current != null && current.startsWith(stopAt) && current != stopAt) {
+            val isEmpty = Files.list(current).use { stream -> !stream.findFirst().isPresent }
+            if (!isEmpty) {
+                return
+            }
+            Files.deleteIfExists(current)
+            current = current.parent
+        }
     }
 
     private data class ContentLocation(

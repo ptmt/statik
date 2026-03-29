@@ -9,10 +9,12 @@ import org.eclipse.jgit.transport.RefSpec
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 class GitSyncService(
     private val siteRoot: Path,
-    private val config: CmsGitConfig
+    private val config: CmsGitConfig,
+    private val generatedOutputRoot: String? = null
 ) {
     fun status(): CmsGitStatus {
         val repository = openRepository()
@@ -23,6 +25,7 @@ class GitSyncService(
             )
         } else {
             repository.use {
+                ensureLocalExcludes(it)
                 CmsGitStatus(
                     available = true,
                     enabled = config.enabled,
@@ -52,9 +55,13 @@ class GitSyncService(
             ?: throw IllegalStateException("No git repository found for CMS sync under $siteRoot")
 
         repository.use { repo ->
+            ensureLocalExcludes(repo)
             Git(repo).use { git ->
                 val repoRoot = repo.workTree.toPath().toAbsolutePath().normalize()
-                val relativePaths = sourcePaths.map { toRepoRelativePath(repoRoot, it) }
+                val relativePaths = (
+                    sourcePaths.map { toRepoRelativePath(repoRoot, it) } +
+                        generatedOutputPaths(git, repoRoot)
+                    ).distinct().sorted()
                 ensureNoUnrelatedStagedChanges(git, relativePaths)
 
                 relativePaths.forEach { relativePath ->
@@ -122,6 +129,22 @@ class GitSyncService(
         }
     }
 
+    private fun generatedOutputPaths(git: Git, repoRoot: Path): List<String> {
+        val outputRoot = generatedOutputRoot?.trim()?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val relativeRoot = toRepoRelativePath(repoRoot, outputRoot)
+        val status = git.status().call()
+        return buildSet {
+            addAll(status.added)
+            addAll(status.changed)
+            addAll(status.modified)
+            addAll(status.removed)
+            addAll(status.missing)
+            addAll(status.untracked)
+        }.filter { path ->
+            path == relativeRoot || path.startsWith("$relativeRoot/")
+        }.sorted()
+    }
+
     private fun push(git: Git, accessToken: String?): Boolean {
         val pushCommand = git.push().setRemote(config.remote)
         config.branch?.takeIf { it.isNotBlank() }?.let { branch ->
@@ -147,6 +170,40 @@ class GitSyncService(
         return builder.gitDir?.let { builder.build() }
     }
 
+    private fun ensureLocalExcludes(repository: Repository) {
+        val excludeFile = repository.directory.toPath().resolve("info").resolve("exclude")
+        Files.createDirectories(excludeFile.parent)
+
+        val existing = if (Files.exists(excludeFile)) {
+            Files.readAllLines(excludeFile).map { it.trim() }.toSet()
+        } else {
+            emptySet()
+        }
+        val missing = LOCAL_EXCLUDE_PATTERNS.filter { it !in existing }
+        if (missing.isEmpty()) {
+            return
+        }
+
+        val needsLeadingNewline = Files.exists(excludeFile) &&
+            Files.size(excludeFile) > 0 &&
+            !Files.readString(excludeFile).endsWith("\n")
+        val content = buildString {
+            if (needsLeadingNewline) {
+                append('\n')
+            }
+            missing.forEach { pattern ->
+                append(pattern)
+                append('\n')
+            }
+        }
+        Files.writeString(
+            excludeFile,
+            content,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND
+        )
+    }
+
     private fun toRepoRelativePath(repoRoot: Path, sourcePath: String): String {
         val normalized = siteRoot.resolve(sourcePath).toAbsolutePath().normalize()
         require(normalized.startsWith(repoRoot)) {
@@ -161,6 +218,10 @@ class GitSyncService(
         } else {
             "cms: sync ${paths.size} files"
         }
+    }
+
+    private companion object {
+        private val LOCAL_EXCLUDE_PATTERNS = listOf(".statik/")
     }
 }
 

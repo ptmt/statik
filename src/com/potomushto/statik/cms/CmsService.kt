@@ -4,9 +4,11 @@ import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.AssetManager
 import com.potomushto.statik.generators.FileWalker
 import com.potomushto.statik.generators.SiteGenerator
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.LocalDateTime
+import java.util.Comparator
 
 class CmsService(
     private val rootPath: Path,
@@ -16,7 +18,7 @@ class CmsService(
     private val mediaFileService: MediaFileService = MediaFileService(rootPath, config),
     databasePath: Path? = null,
     private val repository: CmsRepository = CmsRepository(databasePath ?: resolveDatabasePath(rootPath, config.cms.databasePath)),
-    private val gitSyncService: GitSyncService = GitSyncService(rootPath, config.cms.git),
+    private val gitSyncService: GitSyncService = GitSyncService(rootPath, config.cms.git, config.theme.output),
     private val assetManager: AssetManager = AssetManager(rootPath.toString(), config, FileWalker(rootPath.toString()))
 ) {
     private val lock = Any()
@@ -66,13 +68,34 @@ class CmsService(
     fun save(request: CmsSaveRequest, accessToken: String? = null): CmsSaveResponse {
         synchronized(lock) {
             val normalizedSourcePath = normalizeSourcePath(request.sourcePath)
-            val existing = repository.find(normalizedSourcePath)
-            val saved = contentFileService.save(request.copy(sourcePath = normalizedSourcePath))
+            val normalizedPreviousSourcePath = request.previousSourcePath
+                ?.takeIf { it.isNotBlank() }
+                ?.let(::normalizeSourcePath)
+
+            val previousEntry = normalizedPreviousSourcePath?.let(repository::find)
+            if (previousEntry != null && previousEntry.sourcePath != normalizedSourcePath) {
+                contentFileService.rename(previousEntry.sourcePath, normalizedSourcePath, previousEntry.type)
+            }
+
+            val existing = repository.find(normalizedSourcePath) ?: previousEntry
+            val saved = contentFileService.save(
+                request.copy(
+                    sourcePath = normalizedSourcePath,
+                    previousSourcePath = normalizedPreviousSourcePath
+                )
+            )
             val dirtyEntry = saved.copy(
                 dirty = true,
                 updatedAt = System.currentTimeMillis(),
                 lastSyncedAt = existing?.lastSyncedAt
             )
+
+            if (previousEntry != null && previousEntry.sourcePath != normalizedSourcePath) {
+                markContentDeleted(previousEntry.sourcePath, previousEntry.lastSyncedAt, previousEntry.dirty)
+                if (previousEntry.outputPath != saved.outputPath) {
+                    deleteGeneratedContent(previousEntry.outputPath)
+                }
+            }
 
             repository.upsert(dirtyEntry)
             generator.regenerate(listOf(rootPath.resolve(saved.sourcePath)))
@@ -250,6 +273,53 @@ class CmsService(
                 lastSyncedAt = existing?.lastSyncedAt
             )
         )
+    }
+
+    private fun markContentDeleted(sourcePath: String, lastSyncedAt: Long?, dirty: Boolean) {
+        if (dirty && lastSyncedAt == null) {
+            repository.deleteContent(sourcePath)
+            return
+        }
+
+        repository.deleteContent(sourcePath)
+        repository.markContentDeleted(sourcePath)
+    }
+
+    private fun deleteGeneratedContent(outputPath: String) {
+        val outputRoot = rootPath.resolve(config.theme.output).normalize()
+        val target = if (outputPath.isBlank()) {
+            outputRoot.resolve("index.html")
+        } else {
+            outputRoot.resolve(outputPath)
+        }.normalize()
+
+        if (!target.startsWith(outputRoot) || !Files.exists(target)) {
+            return
+        }
+
+        if (Files.isDirectory(target)) {
+            Files.walk(target).use { stream ->
+                stream.sorted(Comparator.reverseOrder()).forEach { candidate ->
+                    Files.deleteIfExists(candidate)
+                }
+            }
+            pruneEmptyGeneratedDirectories(target.parent, outputRoot)
+        } else {
+            Files.deleteIfExists(target)
+            pruneEmptyGeneratedDirectories(target.parent, outputRoot)
+        }
+    }
+
+    private fun pruneEmptyGeneratedDirectories(start: Path?, stopAt: Path) {
+        var current = start
+        while (current != null && current.startsWith(stopAt) && current != stopAt) {
+            val isEmpty = Files.list(current).use { stream -> !stream.findFirst().isPresent }
+            if (!isEmpty) {
+                return
+            }
+            Files.deleteIfExists(current)
+            current = current.parent
+        }
     }
 
     private fun composeMediaPath(targetDirectory: String, fileName: String): String {

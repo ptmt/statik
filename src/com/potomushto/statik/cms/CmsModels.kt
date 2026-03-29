@@ -105,6 +105,7 @@ data class CmsMediaListResponse(
 data class CmsSaveRequest(
     val type: CmsContentType,
     val sourcePath: String,
+    val previousSourcePath: String? = null,
     val frontmatter: String = "",
     val body: String = "",
     val sync: Boolean = false,
