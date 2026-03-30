@@ -21,6 +21,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalPathApi::class)
@@ -232,6 +233,101 @@ class CmsServiceTest {
         val postItems = service.list(CmsContentType.POST).items
         assertEquals(listOf("posts/newer.md", "posts/older.md", "posts/draft.md"), postItems.map { it.sourcePath })
         assertEquals(listOf(false, false, true), postItems.map { it.isDraft })
+    }
+
+    @Test
+    fun `preview serves draft content from cms preview root`() {
+        createPost(
+            "posts/draft.md",
+            """
+                ---
+                title: Draft Preview
+                published: 2024-01-02T09:30:00
+                draft: true
+                ---
+                Draft body.
+            """.trimIndent()
+        )
+
+        val service = createCmsService()
+
+        assertFalse((tempRoot / "build" / "draft").exists())
+
+        val previewPost = assertNotNull(service.resolvePreviewFile("draft"))
+        val previewHome = assertNotNull(service.resolvePreviewFile(""))
+
+        assertTrue(previewPost.readText().contains("Draft body."))
+        assertTrue(previewHome.readText().contains("Draft Preview"))
+        assertTrue(previewHome.readText().contains("/__statik__/cms/preview/draft/"))
+    }
+
+    @Test
+    fun `preview stays current after saving when preview was already opened`() {
+        createPost(
+            "posts/draft.md",
+            """
+                ---
+                title: Draft Preview
+                published: 2024-01-02T09:30:00
+                draft: true
+                ---
+                Before preview update.
+            """.trimIndent()
+        )
+
+        val service = createCmsService()
+        assertNotNull(service.resolvePreviewFile("draft"))
+
+        service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/draft.md",
+                frontmatter = """
+                    title: Draft Preview
+                    published: 2024-01-02T09:30:00
+                    draft: true
+                """.trimIndent(),
+                body = "After preview update."
+            )
+        )
+
+        val updatedPreview = assertNotNull(service.resolvePreviewFile("draft"))
+        assertTrue(updatedPreview.readText().contains("After preview update."))
+        assertFalse(updatedPreview.readText().contains("Before preview update."))
+    }
+
+    @Test
+    fun `saving a published post as draft removes its public output but keeps preview`() {
+        createPost(
+            "posts/draft.md",
+            """
+                ---
+                title: Draft Preview
+                published: 2024-01-02T09:30:00
+                ---
+                Public body.
+            """.trimIndent()
+        )
+
+        val service = createCmsService()
+        assertTrue((tempRoot / "build" / "draft" / "index.html").exists())
+
+        service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/draft.md",
+                frontmatter = """
+                    title: Draft Preview
+                    published: 2024-01-02T09:30:00
+                    draft: true
+                """.trimIndent(),
+                body = "Private draft body."
+            )
+        )
+
+        assertFalse((tempRoot / "build" / "draft" / "index.html").exists())
+        val preview = assertNotNull(service.resolvePreviewFile("draft"))
+        assertTrue(preview.readText().contains("Private draft body."))
     }
 
     @Test

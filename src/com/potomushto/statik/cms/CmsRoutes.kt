@@ -5,6 +5,7 @@ import io.ktor.http.Cookie
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveText
+import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
@@ -134,10 +135,49 @@ fun Routing.installCmsRoutes(
         call.respondRedirect(basePath)
     }
 
+    suspend fun renderPreview(call: ApplicationCall, requestedPath: String) {
+        val session = if (authService?.isEnabled() == true) {
+            requireHtmlSession(call, basePath, authService) ?: return
+        } else {
+            null
+        }
+
+        val service = requireCmsService(
+            call = call,
+            cmsServiceProvider = cmsServiceProvider,
+            workspaceManager = workspaceManager,
+            authService = authService,
+            session = session
+        ) ?: return
+
+        val resolvedFile = service.resolvePreviewFile(requestedPath)
+        if (resolvedFile != null) {
+            call.respondFile(resolvedFile.toFile())
+            return
+        }
+
+        call.respondText(text = "404: Page Not Found", status = HttpStatusCode.NotFound)
+    }
+
     post("$basePath/logout") {
         authService?.clearSession(call.request.cookies[CMS_SESSION_COOKIE])
         call.response.cookies.append(expiredSessionCookie(basePath))
         call.respondText("logged out", ContentType.Text.Plain)
+    }
+
+    get("$basePath/preview") {
+        renderPreview(call, "")
+    }
+
+    get("$basePath/preview/") {
+        renderPreview(call, "")
+    }
+
+    get("$basePath/preview/{path...}") {
+        val requestedPath = call.parameters.getAll("path")
+            ?.joinToString("/")
+            .orEmpty()
+        renderPreview(call, requestedPath)
     }
 
     get("$basePath/styles.css") {

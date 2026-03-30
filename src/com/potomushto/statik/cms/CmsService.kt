@@ -23,6 +23,17 @@ class CmsService(
 ) {
     private val lock = Any()
     private val basePath = normalizeBasePath(config.cms.basePath)
+    private val previewConfig = config.copy(
+        theme = config.theme.copy(output = PREVIEW_OUTPUT_DIRECTORY)
+    )
+    private val previewGenerator = SiteGenerator(
+        rootPath = rootPath.toString(),
+        config = previewConfig,
+        baseUrlOverride = "$basePath/preview/",
+        isDevelopment = true
+    )
+    private val previewAssetManager = AssetManager(rootPath.toString(), previewConfig, FileWalker(rootPath.toString()))
+    private var previewInitialized = false
 
     init {
         repository.initialize()
@@ -31,6 +42,13 @@ class CmsService(
     fun bootstrap() {
         synchronized(lock) {
             refreshIndexLocked()
+        }
+    }
+
+    fun resolvePreviewFile(requestedPath: String): Path? {
+        synchronized(lock) {
+            ensurePreviewInitializedLocked()
+            return resolveGeneratedFile(previewOutputRoot(), requestedPath)
         }
     }
 
@@ -94,11 +112,20 @@ class CmsService(
                 markContentDeleted(previousEntry.sourcePath, previousEntry.lastSyncedAt, previousEntry.dirty)
                 if (previousEntry.outputPath != saved.outputPath) {
                     deleteGeneratedContent(previousEntry.outputPath)
+                    if (previewInitialized) {
+                        deleteGeneratedPreviewContent(previousEntry.outputPath)
+                    }
                 }
             }
 
             repository.upsert(dirtyEntry)
             generator.regenerate(listOf(rootPath.resolve(saved.sourcePath)))
+            if (saved.type == CmsContentType.POST && isDraft(saved.metadata)) {
+                deleteGeneratedContent(saved.outputPath)
+            }
+            if (previewInitialized) {
+                previewGenerator.regenerate(listOf(rootPath.resolve(saved.sourcePath)))
+            }
 
             val syncResponse = if (request.sync || config.cms.autoSyncOnSave) {
                 syncLocked(request.commitMessage, null, accessToken)
@@ -126,6 +153,9 @@ class CmsService(
             val existing = repository.findMedia(composeMediaPath(targetDirectory, request.fileName))
             val uploaded = mediaFileService.upload(normalizedRequest)
             assetManager.copySingleAsset(rootPath.resolve(uploaded.sourcePath).normalize())
+            if (previewInitialized) {
+                previewAssetManager.copySingleAsset(rootPath.resolve(uploaded.sourcePath).normalize())
+            }
             repository.upsertMedia(
                 uploaded.copy(
                     dirty = true,
@@ -151,6 +181,9 @@ class CmsService(
             mutation.deletedPaths.forEach { sourcePath ->
                 markMediaDeleted(sourcePath)
                 assetManager.deleteSingleAsset(sourcePath)
+                if (previewInitialized) {
+                    previewAssetManager.deleteSingleAsset(sourcePath)
+                }
             }
 
             mutation.updatedEntries.forEach { entry ->
@@ -164,6 +197,9 @@ class CmsService(
                     )
                 )
                 assetManager.copySingleAsset(rootPath.resolve(entry.sourcePath).normalize())
+                if (previewInitialized) {
+                    previewAssetManager.copySingleAsset(rootPath.resolve(entry.sourcePath).normalize())
+                }
             }
 
             return CmsMediaMutationResponse(
@@ -184,6 +220,9 @@ class CmsService(
             mutation.deletedPaths.forEach { sourcePath ->
                 markMediaDeleted(sourcePath)
                 assetManager.deleteSingleAsset(sourcePath)
+                if (previewInitialized) {
+                    previewAssetManager.deleteSingleAsset(sourcePath)
+                }
             }
 
             return CmsMediaMutationResponse(
@@ -224,6 +263,7 @@ class CmsService(
         repository.replaceFromScan(scannedEntries)
         val scannedMedia = mediaFileService.scanAll()
         repository.replaceMediaFromScan(scannedMedia)
+        previewInitialized = false
         return CmsRefreshResponse(
             items = repository.count() + repository.mediaCount(),
             dirty = repository.dirtyCount() + repository.mediaDirtyCount()
@@ -286,7 +326,14 @@ class CmsService(
     }
 
     private fun deleteGeneratedContent(outputPath: String) {
-        val outputRoot = rootPath.resolve(config.theme.output).normalize()
+        deleteGeneratedPath(rootPath.resolve(config.theme.output).normalize(), outputPath)
+    }
+
+    private fun deleteGeneratedPreviewContent(outputPath: String) {
+        deleteGeneratedPath(previewOutputRoot(), outputPath)
+    }
+
+    private fun deleteGeneratedPath(outputRoot: Path, outputPath: String) {
         val target = if (outputPath.isBlank()) {
             outputRoot.resolve("index.html")
         } else {
@@ -308,6 +355,28 @@ class CmsService(
             Files.deleteIfExists(target)
             pruneEmptyGeneratedDirectories(target.parent, outputRoot)
         }
+    }
+
+    private fun ensurePreviewInitializedLocked() {
+        if (previewInitialized) {
+            return
+        }
+
+        val outputRoot = previewOutputRoot()
+        if (Files.exists(outputRoot)) {
+            Files.walk(outputRoot).use { stream ->
+                stream.sorted(Comparator.reverseOrder()).forEach { candidate ->
+                    Files.deleteIfExists(candidate)
+                }
+            }
+        }
+
+        previewGenerator.generate()
+        previewInitialized = true
+    }
+
+    private fun previewOutputRoot(): Path {
+        return rootPath.resolve(previewConfig.theme.output).normalize()
     }
 
     private fun pruneEmptyGeneratedDirectories(start: Path?, stopAt: Path) {
@@ -389,6 +458,10 @@ class CmsService(
             return left.sourcePath.compareTo(right.sourcePath)
         }
 
+        private fun isDraft(metadata: Map<String, Any?>): Boolean {
+            return metadata["draft"]?.toString()?.lowercase() in setOf("true", "yes", "1")
+        }
+
         private fun String?.parseCmsDateOrNull(): LocalDateTime? {
             return runCatching { this?.let(LocalDateTime::parse) }.getOrNull()
         }
@@ -396,6 +469,30 @@ class CmsService(
         private fun resolveDatabasePath(rootPath: Path, configuredPath: String): Path {
             val path = Paths.get(configuredPath)
             return if (path.isAbsolute) path else rootPath.resolve(path).normalize()
+        }
+
+        private fun resolveGeneratedFile(outputRoot: Path, requestedPath: String): Path? {
+            val normalizedRoot = outputRoot.toAbsolutePath().normalize()
+            if (!Files.exists(normalizedRoot)) {
+                return null
+            }
+
+            val relativePath = requestedPath.trim().removePrefix("/").removeSuffix("/")
+            val candidates = if (relativePath.isBlank()) {
+                listOf(normalizedRoot.resolve("index.html"))
+            } else {
+                buildList {
+                    val direct = normalizedRoot.resolve(relativePath).normalize()
+                    add(direct)
+                    if (!relativePath.substringAfterLast('/', "").contains('.')) {
+                        add(direct.resolve("index.html").normalize())
+                    }
+                }
+            }
+
+            return candidates.firstOrNull { candidate ->
+                candidate.startsWith(normalizedRoot) && Files.isRegularFile(candidate)
+            }
         }
 
         private fun maxOfNullable(left: Long?, right: Long?): Long? {
@@ -414,5 +511,7 @@ class CmsService(
         private fun normalizeSourcePath(sourcePath: String): String {
             return sourcePath.trim().removePrefix("/").replace('\\', '/')
         }
+
+        private const val PREVIEW_OUTPUT_DIRECTORY = ".statik/cms-preview"
     }
 }

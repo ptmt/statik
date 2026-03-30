@@ -1179,10 +1179,45 @@ internal object CmsWebAssets {
               : "/" + normalized + "/";
           }
 
-          function setPreviewPath(path) {
-            state.currentPreviewPath = path || "/";
+          function previewHrefFromSitePath(path) {
+            const normalized = String(path || "").trim();
+            if (!normalized || normalized === "/") {
+              return basePath + "/preview/";
+            }
+            return basePath + "/preview" + (normalized.startsWith("/") ? normalized : "/" + normalized);
+          }
+
+          function setPreviewHref(href) {
+            state.currentPreviewPath = href || previewHrefFromSitePath("/");
             if (elements.previewLink) {
               elements.previewLink.href = state.currentPreviewPath;
+            }
+          }
+
+          function setContentPreviewPath(path) {
+            setPreviewHref(previewHrefFromSitePath(path));
+          }
+
+          async function openPreview(event) {
+            event.preventDefault();
+            let previewWindow = null;
+            try {
+              previewWindow = window.open("", "_blank");
+              if (previewWindow) {
+                previewWindow.opener = null;
+              }
+              await flushAutosave();
+              const nextHref = state.currentPreviewPath || previewHrefFromSitePath("/");
+              if (previewWindow) {
+                previewWindow.location.replace(nextHref);
+              } else {
+                window.open(nextHref, "_blank", "noopener,noreferrer");
+              }
+            } catch (error) {
+              if (previewWindow && !previewWindow.closed) {
+                previewWindow.close();
+              }
+              throw error;
             }
           }
 
@@ -1195,7 +1230,7 @@ internal object CmsWebAssets {
             elements.source.value = "";
             setEditorEditable(false);
             lastSavedSnapshot = null;
-            setPreviewPath("/");
+            setContentPreviewPath("/");
             setEditorHeading("Select a file", "Choose a post, page, or media item from the left.");
           }
 
@@ -1439,7 +1474,7 @@ internal object CmsWebAssets {
             elements.source.value = mediaEditorText(sourcePath, kind);
             setEditorEditable(false);
             const mediaItem = kind === "file" ? findMediaItem(sourcePath) : null;
-            setPreviewPath(mediaItem && mediaItem.publicPath ? mediaItem.publicPath : "/");
+            setPreviewHref(mediaItem && mediaItem.publicPath ? mediaItem.publicPath : previewHrefFromSitePath("/"));
             setEditorHeading(fileNameFromPath(sourcePath), mediaSubtitle(sourcePath, kind));
             renderList();
             renderMediaTree();
@@ -1988,7 +2023,7 @@ internal object CmsWebAssets {
             elements.sourcePath.value = response.sourcePath;
             elements.source.value = serializeDocument(response.frontmatter || "", response.body || "");
             setEditorEditable(true);
-            setPreviewPath(previewPathFromOutputPath(response.outputPath));
+            setContentPreviewPath(previewPathFromOutputPath(response.outputPath));
 
             const subtitle = response.isDraft ? "draft · " + response.title : response.title;
             setEditorHeading(fileNameFromPath(response.sourcePath), subtitle);
@@ -2022,7 +2057,7 @@ internal object CmsWebAssets {
             elements.sourcePath.value = defaultPath(type);
             elements.source.value = serializeDocument(defaultFrontmatter(type), "");
             setEditorEditable(true);
-            setPreviewPath(previewPathFromOutputPath(""));
+            setContentPreviewPath(previewPathFromOutputPath(""));
             setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
             renderList();
             renderMediaTree();
@@ -2059,7 +2094,7 @@ internal object CmsWebAssets {
 
             state.selected = response.item.sourcePath;
             state.renamingContentPath = null;
-            setPreviewPath(previewPathFromOutputPath(response.item.outputPath));
+            setContentPreviewPath(previewPathFromOutputPath(response.item.outputPath));
             log((autosave ? "Autosaved " : "Saved ") + response.item.sourcePath + " and rebuilt the site.");
             if (response.sync) {
               updateSyncState(response.sync);
@@ -2266,6 +2301,11 @@ internal object CmsWebAssets {
           elements.railToggle.addEventListener("click", () => {
             setRailCollapsed(!state.railCollapsed);
           });
+          if (elements.previewLink) {
+            elements.previewLink.addEventListener("click", event => {
+              openPreview(event).catch(error => log(error.message));
+            });
+          }
           elements.logsButton.addEventListener("click", () => openLogs());
           elements.closeLogs.addEventListener("click", () => closeLogs());
           elements.uploadMedia.addEventListener("click", async () => {
@@ -2385,6 +2425,7 @@ internal object CmsWebAssets {
           }
 
           setActiveContentTab(state.activeContentTab);
+          setContentPreviewPath("/");
           try {
             setRailCollapsed(window.localStorage.getItem(RAIL_COLLAPSED_KEY) === "1");
           } catch (_error) {
