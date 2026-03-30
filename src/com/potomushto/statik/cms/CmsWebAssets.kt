@@ -59,7 +59,7 @@ internal object CmsWebAssets {
                       </div>
                     </div>
                     <div class="header-actions">
-                      <a href="/" target="_blank" rel="noreferrer">Preview</a>
+                      <a id="preview-link" href="/" target="_blank" rel="noreferrer">Preview</a>
                       <button id="logs-button" type="button">Logs</button>
                       <button id="sync-button" type="button">Sync</button>
                     </div>
@@ -293,8 +293,7 @@ internal object CmsWebAssets {
           background: linear-gradient(180deg, rgba(239, 233, 224, 0.96), rgba(232, 224, 212, 0.96));
           border-right: 1px solid var(--line);
           display: grid;
-          grid-template-rows: auto auto;
-          grid-auto-rows: minmax(0, 1fr);
+          grid-template-rows: auto auto auto minmax(0, 1fr) minmax(0, 1fr);
           gap: 12px;
           backdrop-filter: blur(16px);
         }
@@ -332,6 +331,7 @@ internal object CmsWebAssets {
 
         .rail-actions {
           display: flex;
+          align-items: flex-start;
         }
 
         .chip {
@@ -821,8 +821,7 @@ internal object CmsWebAssets {
           }
 
           .rail {
-            grid-template-rows: auto auto;
-            grid-auto-rows: minmax(180px, auto);
+            grid-template-rows: auto auto auto minmax(180px, auto) minmax(180px, auto);
             border-right: 0;
             border-bottom: 1px solid var(--line);
           }
@@ -870,6 +869,7 @@ internal object CmsWebAssets {
             selected: null,
             selectedMediaPath: null,
             selectedMediaKind: null,
+            currentPreviewPath: "/",
             renamingContentPath: null,
             mode: "empty",
             status: null,
@@ -886,6 +886,7 @@ internal object CmsWebAssets {
             mediaTree: document.getElementById("media-tree"),
             status: document.getElementById("status-chips"),
             log: document.getElementById("activity-log"),
+            previewLink: document.getElementById("preview-link"),
             editorTitle: document.getElementById("editor-title"),
             editorSubtitle: document.getElementById("editor-subtitle"),
             type: document.getElementById("content-type"),
@@ -1167,6 +1168,24 @@ internal object CmsWebAssets {
             }
           }
 
+          function previewPathFromOutputPath(outputPath) {
+            const normalized = String(outputPath || "").trim().replace(/^\/+|\/+$/g, "");
+            if (!normalized) {
+              return "/";
+            }
+            const lastSegment = normalized.split("/").pop() || "";
+            return lastSegment.includes(".")
+              ? "/" + normalized
+              : "/" + normalized + "/";
+          }
+
+          function setPreviewPath(path) {
+            state.currentPreviewPath = path || "/";
+            if (elements.previewLink) {
+              elements.previewLink.href = state.currentPreviewPath;
+            }
+          }
+
           function showEmptyEditor() {
             state.mode = "empty";
             state.selected = null;
@@ -1176,6 +1195,7 @@ internal object CmsWebAssets {
             elements.source.value = "";
             setEditorEditable(false);
             lastSavedSnapshot = null;
+            setPreviewPath("/");
             setEditorHeading("Select a file", "Choose a post, page, or media item from the left.");
           }
 
@@ -1418,6 +1438,8 @@ internal object CmsWebAssets {
             elements.sourcePath.value = sourcePath;
             elements.source.value = mediaEditorText(sourcePath, kind);
             setEditorEditable(false);
+            const mediaItem = kind === "file" ? findMediaItem(sourcePath) : null;
+            setPreviewPath(mediaItem && mediaItem.publicPath ? mediaItem.publicPath : "/");
             setEditorHeading(fileNameFromPath(sourcePath), mediaSubtitle(sourcePath, kind));
             renderList();
             renderMediaTree();
@@ -1966,6 +1988,7 @@ internal object CmsWebAssets {
             elements.sourcePath.value = response.sourcePath;
             elements.source.value = serializeDocument(response.frontmatter || "", response.body || "");
             setEditorEditable(true);
+            setPreviewPath(previewPathFromOutputPath(response.outputPath));
 
             const subtitle = response.isDraft ? "draft · " + response.title : response.title;
             setEditorHeading(fileNameFromPath(response.sourcePath), subtitle);
@@ -1999,6 +2022,7 @@ internal object CmsWebAssets {
             elements.sourcePath.value = defaultPath(type);
             elements.source.value = serializeDocument(defaultFrontmatter(type), "");
             setEditorEditable(true);
+            setPreviewPath(previewPathFromOutputPath(""));
             setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
             renderList();
             renderMediaTree();
@@ -2035,6 +2059,7 @@ internal object CmsWebAssets {
 
             state.selected = response.item.sourcePath;
             state.renamingContentPath = null;
+            setPreviewPath(previewPathFromOutputPath(response.item.outputPath));
             log((autosave ? "Autosaved " : "Saved ") + response.item.sourcePath + " and rebuilt the site.");
             if (response.sync) {
               updateSyncState(response.sync);
