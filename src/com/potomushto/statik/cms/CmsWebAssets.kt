@@ -19,7 +19,10 @@ internal object CmsWebAssets {
                     <h1>$siteName</h1>
                   </header>
 
-                  <div id="status-chips" class="status-strip"></div>
+                  <div id="status-chips" class="status-strip status-strip-loading" aria-live="polite" aria-busy="true">
+                    <span class="chip chip-skeleton" aria-hidden="true">000 dirty</span>
+                    <span class="chip chip-skeleton" aria-hidden="true">synced 00:00</span>
+                  </div>
                   <div class="rail-actions">
                     <button id="refresh-index" class="tree-action" type="button">Rescan</button>
                   </div>
@@ -327,6 +330,8 @@ internal object CmsWebAssets {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
+          min-height: 32px;
+          align-content: flex-start;
         }
 
         .rail-actions {
@@ -349,6 +354,30 @@ internal object CmsWebAssets {
           background: var(--warn-soft);
           color: var(--warn);
           border-color: rgba(154, 78, 44, 0.18);
+        }
+
+        .status-strip-loading .chip-skeleton {
+          color: transparent;
+          border-color: rgba(82, 63, 38, 0.08);
+          background: linear-gradient(90deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.52));
+          background-size: 200% 100%;
+          user-select: none;
+        }
+
+        @media (prefers-reduced-motion: no-preference) {
+          .status-strip-loading .chip-skeleton {
+            animation: chip-loading 1.2s linear infinite;
+          }
+        }
+
+        @keyframes chip-loading {
+          from {
+            background-position: 200% 0;
+          }
+
+          to {
+            background-position: -200% 0;
+          }
         }
 
         .tree-section {
@@ -1247,6 +1276,8 @@ internal object CmsWebAssets {
               chips.push(chip(syncChip.text, syncChip.warn));
             }
 
+            elements.status.classList.remove("status-strip-loading");
+            elements.status.removeAttribute("aria-busy");
             elements.status.innerHTML = chips.join("");
           }
 
@@ -1951,9 +1982,18 @@ internal object CmsWebAssets {
           }
 
           async function loadStatus() {
-            const status = await api("/status");
-            if (!status) return;
-            renderStatus(status);
+            try {
+              const status = await api("/status");
+              if (!status) return;
+              renderStatus(status);
+            } catch (error) {
+              if (!state.status) {
+                elements.status.classList.remove("status-strip-loading");
+                elements.status.removeAttribute("aria-busy");
+                elements.status.innerHTML = "";
+              }
+              throw error;
+            }
           }
 
           async function loadList() {
