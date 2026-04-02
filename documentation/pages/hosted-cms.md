@@ -92,7 +92,8 @@ If you keep install scope to one repository, the app remains tightly scoped even
       "appSlug": "statik-cms",
       "privateKeyPath": "keys/statik-cms.private-key.pem",
       "setupUrl": "https://cms.example.com/__statik__/cms/auth/github/setup",
-      "scopes": ["repo", "read:user"]
+      "scopes": ["repo", "read:user"],
+      "sessionTtlDays": 30
     },
     "repo": {
       "enabled": true,
@@ -111,6 +112,7 @@ Key points:
 - `cms.repo.owner` and `cms.repo.name` pin the CMS to one repository.
 - `cms.repo.checkoutDir` is the managed clone path on disk.
 - `cms.databasePath` is resolved relative to the host config directory, not the git checkout.
+- `cms.databasePath` must live on persistent storage if you want auth sessions to survive container restarts or deploys.
 
 ## Running the Container
 

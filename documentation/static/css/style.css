@@ -234,6 +234,7 @@ body.has-sidebar .main-content {
 
 .content {
     max-width: 100%;
+    font-size: 0.95rem;
 }
 
 body:not(.has-sidebar) .content {

@@ -887,7 +887,7 @@ internal object CmsWebAssets {
         (() => {
           const basePath = window.STATIK_CMS_BASE_PATH || "/__statik__/cms";
           const apiBase = basePath + "/api";
-          const AUTOSAVE_DELAY_MS = 700;
+          const AUTOSAVE_DELAY_MS = 1500;
           const RAIL_COLLAPSED_KEY = "statik.cms.railCollapsed";
           const state = {
             items: [],
@@ -1062,23 +1062,42 @@ internal object CmsWebAssets {
             elements.autosaveStatus.classList.toggle("warn", warn);
           }
 
+          function snapshotForContent(type, sourcePath, source) {
+            return JSON.stringify({
+              type: type,
+              sourcePath: sourcePath,
+              source: source
+            });
+          }
+
           function contentSnapshot() {
             if (!elements.type.value || state.mode !== "content") {
               return null;
             }
-            return JSON.stringify({
-              type: elements.type.value,
-              sourcePath: elements.sourcePath.value,
-              source: elements.source.value
-            });
+            return snapshotForContent(
+              elements.type.value,
+              elements.sourcePath.value,
+              elements.source.value
+            );
           }
 
-          function rememberSavedSnapshot(statusText = "Autosave on") {
-            lastSavedSnapshot = contentSnapshot();
-            if (lastSavedSnapshot) {
+          function savedDocumentSnapshot(document) {
+            return snapshotForContent(
+              document.type,
+              document.sourcePath,
+              serializeDocument(document.frontmatter || "", document.body || "")
+            );
+          }
+
+          function rememberSavedSnapshot(statusText = "Autosave on", snapshot = contentSnapshot()) {
+            lastSavedSnapshot = snapshot;
+            const currentSnapshot = contentSnapshot();
+            if (!currentSnapshot) {
+              setAutosaveStatus("Read only");
+            } else if (currentSnapshot === lastSavedSnapshot) {
               setAutosaveStatus(statusText);
             } else {
-              setAutosaveStatus("Read only");
+              setAutosaveStatus("Unsaved changes");
             }
           }
 
@@ -2134,16 +2153,23 @@ internal object CmsWebAssets {
 
             state.selected = response.item.sourcePath;
             state.renamingContentPath = null;
+            setActiveContentTab(response.item.type);
+            elements.type.value = response.item.type;
+            elements.sourcePath.value = response.item.sourcePath;
             setContentPreviewPath(previewPathFromOutputPath(response.item.outputPath));
+            setEditorHeading(
+              fileNameFromPath(response.item.sourcePath),
+              response.item.isDraft ? "draft · " + response.item.title : response.item.title
+            );
             log((autosave ? "Autosaved " : "Saved ") + response.item.sourcePath + " and rebuilt the site.");
             if (response.sync) {
               updateSyncState(response.sync);
               log(response.sync.message + " " + syncSummary(response.sync));
             }
 
+            const savedSnapshot = savedDocumentSnapshot(response.item);
             await Promise.all([loadStatus(), loadList()]);
-            await openEntry(response.item.sourcePath, { logLoad: false });
-            rememberSavedSnapshot("Saved");
+            rememberSavedSnapshot("Saved", savedSnapshot);
           }
 
           async function sync(commitMessage, push) {

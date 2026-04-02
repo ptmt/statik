@@ -109,7 +109,7 @@ fun Routing.installCmsRoutes(
 
         try {
             val session = auth.completeAuthorization(code, state)
-            call.response.cookies.append(sessionCookie(basePath, session.id))
+            call.response.cookies.append(sessionCookie(basePath, session.id, auth.sessionTtlSeconds()))
 
             if (workspaceManager != null) {
                 resolveCmsService(cmsServiceProvider, workspaceManager, auth, session)
@@ -333,7 +333,9 @@ private suspend fun requireHtmlSession(
     authService: CmsAuthService
 ): CmsAuthSession? {
     return try {
-        authService.requireSession(call.request.cookies[CMS_SESSION_COOKIE])
+        authService.requireSession(call.request.cookies[CMS_SESSION_COOKIE]).also { session ->
+            call.response.cookies.append(sessionCookie(basePath, session.id, authService.sessionTtlSeconds()))
+        }
     } catch (_: CmsAuthenticationRequiredException) {
         call.respondRedirect("$basePath/login")
         null
@@ -354,7 +356,9 @@ private suspend fun requireApiSession(
     }
 
     return try {
-        authService.requireSession(call.request.cookies[CMS_SESSION_COOKIE])
+        authService.requireSession(call.request.cookies[CMS_SESSION_COOKIE]).also { session ->
+            call.response.cookies.append(sessionCookie(basePath, session.id, authService.sessionTtlSeconds()))
+        }
     } catch (_: CmsAuthenticationRequiredException) {
         call.respondText("Authentication required", status = HttpStatusCode.Unauthorized)
         null
@@ -375,13 +379,13 @@ private fun requireManagedWorkspace(workspaceManager: CmsWorkspaceManager?): Cms
         ?: throw IllegalArgumentException("CMS managed checkout is not enabled")
 }
 
-private fun sessionCookie(basePath: String, sessionId: String): Cookie {
+private fun sessionCookie(basePath: String, sessionId: String, maxAgeSeconds: Int): Cookie {
     return Cookie(
         name = CMS_SESSION_COOKIE,
         value = sessionId,
         path = basePath,
         httpOnly = true,
-        maxAge = CmsAuthService.SESSION_TTL_SECONDS,
+        maxAge = maxAgeSeconds,
         extensions = mapOf("SameSite" to "Lax")
     )
 }

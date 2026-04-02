@@ -37,7 +37,8 @@ class CmsAuthService(
     databasePath: Path? = null,
     private val client: GitHubOAuthClient = DefaultGitHubOAuthClient(),
     private val appClient: GitHubAppClient = DefaultGitHubAppApiClient(),
-    private val secretProvider: (String) -> String? = System::getenv
+    private val secretProvider: (String) -> String? = System::getenv,
+    private val nowProvider: () -> Long = System::currentTimeMillis
 ) {
     private val pendingAuthorizations = ConcurrentHashMap<String, PendingAuthorization>()
     private val pendingInstallations = ConcurrentHashMap<String, String>()
@@ -63,7 +64,7 @@ class CmsAuthService(
         val codeVerifier = randomToken(64)
         pendingAuthorizations[state] = PendingAuthorization(
             codeVerifier = codeVerifier,
-            createdAt = System.currentTimeMillis()
+            createdAt = now()
         )
 
         val codeChallenge = codeChallenge(codeVerifier)
@@ -103,7 +104,7 @@ class CmsAuthService(
             id = randomToken(),
             login = user.login,
             accessToken = token.accessToken,
-            createdAt = System.currentTimeMillis(),
+            createdAt = now(),
             installationId = null
         )
         return persistSession(session)
@@ -170,7 +171,7 @@ class CmsAuthService(
             removeSession(session.id)
             throw CmsPermissionDeniedException("permissions denied")
         }
-        return session
+        return refreshSession(session)
     }
 
     fun requireSession(sessionId: String?): CmsAuthSession {
@@ -191,6 +192,8 @@ class CmsAuthService(
         )
     }
 
+    fun sessionTtlSeconds(): Int = sessionTtlSecondsValue()
+
     private fun validateConfigured() {
         requireValue(config.allowedUser, "cms.auth.allowedUser")
         requireValue(config.clientId, "cms.auth.clientId")
@@ -200,6 +203,9 @@ class CmsAuthService(
         requireValue(config.appSlug, "cms.auth.appSlug")
         requireValue(config.privateKeyPath, "cms.auth.privateKeyPath")
         requireValue(config.setupUrl, "cms.auth.setupUrl")
+        require(config.sessionTtlDays > 0) {
+            "cms.auth.sessionTtlDays must be greater than 0"
+        }
         require(clientSecret().isNotBlank()) {
             "Missing GitHub App client secret in env '${config.clientSecretEnv}'"
         }
@@ -214,14 +220,14 @@ class CmsAuthService(
     }
 
     private fun purgeExpiredEntries() {
-        val now = System.currentTimeMillis()
-        val createdAtCutoff = now - SESSION_TTL_MS
+        val now = now()
+        val createdAtCutoff = now - sessionTtlMs()
         pendingAuthorizations.entries.removeIf { now - it.value.createdAt > PENDING_TTL_MS }
         sessionStore?.deleteExpired(createdAtCutoff)
-        sessions.entries.removeIf { now - it.value.createdAt > SESSION_TTL_MS }
+        sessions.entries.removeIf { now - it.value.createdAt > sessionTtlMs() }
         pendingInstallations.entries.removeIf { entry ->
             val session = lookupSession(entry.value)
-            session == null || now - session.createdAt > SESSION_TTL_MS
+            session == null || now - session.createdAt > sessionTtlMs()
         }
     }
 
@@ -229,6 +235,14 @@ class CmsAuthService(
         sessions[session.id] = session
         sessionStore?.upsert(session)
         return session
+    }
+
+    private fun refreshSession(session: CmsAuthSession): CmsAuthSession {
+        val refreshedAt = now()
+        if (refreshedAt == session.createdAt) {
+            return session
+        }
+        return persistSession(session.copy(createdAt = refreshedAt))
     }
 
     private fun lookupSession(sessionId: String?): CmsAuthSession? {
@@ -297,6 +311,14 @@ class CmsAuthService(
         return Base64.getUrlEncoder().withoutPadding().encodeToString(buffer)
     }
 
+    private fun now(): Long = nowProvider()
+
+    private fun sessionTtlMs(): Long = sessionTtlSecondsValue().toLong() * 1000L
+
+    private fun sessionTtlSecondsValue(): Int {
+        return Math.toIntExact(config.sessionTtlDays.toLong() * 24L * 60L * 60L)
+    }
+
     private fun codeChallenge(codeVerifier: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(codeVerifier.toByteArray(StandardCharsets.US_ASCII))
         return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
@@ -330,8 +352,6 @@ class CmsAuthService(
 
     companion object {
         private const val PENDING_TTL_MS = 10 * 60 * 1000L
-        internal const val SESSION_TTL_SECONDS = 12 * 60 * 60
-        private const val SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000L
     }
 }
 

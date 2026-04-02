@@ -29,4 +29,13 @@ class CmsWebAssetsTest {
         assertTrue(script.contains("""elements.status.classList.remove("status-strip-loading");"""))
         assertTrue(script.contains("""elements.status.removeAttribute("aria-busy");"""))
     }
+
+    @Test
+    fun `app script save flow does not reload the editor after save`() {
+        val script = CmsWebAssets.appJs
+
+        assertTrue(script.contains("""const savedSnapshot = savedDocumentSnapshot(response.item);"""))
+        assertTrue(script.contains("""rememberSavedSnapshot("Saved", savedSnapshot);"""))
+        assertTrue(!script.contains("""await openEntry(response.item.sourcePath, { logLoad: false });"""))
+    }
 }

@@ -13,16 +13,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalPathApi::class)
 class CmsAuthServiceTest {
     private lateinit var tempRoot: java.nio.file.Path
+    private var now = 1_700_000_000_000L
 
     @BeforeTest
     fun setUp() {
         tempRoot = createTempDirectory("statik-cms-auth")
         (tempRoot / "private-key.pem").writeText("test-private-key")
+        now = 1_700_000_000_000L
     }
 
     @AfterTest
@@ -36,7 +39,8 @@ class CmsAuthServiceTest {
             config = authConfig(),
             hostRoot = tempRoot,
             client = FakeGitHubOAuthClient(login = "someone-else"),
-            secretProvider = { "secret" }
+            secretProvider = { "secret" },
+            nowProvider = { now }
         )
 
         val state = queryParam(service.startAuthorization(), "state")
@@ -54,7 +58,8 @@ class CmsAuthServiceTest {
             config = authConfig(),
             hostRoot = tempRoot,
             client = FakeGitHubOAuthClient(login = "potomushto"),
-            secretProvider = { "secret" }
+            secretProvider = { "secret" },
+            nowProvider = { now }
         )
 
         val authorizationUrl = service.startAuthorization()
@@ -77,7 +82,8 @@ class CmsAuthServiceTest {
             config = authConfig(),
             hostRoot = tempRoot,
             client = FakeGitHubOAuthClient(login = "potomushto"),
-            secretProvider = { "secret" }
+            secretProvider = { "secret" },
+            nowProvider = { now }
         )
 
         val authorizationUrl = service.startAuthorization()
@@ -100,7 +106,8 @@ class CmsAuthServiceTest {
             hostRoot = tempRoot,
             databasePath = databasePath,
             client = FakeGitHubOAuthClient(login = "potomushto"),
-            secretProvider = { "secret" }
+            secretProvider = { "secret" },
+            nowProvider = { now }
         )
 
         val authorizationUrl = first.startAuthorization()
@@ -114,14 +121,59 @@ class CmsAuthServiceTest {
             hostRoot = tempRoot,
             databasePath = databasePath,
             client = FakeGitHubOAuthClient(login = "potomushto"),
-            secretProvider = { "secret" }
+            secretProvider = { "secret" },
+            nowProvider = { now }
         )
 
         assertEquals("potomushto", second.requireSession(session.id).login)
         assertTrue(second.status(session.id).authenticated)
     }
 
-    private fun authConfig(): CmsAuthConfig {
+    @Test
+    fun `sessions expire after configured ttl`() {
+        val service = CmsAuthService(
+            config = authConfig(sessionTtlDays = 1),
+            hostRoot = tempRoot,
+            client = FakeGitHubOAuthClient(login = "potomushto"),
+            secretProvider = { "secret" },
+            nowProvider = { now }
+        )
+
+        val authorizationUrl = service.startAuthorization()
+        val session = service.completeAuthorization(
+            code = "oauth-code",
+            state = queryParam(authorizationUrl, "state")
+        )
+
+        now += 24L * 60 * 60 * 1000 + 1
+
+        assertNull(service.currentSession(session.id))
+    }
+
+    @Test
+    fun `active sessions slide forward on access`() {
+        val service = CmsAuthService(
+            config = authConfig(sessionTtlDays = 1),
+            hostRoot = tempRoot,
+            client = FakeGitHubOAuthClient(login = "potomushto"),
+            secretProvider = { "secret" },
+            nowProvider = { now }
+        )
+
+        val authorizationUrl = service.startAuthorization()
+        val session = service.completeAuthorization(
+            code = "oauth-code",
+            state = queryParam(authorizationUrl, "state")
+        )
+
+        now += 12L * 60 * 60 * 1000
+        assertNotNull(service.requireSession(session.id))
+
+        now += 18L * 60 * 60 * 1000
+        assertNotNull(service.requireSession(session.id))
+    }
+
+    private fun authConfig(sessionTtlDays: Int = 30): CmsAuthConfig {
         return CmsAuthConfig(
             enabled = true,
             allowedUser = "potomushto",
@@ -132,7 +184,8 @@ class CmsAuthServiceTest {
             appSlug = "statik-cms",
             privateKeyPath = "private-key.pem",
             setupUrl = "https://cms.example.com/__statik__/cms/auth/github/setup",
-            scopes = listOf("repo", "read:user")
+            scopes = listOf("repo", "read:user"),
+            sessionTtlDays = sessionTtlDays
         )
     }
 

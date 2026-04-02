@@ -69,6 +69,7 @@ class BlogConfigTest {
         assertEquals(null, config.cms.auth.privateKeyPath)
         assertEquals(null, config.cms.auth.setupUrl)
         assertEquals(listOf("repo"), config.cms.auth.scopes)
+        assertEquals(30, config.cms.auth.sessionTtlDays)
         assertEquals(false, config.cms.repo.enabled)
         assertEquals(null, config.cms.repo.owner)
         assertEquals(null, config.cms.repo.name)
@@ -160,7 +161,8 @@ class BlogConfigTest {
                   "appSlug": "statik-cms",
                   "privateKeyPath": "keys/statik-cms.pem",
                   "setupUrl": "https://cms.example.com/editor/auth/github/setup",
-                  "scopes": ["repo", "read:user"]
+                  "scopes": ["repo", "read:user"],
+                  "sessionTtlDays": 45
                 },
                 "repo": {
                   "enabled": true,
@@ -198,6 +200,7 @@ class BlogConfigTest {
         assertEquals("keys/statik-cms.pem", config.cms.auth.privateKeyPath)
         assertEquals("https://cms.example.com/editor/auth/github/setup", config.cms.auth.setupUrl)
         assertEquals(listOf("repo", "read:user"), config.cms.auth.scopes)
+        assertEquals(45, config.cms.auth.sessionTtlDays)
         assertEquals(true, config.cms.repo.enabled)
         assertEquals("potomushto", config.cms.repo.owner)
         assertEquals("statik-site", config.cms.repo.name)

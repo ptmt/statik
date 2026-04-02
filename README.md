@@ -164,7 +164,8 @@ Example `config.json`:
       "appSlug": "statik-cms",
       "privateKeyPath": "keys/statik-cms.private-key.pem",
       "setupUrl": "https://cms.example.com/__statik__/cms/auth/github/setup",
-      "scopes": ["repo", "read:user"]
+      "scopes": ["repo", "read:user"],
+      "sessionTtlDays": 30
     },
     "repo": {
       "enabled": true,
@@ -201,7 +202,7 @@ Example `config.json`:
 - `staticDatasource.configFile`: Optional dataset definition file (default `datasource-config.json`).
 - `cms.enabled`: Starts the embedded CMS server when enabled in config or via `--cms`.
 - `cms.basePath`: Route prefix for the editor UI and API (default `/__statik__/cms`).
-- `cms.databasePath`: SQLite file used as the CMS index and dirty-state store.
+- `cms.databasePath`: SQLite file used as the CMS index, dirty-state store, and persisted auth session store. Put it on persistent storage if you want sessions to survive deploys/restarts.
 - `cms.autoSyncOnSave`: If `true`, each save also commits through the configured git sync path.
 - `cms.git.remote`: Remote name to use for sync operations (default `origin`).
 - `cms.git.branch`: Optional branch override for pushes. When omitted, the current checked-out branch is used.
@@ -217,6 +218,7 @@ Example `config.json`:
 - `cms.auth.privateKeyPath`: Private key path for the GitHub App PEM file.
 - `cms.auth.setupUrl`: Setup URL registered in the GitHub App. This should point to `${cms.basePath}/auth/github/setup` on your host.
 - `cms.auth.scopes`: Requested GitHub user scopes for the sign-in flow. `repo` plus `read:user` is the practical hosted default.
+- `cms.auth.sessionTtlDays`: Sliding auth session lifetime in days. Each authenticated CMS request renews the session and cookie. Default `30`.
 - `cms.repo.enabled`: Turn on managed repo checkout mode for hosted/container CMS deployments.
 - `cms.repo.owner`: Repository owner for the single repo the CMS may edit.
 - `cms.repo.name`: Repository name for the single repo the CMS may edit.

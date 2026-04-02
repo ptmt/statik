@@ -106,7 +106,8 @@ data class CmsAuthConfig(
     val appSlug: String? = null,
     val privateKeyPath: String? = null,
     val setupUrl: String? = null,
-    val scopes: List<String> = listOf("repo")
+    val scopes: List<String> = listOf("repo"),
+    val sessionTtlDays: Int = 30
 )
 
 @Serializable
