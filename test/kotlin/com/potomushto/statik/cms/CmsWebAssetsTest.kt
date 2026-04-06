@@ -35,7 +35,24 @@ class CmsWebAssetsTest {
         val script = CmsWebAssets.appJs
 
         assertTrue(script.contains("""const savedSnapshot = savedDocumentSnapshot(response.item);"""))
+        assertTrue(script.contains("""applyContentSnapshot(savedSnapshot);"""))
         assertTrue(script.contains("""rememberSavedSnapshot("Saved", savedSnapshot);"""))
         assertTrue(!script.contains("""await openEntry(response.item.sourcePath, { logLoad: false });"""))
+    }
+
+    @Test
+    fun `app script saves from snapshots and aborts stale autosaves`() {
+        val script = CmsWebAssets.appJs
+
+        assertTrue(script.contains("""const AUTOSAVE_DELAY_MS = 5000;"""))
+        assertTrue(script.contains("""let contentDraftSnapshot = null;"""))
+        assertTrue(script.contains("""signal: controller.signal"""))
+        assertTrue(script.contains("""frontmatter: snapshot.frontmatter,"""))
+        assertTrue(script.contains("""body: snapshot.body"""))
+        assertTrue(script.contains("""const currentSnapshot = currentContentSnapshot();"""))
+        assertTrue(script.contains("""if (!currentSnapshot || currentSnapshot.key !== snapshot.key) {"""))
+        assertTrue(script.contains("""elements.source.addEventListener("input", () => {"""))
+        assertTrue(script.contains("""captureContentSnapshot();"""))
+        assertTrue(!script.contains("""const parsed = parseDocument(elements.source.value);"""))
     }
 }

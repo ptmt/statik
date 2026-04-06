@@ -887,7 +887,7 @@ internal object CmsWebAssets {
         (() => {
           const basePath = window.STATIK_CMS_BASE_PATH || "/__statik__/cms";
           const apiBase = basePath + "/api";
-          const AUTOSAVE_DELAY_MS = 1500;
+          const AUTOSAVE_DELAY_MS = 5000;
           const RAIL_COLLAPSED_KEY = "statik.cms.railCollapsed";
           const state = {
             items: [],
@@ -946,8 +946,10 @@ internal object CmsWebAssets {
           };
           let autosaveTimer = null;
           let saveInFlight = false;
-          let saveQueued = false;
           let savePromise = null;
+          let saveController = null;
+          let activeSaveSnapshot = null;
+          let contentDraftSnapshot = null;
           let lastSavedSnapshot = null;
 
           function log(message) {
@@ -1062,7 +1064,11 @@ internal object CmsWebAssets {
             elements.autosaveStatus.classList.toggle("warn", warn);
           }
 
-          function snapshotForContent(type, sourcePath, source) {
+          function isAbortError(error) {
+            return !!error && error.name === "AbortError";
+          }
+
+          function snapshotKeyForContent(type, sourcePath, source) {
             return JSON.stringify({
               type: type,
               sourcePath: sourcePath,
@@ -1070,15 +1076,45 @@ internal object CmsWebAssets {
             });
           }
 
-          function contentSnapshot() {
+          function snapshotForContent(type, sourcePath, source) {
+            const normalizedType = type || null;
+            const normalizedSourcePath = String(sourcePath || "").trim();
+            const normalizedSource = String(source || "");
+            const parsed = parseDocument(normalizedSource);
+            return {
+              type: normalizedType,
+              sourcePath: normalizedSourcePath,
+              source: normalizedSource,
+              frontmatter: parsed.frontmatter,
+              body: parsed.body,
+              key: snapshotKeyForContent(normalizedType, normalizedSourcePath, normalizedSource)
+            };
+          }
+
+          function currentContentSnapshot() {
+            return contentDraftSnapshot;
+          }
+
+          function captureContentSnapshot() {
             if (!elements.type.value || state.mode !== "content") {
+              contentDraftSnapshot = null;
               return null;
             }
-            return snapshotForContent(
+            contentDraftSnapshot = snapshotForContent(
               elements.type.value,
               elements.sourcePath.value,
               elements.source.value
             );
+            return contentDraftSnapshot;
+          }
+
+          function applyContentSnapshot(snapshot) {
+            contentDraftSnapshot = snapshot ? { ...snapshot } : null;
+            return contentDraftSnapshot;
+          }
+
+          function contentSnapshot() {
+            return contentDraftSnapshot ? contentDraftSnapshot.key : null;
           }
 
           function savedDocumentSnapshot(document) {
@@ -1089,8 +1125,8 @@ internal object CmsWebAssets {
             );
           }
 
-          function rememberSavedSnapshot(statusText = "Autosave on", snapshot = contentSnapshot()) {
-            lastSavedSnapshot = snapshot;
+          function rememberSavedSnapshot(statusText = "Autosave on", snapshot = currentContentSnapshot()) {
+            lastSavedSnapshot = snapshot ? snapshot.key : null;
             const currentSnapshot = contentSnapshot();
             if (!currentSnapshot) {
               setAutosaveStatus("Read only");
@@ -1105,95 +1141,93 @@ internal object CmsWebAssets {
             if (state.mode !== "content") {
               return null;
             }
-            return String(elements.sourcePath.value || "").trim();
+            const snapshot = currentContentSnapshot();
+            return snapshot ? snapshot.sourcePath : String(elements.sourcePath.value || "").trim();
           }
 
           function currentContentType() {
             if (state.mode !== "content") {
               return null;
             }
-            return elements.type.value || null;
+            const snapshot = currentContentSnapshot();
+            return snapshot ? snapshot.type : (elements.type.value || null);
           }
 
           function activeContentPath() {
             return currentContentPath() || state.selected;
           }
 
-          async function runAutosave() {
-            autosaveTimer = null;
-            const snapshot = contentSnapshot();
-            if (!snapshot || snapshot === lastSavedSnapshot) {
+          function cancelAutosaveTimer() {
+            if (autosaveTimer !== null) {
+              window.clearTimeout(autosaveTimer);
+              autosaveTimer = null;
+            }
+          }
+
+          function interruptSaveInFlight() {
+            if (saveController) {
+              saveController.abort();
+            }
+          }
+
+          async function waitForSaveToSettle() {
+            if (!savePromise) {
               return;
             }
-            if (saveInFlight) {
-              saveQueued = true;
-              return savePromise;
-            }
-
-            saveInFlight = true;
-            setAutosaveStatus("Saving...");
-            let promise;
-            promise = (async () => {
-              try {
-                await save({ autosave: true });
-              } catch (error) {
-                setAutosaveStatus("Save failed", true);
+            try {
+              await savePromise;
+            } catch (error) {
+              if (!isAbortError(error)) {
                 throw error;
-              } finally {
-                saveInFlight = false;
-                if (saveQueued) {
-                  saveQueued = false;
-                  scheduleAutosave(0);
-                }
-                if (savePromise === promise) {
-                  savePromise = null;
-                }
               }
-            })();
-            savePromise = promise;
-            return promise;
+            }
+          }
+
+          async function runAutosave(expectedSnapshotKey = null) {
+            autosaveTimer = null;
+            const snapshot = currentContentSnapshot();
+            if (!snapshot || snapshot.key === lastSavedSnapshot) {
+              return;
+            }
+            if (expectedSnapshotKey && snapshot.key !== expectedSnapshotKey) {
+              return;
+            }
+            return save({ autosave: true, snapshot: snapshot });
           }
 
           function scheduleAutosave(delay = AUTOSAVE_DELAY_MS) {
-            if (autosaveTimer !== null) {
-              window.clearTimeout(autosaveTimer);
-            }
-
-            const snapshot = contentSnapshot();
-            if (!snapshot || snapshot === lastSavedSnapshot) {
+            cancelAutosaveTimer();
+            const snapshot = currentContentSnapshot();
+            if (!snapshot || snapshot.key === lastSavedSnapshot) {
               return;
             }
 
             setAutosaveStatus("Unsaved changes");
             autosaveTimer = window.setTimeout(() => {
-              runAutosave().catch(error => log(error.message));
+              runAutosave(snapshot.key).catch(error => log(error.message));
             }, delay);
           }
 
           async function flushAutosave() {
-            if (autosaveTimer !== null) {
-              window.clearTimeout(autosaveTimer);
-              autosaveTimer = null;
-            }
+            cancelAutosaveTimer();
 
             while (true) {
-              const snapshot = contentSnapshot();
-              if (!snapshot || snapshot === lastSavedSnapshot) {
-                if (savePromise) {
-                  await savePromise;
-                }
+              const snapshot = currentContentSnapshot();
+              if (!snapshot || snapshot.key === lastSavedSnapshot) {
+                await waitForSaveToSettle();
                 return;
               }
 
               if (saveInFlight) {
-                if (savePromise) {
-                  await savePromise;
-                  continue;
+                const sameSnapshot = activeSaveSnapshot && activeSaveSnapshot.key === snapshot.key;
+                if (!sameSnapshot) {
+                  interruptSaveInFlight();
                 }
-                return;
+                await waitForSaveToSettle();
+                continue;
               }
 
-              await runAutosave();
+              await save({ autosave: true, snapshot: snapshot });
             }
           }
 
@@ -1277,6 +1311,7 @@ internal object CmsWebAssets {
             elements.sourcePath.value = "";
             elements.source.value = "";
             setEditorEditable(false);
+            contentDraftSnapshot = null;
             lastSavedSnapshot = null;
             setContentPreviewPath("/");
             setEditorHeading("Select a file", "Choose a post, page, or media item from the left.");
@@ -1519,6 +1554,7 @@ internal object CmsWebAssets {
             state.renamingContentPath = null;
             state.selectedMediaPath = sourcePath;
             state.selectedMediaKind = kind;
+            contentDraftSnapshot = null;
             elements.type.value = "";
             elements.sourcePath.value = sourcePath;
             elements.source.value = mediaEditorText(sourcePath, kind);
@@ -1596,6 +1632,8 @@ internal object CmsWebAssets {
             elements.sourcePath.value = normalizedPath;
             elements.editorTitle.textContent = fileNameFromPath(normalizedPath);
             renderList();
+            interruptSaveInFlight();
+            captureContentSnapshot();
             scheduleAutosave(0);
           }
 
@@ -2088,7 +2126,7 @@ internal object CmsWebAssets {
             setEditorHeading(fileNameFromPath(response.sourcePath), subtitle);
             renderList();
             renderMediaTree();
-            rememberSavedSnapshot("Autosave on");
+            rememberSavedSnapshot("Autosave on", captureContentSnapshot());
             if (logLoad) {
               log("Loaded " + response.sourcePath);
             }
@@ -2120,56 +2158,112 @@ internal object CmsWebAssets {
             setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
             renderList();
             renderMediaTree();
-            rememberSavedSnapshot("Autosave on");
+            rememberSavedSnapshot("Autosave on", captureContentSnapshot());
             beginContentRename(elements.sourcePath.value);
             log("Preparing " + elements.sourcePath.value + ".");
           }
 
           async function save(options = {}) {
             const autosave = options.autosave === true;
-            if (!elements.type.value) {
+            let snapshot = options.snapshot || currentContentSnapshot();
+            if (!snapshot || !snapshot.type) {
               throw new Error("Select or create a post or page before saving.");
             }
 
-            const currentPath = String(elements.sourcePath.value || "").trim();
-            if (!currentPath) {
+            if (!snapshot.sourcePath) {
               throw new Error("Source path cannot be blank.");
             }
 
-            const parsed = parseDocument(elements.source.value);
-            const payload = {
-              type: elements.type.value,
-              sourcePath: currentPath,
-              previousSourcePath: state.selected && state.selected !== currentPath ? state.selected : null,
-              frontmatter: parsed.frontmatter,
-              body: parsed.body
-            };
-
-            const response = await api("/content", {
-              method: "POST",
-              body: JSON.stringify(payload)
-            });
-            if (!response) return;
-
-            state.selected = response.item.sourcePath;
-            state.renamingContentPath = null;
-            setActiveContentTab(response.item.type);
-            elements.type.value = response.item.type;
-            elements.sourcePath.value = response.item.sourcePath;
-            setContentPreviewPath(previewPathFromOutputPath(response.item.outputPath));
-            setEditorHeading(
-              fileNameFromPath(response.item.sourcePath),
-              response.item.isDraft ? "draft · " + response.item.title : response.item.title
-            );
-            log((autosave ? "Autosaved " : "Saved ") + response.item.sourcePath + " and rebuilt the site.");
-            if (response.sync) {
-              updateSyncState(response.sync);
-              log(response.sync.message + " " + syncSummary(response.sync));
+            if (snapshot.key === lastSavedSnapshot) {
+              return;
             }
 
-            const savedSnapshot = savedDocumentSnapshot(response.item);
-            await Promise.all([loadStatus(), loadList()]);
-            rememberSavedSnapshot("Saved", savedSnapshot);
+            if (saveInFlight) {
+              const sameSnapshot = activeSaveSnapshot && activeSaveSnapshot.key === snapshot.key;
+              if (sameSnapshot) {
+                return savePromise;
+              }
+              interruptSaveInFlight();
+              await waitForSaveToSettle();
+              snapshot = currentContentSnapshot();
+              if (!snapshot || snapshot.key === lastSavedSnapshot) {
+                return;
+              }
+            }
+
+            const payload = {
+              type: snapshot.type,
+              sourcePath: snapshot.sourcePath,
+              previousSourcePath: state.selected && state.selected !== snapshot.sourcePath ? state.selected : null,
+              frontmatter: snapshot.frontmatter,
+              body: snapshot.body
+            };
+
+            saveInFlight = true;
+            setAutosaveStatus("Saving...");
+            const controller = new AbortController();
+            saveController = controller;
+            activeSaveSnapshot = snapshot;
+
+            let promise;
+            promise = (async () => {
+              try {
+                const response = await api("/content", {
+                  method: "POST",
+                  body: JSON.stringify(payload),
+                  signal: controller.signal
+                });
+                if (!response) return;
+
+                const currentSnapshot = currentContentSnapshot();
+                if (!currentSnapshot || currentSnapshot.key !== snapshot.key) {
+                  return;
+                }
+
+                state.selected = response.item.sourcePath;
+                state.renamingContentPath = null;
+                setActiveContentTab(response.item.type);
+                elements.type.value = response.item.type;
+                elements.sourcePath.value = response.item.sourcePath;
+                setContentPreviewPath(previewPathFromOutputPath(response.item.outputPath));
+                setEditorHeading(
+                  fileNameFromPath(response.item.sourcePath),
+                  response.item.isDraft ? "draft · " + response.item.title : response.item.title
+                );
+                log((autosave ? "Autosaved " : "Saved ") + response.item.sourcePath + " and rebuilt the site.");
+                if (response.sync) {
+                  updateSyncState(response.sync);
+                  log(response.sync.message + " " + syncSummary(response.sync));
+                }
+
+                const savedSnapshot = savedDocumentSnapshot(response.item);
+                applyContentSnapshot(savedSnapshot);
+                await Promise.all([loadStatus(), loadList()]);
+                rememberSavedSnapshot("Saved", savedSnapshot);
+              } catch (error) {
+                if (isAbortError(error)) {
+                  return;
+                }
+                setAutosaveStatus("Save failed", true);
+                throw error;
+              } finally {
+                if (saveController === controller) {
+                  saveController = null;
+                }
+                if (activeSaveSnapshot && activeSaveSnapshot.key === snapshot.key) {
+                  activeSaveSnapshot = null;
+                }
+                saveInFlight = false;
+                if (savePromise === promise) {
+                  savePromise = null;
+                }
+                if (contentSnapshot() !== lastSavedSnapshot) {
+                  setAutosaveStatus("Unsaved changes");
+                }
+              }
+            })();
+            savePromise = promise;
+            return promise;
           }
 
           async function sync(commitMessage, push) {
@@ -2414,7 +2508,11 @@ internal object CmsWebAssets {
               log(error.message);
             }
           });
-          elements.source.addEventListener("input", () => scheduleAutosave());
+          elements.source.addEventListener("input", () => {
+            interruptSaveInFlight();
+            captureContentSnapshot();
+            scheduleAutosave();
+          });
 
           elements.mediaFileInput.addEventListener("change", () => {
             state.pendingUploadFiles = Array.from(elements.mediaFileInput.files || []);
