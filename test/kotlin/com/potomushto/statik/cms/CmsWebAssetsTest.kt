@@ -55,4 +55,14 @@ class CmsWebAssetsTest {
         assertTrue(script.contains("""captureContentSnapshot();"""))
         assertTrue(!script.contains("""const parsed = parseDocument(elements.source.value);"""))
     }
+
+    @Test
+    fun `app script updates browser title from editor heading`() {
+        val script = CmsWebAssets.appJs
+
+        assertTrue(script.contains("""const baseDocumentTitle = document.title || "Statik CMS";"""))
+        assertTrue(script.contains("""document.title = nextTitle && nextTitle !== "Select a file""""))
+        assertTrue(script.contains("""? nextTitle + " · " + baseDocumentTitle"""))
+        assertTrue(script.contains("""setEditorHeading(fileNameFromPath(normalizedPath), elements.editorSubtitle.textContent || "");"""))
+    }
 }

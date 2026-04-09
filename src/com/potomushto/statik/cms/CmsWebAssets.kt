@@ -951,6 +951,7 @@ internal object CmsWebAssets {
           let activeSaveSnapshot = null;
           let contentDraftSnapshot = null;
           let lastSavedSnapshot = null;
+          const baseDocumentTitle = document.title || "Statik CMS";
 
           function log(message) {
             const stamp = new Date().toLocaleTimeString();
@@ -1630,7 +1631,7 @@ internal object CmsWebAssets {
             }
 
             elements.sourcePath.value = normalizedPath;
-            elements.editorTitle.textContent = fileNameFromPath(normalizedPath);
+            setEditorHeading(fileNameFromPath(normalizedPath), elements.editorSubtitle.textContent || "");
             renderList();
             interruptSaveInFlight();
             captureContentSnapshot();
@@ -2011,6 +2012,10 @@ internal object CmsWebAssets {
           function setEditorHeading(title, subtitle) {
             elements.editorTitle.textContent = title;
             elements.editorSubtitle.textContent = subtitle;
+            const nextTitle = String(title || "").trim();
+            document.title = nextTitle && nextTitle !== "Select a file"
+              ? nextTitle + " · " + baseDocumentTitle
+              : baseDocumentTitle;
           }
 
           function parseDocument(source) {
