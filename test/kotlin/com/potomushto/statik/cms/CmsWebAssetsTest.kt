@@ -15,6 +15,30 @@ class CmsWebAssetsTest {
     }
 
     @Test
+    fun `index html loads shared stylesheets before cms styles`() {
+        val html = CmsWebAssets.indexHtml(
+            siteName = "Demo",
+            basePath = "/__statik__/cms",
+            sharedStylesheetHrefs = listOf("/__statik__/cms/theme-assets/static/css/tokens.css")
+        )
+
+        assertTrue(html.contains("""<link rel="stylesheet" href="/__statik__/cms/theme-assets/static/css/tokens.css">"""))
+        assertTrue(
+            html.indexOf("""/theme-assets/static/css/tokens.css""") <
+                html.indexOf("href=\"/__statik__/cms/styles.css\"")
+        )
+    }
+
+    @Test
+    fun `index html includes media in the primary content tabs`() {
+        val html = CmsWebAssets.indexHtml("Demo", "/__statik__/cms")
+
+        assertTrue(html.contains("""id="content-tab-media""""))
+        assertTrue(html.contains("""data-content-type="MEDIA">Media</button>"""))
+        assertTrue(html.contains("""<div id="media-tree" class="tree-root" hidden></div>"""))
+    }
+
+    @Test
     fun `styles keep status strip height stable`() {
         val styles = CmsWebAssets.stylesCss
 
@@ -64,5 +88,17 @@ class CmsWebAssetsTest {
         assertTrue(script.contains("""document.title = nextTitle && nextTitle !== "Select a file""""))
         assertTrue(script.contains("""? nextTitle + " · " + baseDocumentTitle"""))
         assertTrue(script.contains("""setEditorHeading(fileNameFromPath(normalizedPath), elements.editorSubtitle.textContent || "");"""))
+    }
+
+    @Test
+    fun `app script treats media as a first class navigation tab`() {
+        val script = CmsWebAssets.appJs
+
+        assertTrue(script.contains("""contentTabMedia: document.getElementById("content-tab-media"),"""))
+        assertTrue(script.contains("""state.activeContentTab = type === "PAGE" ? "PAGE" : (type === "MEDIA" ? "MEDIA" : "POST");"""))
+        assertTrue(script.contains("""elements.contentTree.hidden = state.activeContentTab === "MEDIA";"""))
+        assertTrue(script.contains("""elements.mediaTree.hidden = state.activeContentTab !== "MEDIA";"""))
+        assertTrue(script.contains("""elements.contentTabMedia.addEventListener("click", () => {"""))
+        assertTrue(script.contains("""setActiveContentTab("MEDIA");"""))
     }
 }

@@ -145,6 +145,7 @@ Example `config.json`:
     "basePath": "/__statik__/cms",
     "databasePath": ".statik/cms.db",
     "autoSyncOnSave": false,
+    "sharedStylesheets": ["static/css/tokens.css"],
     "git": {
       "enabled": true,
       "remote": "origin",
@@ -195,6 +196,8 @@ Example `config.json`:
   }
 }
 ```
+
+If you want the CMS shell to share typography, colors, or tokens with your site and preview, add those CSS asset source paths to `cms.sharedStylesheets`. Each path must point to a `.css` file inside one of the configured `theme.assets` directories. Statik will load those files before the built-in CMS stylesheet.
 
 - `staticDatasource.outputDir`: Directory (inside `theme.output`) for generated datasource JSON files.
 - `staticDatasource.collectAttribute`: Attribute used to mark custom collectable elements (default `data-collect`).

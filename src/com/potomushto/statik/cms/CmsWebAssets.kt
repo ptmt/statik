@@ -1,7 +1,10 @@
 package com.potomushto.statik.cms
 
 internal object CmsWebAssets {
-    fun indexHtml(siteName: String, basePath: String): String {
+    fun indexHtml(siteName: String, basePath: String, sharedStylesheetHrefs: List<String> = emptyList()): String {
+        val sharedStylesheetsHtml = sharedStylesheetHrefs.joinToString("\n") { href ->
+            """  <link rel="stylesheet" href="${htmlAttribute(href)}">"""
+        }
         return """
             <!doctype html>
             <html lang="en">
@@ -9,6 +12,7 @@ internal object CmsWebAssets {
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <title>$siteName CMS</title>
+              $sharedStylesheetsHtml
               <link rel="stylesheet" href="$basePath/styles.css">
             </head>
             <body>
@@ -32,22 +36,17 @@ internal object CmsWebAssets {
                       <div class="content-tabs" role="tablist" aria-label="Content type">
                         <button id="content-tab-posts" class="content-tab active" type="button" role="tab" aria-selected="true" data-content-type="POST">Posts</button>
                         <button id="content-tab-pages" class="content-tab" type="button" role="tab" aria-selected="false" data-content-type="PAGE">Pages</button>
+                        <button id="content-tab-media" class="content-tab" type="button" role="tab" aria-selected="false" data-content-type="MEDIA">Media</button>
                       </div>
-                      <button id="new-content" class="tree-action" type="button">+ New</button>
+                      <div class="tree-actions">
+                        <button id="new-content" class="tree-action" type="button">+ New</button>
+                        <button id="upload-media" class="tree-action" type="button" hidden>Upload</button>
+                        <button id="rename-media" class="tree-action" type="button" hidden disabled>Rename</button>
+                        <button id="delete-media" class="tree-action" type="button" hidden disabled>Delete</button>
+                      </div>
                     </div>
                     <div id="content-tree" class="tree-root"></div>
-                  </section>
-
-                  <section class="tree-section">
-                    <div class="tree-section-header">
-                      <span>Media</span>
-                      <div class="tree-actions">
-                        <button id="upload-media" class="tree-action" type="button">Upload</button>
-                        <button id="rename-media" class="tree-action" type="button" disabled>Rename</button>
-                        <button id="delete-media" class="tree-action" type="button" disabled>Delete</button>
-                      </div>
-                    </div>
-                    <div id="media-tree" class="tree-root"></div>
+                    <div id="media-tree" class="tree-root" hidden></div>
                   </section>
                 </aside>
 
@@ -912,6 +911,7 @@ internal object CmsWebAssets {
             contentTree: document.getElementById("content-tree"),
             contentTabPosts: document.getElementById("content-tab-posts"),
             contentTabPages: document.getElementById("content-tab-pages"),
+            contentTabMedia: document.getElementById("content-tab-media"),
             mediaTree: document.getElementById("media-tree"),
             status: document.getElementById("status-chips"),
             log: document.getElementById("activity-log"),
@@ -1354,7 +1354,7 @@ internal object CmsWebAssets {
           }
 
           function setActiveContentTab(type) {
-            state.activeContentTab = type === "PAGE" ? "PAGE" : "POST";
+            state.activeContentTab = type === "PAGE" ? "PAGE" : (type === "MEDIA" ? "MEDIA" : "POST");
             if (elements.contentTabPosts) {
               const postsActive = state.activeContentTab === "POST";
               elements.contentTabPosts.classList.toggle("active", postsActive);
@@ -1365,6 +1365,33 @@ internal object CmsWebAssets {
               elements.contentTabPages.classList.toggle("active", pagesActive);
               elements.contentTabPages.setAttribute("aria-selected", pagesActive ? "true" : "false");
             }
+            if (elements.contentTabMedia) {
+              const mediaActive = state.activeContentTab === "MEDIA";
+              elements.contentTabMedia.classList.toggle("active", mediaActive);
+              elements.contentTabMedia.setAttribute("aria-selected", mediaActive ? "true" : "false");
+            }
+            if (elements.contentTree) {
+              elements.contentTree.hidden = state.activeContentTab === "MEDIA";
+            }
+            if (elements.mediaTree) {
+              elements.mediaTree.hidden = state.activeContentTab !== "MEDIA";
+            }
+            if (elements.newContent) {
+              const contentActive = state.activeContentTab !== "MEDIA";
+              elements.newContent.hidden = !contentActive;
+              elements.newContent.disabled = !contentActive;
+            }
+            if (elements.uploadMedia) {
+              const mediaActive = state.activeContentTab === "MEDIA";
+              elements.uploadMedia.hidden = !mediaActive;
+            }
+            if (elements.renameMedia) {
+              elements.renameMedia.hidden = state.activeContentTab !== "MEDIA";
+            }
+            if (elements.deleteMedia) {
+              elements.deleteMedia.hidden = state.activeContentTab !== "MEDIA";
+            }
+            updateMediaActions();
           }
 
           function virtualContentItem(type, sourcePath) {
@@ -1550,6 +1577,7 @@ internal object CmsWebAssets {
           }
 
           function selectMedia(sourcePath, kind) {
+            setActiveContentTab("MEDIA");
             state.mode = "media";
             state.selected = null;
             state.renamingContentPath = null;
@@ -1821,6 +1849,9 @@ internal object CmsWebAssets {
 
           function renderList() {
             setActiveContentTab(state.activeContentTab);
+            if (state.activeContentTab === "MEDIA") {
+              return;
+            }
             renderTree(
               elements.contentTree,
               groupItems(state.activeContentTab),
@@ -1975,8 +2006,10 @@ internal object CmsWebAssets {
           }
 
           function updateMediaActions() {
+            const mediaActive = state.activeContentTab === "MEDIA";
             const hasSelection = !!state.selectedMediaPath;
-            const disabled = !hasSelection || selectedMediaIsRoot();
+            const disabled = !mediaActive || !hasSelection || selectedMediaIsRoot();
+            elements.uploadMedia.disabled = !mediaActive;
             elements.renameMedia.disabled = disabled;
             elements.deleteMedia.disabled = disabled;
           }
@@ -2455,6 +2488,10 @@ internal object CmsWebAssets {
             setActiveContentTab("PAGE");
             renderList();
           });
+          elements.contentTabMedia.addEventListener("click", () => {
+            setActiveContentTab("MEDIA");
+            renderMediaTree();
+          });
           elements.newContent.addEventListener("click", async () => {
             try {
               await flushAutosave();
@@ -2606,6 +2643,20 @@ internal object CmsWebAssets {
             .catch(error => log(error.message));
         })();
     """.trimIndent()
+
+    private fun htmlAttribute(value: String): String {
+        return buildString {
+            value.forEach { char ->
+                when (char) {
+                    '&' -> append("&amp;")
+                    '<' -> append("&lt;")
+                    '>' -> append("&gt;")
+                    '"' -> append("&quot;")
+                    else -> append(char)
+                }
+            }
+        }
+    }
 
     private fun jsonString(value: String): String {
         return buildString {

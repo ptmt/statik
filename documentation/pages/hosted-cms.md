@@ -74,6 +74,7 @@ If you keep install scope to one repository, the app remains tightly scoped even
     "basePath": "/__statik__/cms",
     "databasePath": ".statik/cms.db",
     "autoSyncOnSave": false,
+    "sharedStylesheets": ["static/css/tokens.css"],
     "git": {
       "enabled": true,
       "remote": "origin",
@@ -113,6 +114,7 @@ Key points:
 - `cms.repo.checkoutDir` is the managed clone path on disk.
 - `cms.databasePath` is resolved relative to the host config directory, not the git checkout.
 - `cms.databasePath` must live on persistent storage if you want auth sessions to survive container restarts or deploys.
+- `cms.sharedStylesheets` lets the CMS shell load selected CSS files from your site assets before the built-in CMS stylesheet. Use this for shared design tokens or typography, not for the entire public site stylesheet.
 
 ## Running the Container
 

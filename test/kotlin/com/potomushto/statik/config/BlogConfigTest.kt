@@ -59,6 +59,7 @@ class BlogConfigTest {
         assertEquals("/__statik__/cms", config.cms.basePath)
         assertEquals(".statik/cms.db", config.cms.databasePath)
         assertEquals(false, config.cms.autoSyncOnSave)
+        assertEquals(emptyList(), config.cms.sharedStylesheets)
         assertEquals(true, config.cms.git.enabled)
         assertEquals("origin", config.cms.git.remote)
         assertEquals(false, config.cms.git.pushOnSync)
@@ -142,6 +143,7 @@ class BlogConfigTest {
                 "basePath": "/editor",
                 "databasePath": ".cache/editor.db",
                 "autoSyncOnSave": true,
+                "sharedStylesheets": ["static/css/tokens.css", "static/css/cms-preview.css"],
                 "git": {
                   "enabled": true,
                   "remote": "upstream",
@@ -183,6 +185,7 @@ class BlogConfigTest {
         assertEquals("/editor", config.cms.basePath)
         assertEquals(".cache/editor.db", config.cms.databasePath)
         assertEquals(true, config.cms.autoSyncOnSave)
+        assertEquals(listOf("static/css/tokens.css", "static/css/cms-preview.css"), config.cms.sharedStylesheets)
         assertEquals(true, config.cms.git.enabled)
         assertEquals("upstream", config.cms.git.remote)
         assertEquals("main", config.cms.git.branch)

@@ -79,6 +79,7 @@ data class CmsConfig(
     val basePath: String = "/__statik__/cms",
     val databasePath: String = ".statik/cms.db",
     val autoSyncOnSave: Boolean = false,
+    val sharedStylesheets: List<String> = emptyList(),
     val git: CmsGitConfig = CmsGitConfig(),
     val auth: CmsAuthConfig = CmsAuthConfig(),
     val repo: CmsRepoConfig = CmsRepoConfig()

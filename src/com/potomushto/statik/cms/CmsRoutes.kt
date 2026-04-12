@@ -52,7 +52,11 @@ fun Routing.installCmsRoutes(
         }
 
         call.respondText(
-            CmsWebAssets.indexHtml(siteNameProvider(), basePath),
+            CmsWebAssets.indexHtml(
+                siteName = siteNameProvider(),
+                basePath = basePath,
+                sharedStylesheetHrefs = service.sharedStylesheetHrefs()
+            ),
             ContentType.Text.Html
         )
     }
@@ -178,6 +182,33 @@ fun Routing.installCmsRoutes(
             ?.joinToString("/")
             .orEmpty()
         renderPreview(call, requestedPath)
+    }
+
+    get("$basePath/theme-assets/{path...}") {
+        val session = if (authService?.isEnabled() == true) {
+            requireHtmlSession(call, basePath, authService) ?: return@get
+        } else {
+            null
+        }
+
+        val service = requireCmsService(
+            call = call,
+            cmsServiceProvider = cmsServiceProvider,
+            workspaceManager = workspaceManager,
+            authService = authService,
+            session = session
+        ) ?: return@get
+
+        val requestedPath = call.parameters.getAll("path")
+            ?.joinToString("/")
+            .orEmpty()
+        val resolvedFile = service.resolveSharedStylesheetFile(requestedPath)
+        if (resolvedFile != null) {
+            call.respondFile(resolvedFile.toFile())
+            return@get
+        }
+
+        call.respondText(text = "404: Page Not Found", status = HttpStatusCode.NotFound)
     }
 
     get("$basePath/styles.css") {

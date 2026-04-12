@@ -262,6 +262,28 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `cms shared stylesheets expose configured theme css`() {
+        (tempRoot / "static" / "css").createDirectories()
+        (tempRoot / "static" / "css" / "tokens.css").writeText(":root { --accent: #2f5d50; }")
+
+        val configWithSharedStyles = config.copy(
+            cms = config.cms.copy(sharedStylesheets = listOf("static/css/tokens.css"))
+        )
+        val generator = SiteGenerator(tempRoot.toString(), configWithSharedStyles)
+        generator.generate()
+
+        val service = CmsService(tempRoot, configWithSharedStyles, generator).also { it.bootstrap() }
+
+        assertEquals(
+            listOf("/__statik__/cms/theme-assets/static/css/tokens.css"),
+            service.sharedStylesheetHrefs()
+        )
+
+        val stylesheet = assertNotNull(service.resolveSharedStylesheetFile("static/css/tokens.css"))
+        assertEquals(":root { --accent: #2f5d50; }", stylesheet.readText())
+    }
+
+    @Test
     fun `preview stays current after saving when preview was already opened`() {
         createPost(
             "posts/draft.md",

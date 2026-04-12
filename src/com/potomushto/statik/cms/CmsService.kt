@@ -4,9 +4,11 @@ import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.AssetManager
 import com.potomushto.statik.generators.FileWalker
 import com.potomushto.statik.generators.SiteGenerator
+import java.net.URLEncoder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.util.Comparator
 
@@ -23,6 +25,9 @@ class CmsService(
 ) {
     private val lock = Any()
     private val basePath = normalizeBasePath(config.cms.basePath)
+    private val sharedStylesheetPaths = config.cms.sharedStylesheets
+        .mapNotNull(::normalizeSharedStylesheetPath)
+        .distinct()
     private val previewConfig = config.copy(
         theme = config.theme.copy(output = PREVIEW_OUTPUT_DIRECTORY)
     )
@@ -49,6 +54,24 @@ class CmsService(
         synchronized(lock) {
             ensurePreviewInitializedLocked()
             return resolveGeneratedFile(previewOutputRoot(), requestedPath)
+        }
+    }
+
+    fun sharedStylesheetHrefs(): List<String> {
+        return sharedStylesheetPaths.map { sourcePath ->
+            "$basePath/theme-assets/${encodePathForHref(sourcePath)}"
+        }
+    }
+
+    fun resolveSharedStylesheetFile(requestedPath: String): Path? {
+        synchronized(lock) {
+            val normalizedPath = normalizeSharedStylesheetPath(requestedPath) ?: return null
+            if (normalizedPath !in sharedStylesheetPaths) {
+                return null
+            }
+
+            val resolvedFile = rootPath.resolve(normalizedPath).normalize()
+            return resolvedFile.takeIf { Files.isRegularFile(it) }
         }
     }
 
@@ -407,6 +430,27 @@ class CmsService(
             ?: throw IllegalArgumentException("Unsupported media path: $sourcePath")
     }
 
+    private fun normalizeSharedStylesheetPath(sourcePath: String): String? {
+        val normalizedPath = sourcePath.trim().removePrefix("/").replace('\\', '/')
+        if (normalizedPath.isBlank() || !normalizedPath.endsWith(".css", ignoreCase = true)) {
+            return null
+        }
+
+        val resolvedFile = rootPath.resolve(normalizedPath).normalize()
+        if (!resolvedFile.startsWith(rootPath.normalize())) {
+            return null
+        }
+
+        val normalizedAssetRoots = config.theme.assets.map {
+            it.trim().removePrefix("/").trimEnd('/', '\\').replace('\\', '/')
+        }
+        val isThemeAsset = normalizedAssetRoots.any { assetRoot ->
+            normalizedPath == assetRoot || normalizedPath.startsWith("$assetRoot/")
+        }
+
+        return if (isThemeAsset) normalizedPath else null
+    }
+
     companion object {
         private fun contentOrdering(): Comparator<CmsContentEntry> {
             return Comparator { left, right ->
@@ -510,6 +554,14 @@ class CmsService(
 
         private fun normalizeSourcePath(sourcePath: String): String {
             return sourcePath.trim().removePrefix("/").replace('\\', '/')
+        }
+
+        private fun encodePathForHref(path: String): String {
+            return path.split('/')
+                .filter { it.isNotBlank() }
+                .joinToString("/") { segment ->
+                    URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20")
+                }
         }
 
         private const val PREVIEW_OUTPUT_DIRECTORY = ".statik/cms-preview"
