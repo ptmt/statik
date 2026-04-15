@@ -169,7 +169,8 @@ data class CmsStatusResponse(
 @Serializable
 data class CmsRefreshResponse(
     val items: Int,
-    val dirty: Int
+    val dirty: Int,
+    val message: String? = null
 )
 
 @Serializable

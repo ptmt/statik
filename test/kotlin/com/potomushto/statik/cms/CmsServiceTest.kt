@@ -568,6 +568,98 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `refresh index pulls remote changes when cms is clean`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+        val remoteRoot = initializeGitRemote()
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+        pushFromPeer(
+            remoteRoot = remoteRoot,
+            relativePath = "posts/hello.md",
+            contents = """
+                ---
+                title: Remote
+                published: 2024-01-04T12:00:00
+                ---
+                Remote body.
+            """.trimIndent(),
+            commitMessage = "remote: update hello"
+        )
+
+        val refresh = service.refreshIndex()
+
+        assertEquals(0, refresh.dirty)
+        assertTrue(refresh.message?.contains("Pulled latest changes from origin/") == true)
+        assertTrue((tempRoot / "posts" / "hello.md").readText().contains("Remote body."))
+        assertTrue(service.get("posts/hello.md").body.contains("Remote body."))
+        assertTrue((tempRoot / "build" / "hello" / "index.html").readText().contains("Remote body."))
+    }
+
+    @Test
+    fun `sync without cms dirties rebases remote changes and pushes existing local commits`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+        val remoteRoot = initializeGitRemote()
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+
+        Git.open(tempRoot.toFile()).use { git ->
+            (tempRoot / "notes.txt").writeText("local ahead")
+            git.add().addFilepattern("notes.txt").call()
+            git.commit()
+                .setMessage("local: add notes")
+                .setAuthor("Local", "local@example.com")
+                .setCommitter("Local", "local@example.com")
+                .call()
+        }
+
+        pushFromPeer(
+            remoteRoot = remoteRoot,
+            relativePath = "remote.txt",
+            contents = "remote ahead",
+            commitMessage = "remote: add file"
+        )
+
+        val sync = service.sync(commitMessage = null, push = true)
+
+        assertFalse(sync.committed)
+        assertTrue(sync.pushSucceeded)
+        assertEquals(0, sync.dirtyRemaining)
+        assertTrue((tempRoot / "notes.txt").readText().contains("local ahead"))
+        assertTrue((tempRoot / "remote.txt").readText().contains("remote ahead"))
+        assertTrue(sync.message.contains("rebasing onto origin/"))
+
+        Git.cloneRepository().setURI(remoteRoot.toUri().toString()).setDirectory(createScratchDir("statik-cms-verify").toFile()).call().use { clone ->
+            val pulled = clone.repository.workTree.toPath()
+            assertTrue((pulled / "notes.txt").readText().contains("local ahead"))
+            assertTrue((pulled / "remote.txt").readText().contains("remote ahead"))
+        }
+    }
+
+    @Test
     fun `sync rebases and pushes when remote branch advanced`() {
         createPost(
             "posts/hello.md",

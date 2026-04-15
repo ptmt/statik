@@ -46,7 +46,7 @@ class CmsService(
 
     fun bootstrap() {
         synchronized(lock) {
-            refreshIndexLocked()
+            refreshIndexFromDiskLocked()
         }
     }
 
@@ -256,9 +256,9 @@ class CmsService(
         }
     }
 
-    fun refreshIndex(): CmsRefreshResponse {
+    fun refreshIndex(accessToken: String? = null): CmsRefreshResponse {
         synchronized(lock) {
-            return refreshIndexLocked()
+            return refreshIndexLocked(accessToken)
         }
     }
 
@@ -281,7 +281,20 @@ class CmsService(
         )
     }
 
-    private fun refreshIndexLocked(): CmsRefreshResponse {
+    private fun refreshIndexLocked(accessToken: String?): CmsRefreshResponse {
+        var message: String? = null
+        if (repository.dirtyCount() + repository.mediaDirtyCount() == 0) {
+            val pullOutcome = gitSyncService.pull(accessToken)
+            if (pullOutcome.repositoryChanged) {
+                rebuildGeneratedSiteLocked()
+            }
+            message = pullOutcome.message
+        }
+
+        return refreshIndexFromDiskLocked().copy(message = message)
+    }
+
+    private fun refreshIndexFromDiskLocked(): CmsRefreshResponse {
         val scannedEntries = contentFileService.scanAll()
         repository.replaceFromScan(scannedEntries)
         val scannedMedia = mediaFileService.scanAll()
@@ -303,6 +316,11 @@ class CmsService(
             val timestamp = System.currentTimeMillis()
             repository.markSynced(dirtyContentPaths, timestamp)
             repository.markMediaSynced(dirtyMediaPaths, timestamp)
+        }
+
+        if (outcome.repositoryChanged) {
+            rebuildGeneratedSiteLocked()
+            refreshIndexFromDiskLocked()
         }
 
         return CmsSyncResponse(
@@ -378,6 +396,13 @@ class CmsService(
             Files.deleteIfExists(target)
             pruneEmptyGeneratedDirectories(target.parent, outputRoot)
         }
+    }
+
+    private fun rebuildGeneratedSiteLocked() {
+        generator.getContentRepository().clearCache()
+        previewGenerator.getContentRepository().clearCache()
+        generator.generate()
+        previewInitialized = false
     }
 
     private fun ensurePreviewInitializedLocked() {

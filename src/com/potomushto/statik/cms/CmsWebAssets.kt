@@ -2528,6 +2528,9 @@ internal object CmsWebAssets {
             log("Rescanning content and media from disk.");
             const response = await api("/refresh", { method: "POST" });
             if (!response) return;
+            if (response.message) {
+              log(response.message);
+            }
             log("Rescan complete: " + response.items + " item(s), " + response.dirty + " dirty.");
             await Promise.all([loadStatus(), loadList(), loadMedia()]);
           }

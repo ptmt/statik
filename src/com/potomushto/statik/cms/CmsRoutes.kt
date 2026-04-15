@@ -286,7 +286,7 @@ fun Routing.installCmsRoutes(
     post("$basePath/api/refresh") {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
-        call.respondJson(json, service.refreshIndex())
+        call.respondJson(json, service.refreshIndex(accessToken(authService, workspaceManager, session)))
     }
 
     post("$basePath/api/sync") {

@@ -18,6 +18,35 @@ class GitSyncService(
     private val config: CmsGitConfig,
     private val generatedOutputRoot: String? = null
 ) {
+    fun pull(accessToken: String? = null): GitPullOutcome {
+        if (!config.enabled) {
+            return GitPullOutcome(
+                repositoryChanged = false,
+                message = null
+            )
+        }
+
+        val repository = openRepository() ?: return GitPullOutcome(
+            repositoryChanged = false,
+            message = null
+        )
+
+        repository.use { repo ->
+            ensureLocalExcludes(repo)
+            Git(repo).use { git ->
+                val pullResult = pullLatest(git, accessToken)
+                check(pullResult.succeeded) {
+                    pullResult.detail ?: "Pull from ${config.remote} could not be completed."
+                }
+
+                return GitPullOutcome(
+                    repositoryChanged = pullResult.repositoryChanged,
+                    message = pullResult.detail
+                )
+            }
+        }
+    }
+
     fun status(): CmsGitStatus {
         val repository = openRepository()
         return if (repository == null) {
@@ -44,15 +73,46 @@ class GitSyncService(
         require(config.enabled) { "CMS git sync is disabled in config.json" }
         val shouldPush = push ?: config.pushOnSync
         if (sourcePaths.isEmpty()) {
-            return GitSyncOutcome(
+            if (!shouldPush) {
+                return GitSyncOutcome(
+                    committed = false,
+                    commitId = null,
+                    message = "No CMS changes to sync.",
+                    pushAttempted = false,
+                    pushSucceeded = false,
+                    files = emptyList(),
+                    syncCompleted = false,
+                    repositoryChanged = false
+                )
+            }
+
+            val repository = openRepository() ?: return GitSyncOutcome(
                 committed = false,
                 commitId = null,
                 message = "No CMS changes to sync.",
                 pushAttempted = shouldPush,
                 pushSucceeded = false,
                 files = emptyList(),
-                syncCompleted = false
+                syncCompleted = false,
+                repositoryChanged = false
             )
+
+            repository.use { repo ->
+                ensureLocalExcludes(repo)
+                Git(repo).use { git ->
+                    val pushResult = pushWithRecovery(git, accessToken)
+                    return GitSyncOutcome(
+                        committed = false,
+                        commitId = null,
+                        message = pushResult.detail ?: "No new commit was created.",
+                        pushAttempted = true,
+                        pushSucceeded = pushResult.succeeded,
+                        files = emptyList(),
+                        syncCompleted = pushResult.succeeded,
+                        repositoryChanged = pushResult.repositoryChanged
+                    )
+                }
+            }
         }
 
         val repository = openRepository()
@@ -98,7 +158,8 @@ class GitSyncService(
                         pushAttempted = false,
                         pushSucceeded = false,
                         files = relativePaths,
-                        syncCompleted = false
+                        syncCompleted = false,
+                        repositoryChanged = false
                     )
                 }
 
@@ -133,7 +194,8 @@ class GitSyncService(
                     pushAttempted = shouldPush,
                     pushSucceeded = pushSucceeded,
                     files = relativePaths,
-                    syncCompleted = syncCompleted
+                    syncCompleted = syncCompleted,
+                    repositoryChanged = pushResult?.repositoryChanged ?: false
                 )
             }
         }
@@ -172,6 +234,74 @@ class GitSyncService(
         }.sorted()
     }
 
+    private fun pullLatest(git: Git, accessToken: String?): BranchSyncResult {
+        val branch = targetBranch(git.repository)
+            ?: return BranchSyncResult(
+                succeeded = true,
+                repositoryChanged = false,
+                detail = null
+            )
+        fetchRemote(git, accessToken)
+        val rebaseResult = rebaseOntoRemote(git, branch)
+        return if (rebaseResult.succeeded) {
+            BranchSyncResult(
+                succeeded = true,
+                repositoryChanged = rebaseResult.repositoryChanged,
+                detail = if (rebaseResult.repositoryChanged) {
+                    "Pulled latest changes from ${config.remote}/$branch."
+                } else {
+                    null
+                }
+            )
+        } else {
+            BranchSyncResult(
+                succeeded = false,
+                repositoryChanged = false,
+                detail = "Pull from ${config.remote}/$branch could not be completed automatically."
+            )
+        }
+    }
+
+    private fun fetchRemote(git: Git, accessToken: String?) {
+        credentialsProvider(accessToken)?.let { credentials ->
+            git.fetch()
+                .setRemote(config.remote)
+                .setCredentialsProvider(credentials)
+                .call()
+            return
+        }
+
+        git.fetch()
+            .setRemote(config.remote)
+            .call()
+    }
+
+    private fun rebaseOntoRemote(git: Git, branch: String): BranchSyncResult {
+        val remoteTrackingRef = "refs/remotes/${config.remote}/$branch"
+        val rebaseResult = git.rebase()
+            .setUpstream(remoteTrackingRef)
+            .call()
+
+        return if (rebaseResult.status.name in SUCCESSFUL_REBASE_STATUSES) {
+            BranchSyncResult(
+                succeeded = true,
+                repositoryChanged = rebaseResult.status.name in REPOSITORY_CHANGED_REBASE_STATUSES,
+                detail = null
+            )
+        } else {
+            runCatching {
+                git.rebase()
+                    .setOperation(RebaseCommand.Operation.ABORT)
+                    .call()
+            }
+            BranchSyncResult(
+                succeeded = false,
+                repositoryChanged = false,
+                detail = null
+            )
+        }
+    }
+
     private fun pushWithRecovery(git: Git, accessToken: String?): PushAttemptResult {
         val branch = targetBranch(git.repository)
         val initialPush = executePush(git, accessToken, branch)
@@ -179,35 +309,28 @@ class GitSyncService(
             return initialPush
         }
 
-        val remoteTrackingRef = "refs/remotes/${config.remote}/$branch"
-        credentialsProvider(accessToken)?.let { credentials ->
-            git.fetch()
-                .setRemote(config.remote)
-                .setCredentialsProvider(credentials)
-                .call()
-        } ?: git.fetch().setRemote(config.remote).call()
+        fetchRemote(git, accessToken)
+        val rebaseResult = rebaseOntoRemote(git, branch)
 
-        val rebaseResult = git.rebase()
-            .setUpstream(remoteTrackingRef)
-            .call()
-
-        return if (rebaseResult.status.name in SUCCESSFUL_REBASE_STATUSES) {
+        return if (rebaseResult.succeeded) {
             val retriedPush = executePush(git, accessToken, branch)
             if (retriedPush.succeeded) {
-                retriedPush.copy(detail = "Push succeeded after rebasing onto ${config.remote}/$branch.")
+                retriedPush.copy(
+                    detail = "Push succeeded after rebasing onto ${config.remote}/$branch.",
+                    repositoryChanged = rebaseResult.repositoryChanged
+                )
             } else {
-                retriedPush.copy(detail = "Push still failed after rebasing onto ${config.remote}/$branch.")
+                retriedPush.copy(
+                    detail = "Push still failed after rebasing onto ${config.remote}/$branch.",
+                    repositoryChanged = rebaseResult.repositoryChanged
+                )
             }
         } else {
-            runCatching {
-                git.rebase()
-                    .setOperation(RebaseCommand.Operation.ABORT)
-                    .call()
-            }
             PushAttemptResult(
                 succeeded = false,
                 rejectedByRemoteUpdate = true,
-                detail = "Push was rejected by ${config.remote}/$branch, and automatic rebase could not be completed."
+                detail = "Push was rejected by ${config.remote}/$branch, and automatic rebase could not be completed.",
+                repositoryChanged = false
             )
         }
     }
@@ -233,13 +356,28 @@ class GitSyncService(
         return PushAttemptResult(
             succeeded = successful,
             rejectedByRemoteUpdate = rejectedByRemoteUpdate,
-            detail = if (successful) null else summarizePushFailure(results, branch)
+            detail = if (successful) summarizePushSuccess(results, branch) else summarizePushFailure(results, branch),
+            repositoryChanged = false
         )
     }
 
     private fun targetBranch(repository: Repository): String? {
         return config.branch?.takeIf { it.isNotBlank() }
             ?: runCatching { repository.branch }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun summarizePushSuccess(results: Iterable<PushResult>, branch: String?): String? {
+        val updates = results.flatMap { it.remoteUpdates }
+        if (updates.isEmpty()) {
+            return "Push completed."
+        }
+
+        val target = branch?.let { "${config.remote}/$it" } ?: config.remote
+        return when {
+            updates.any { it.status == RemoteRefUpdate.Status.OK } -> "Push to $target succeeded."
+            updates.all { it.status == RemoteRefUpdate.Status.UP_TO_DATE } -> "Remote $target is already up to date."
+            else -> "Push completed."
+        }
     }
 
     private fun summarizePushFailure(results: Iterable<PushResult>, branch: String?): String {
@@ -257,11 +395,11 @@ class GitSyncService(
 
     private fun credentialsProvider(accessToken: String?): UsernamePasswordCredentialsProvider? {
         accessToken?.takeIf { it.isNotBlank() }?.let { token ->
-            return UsernamePasswordCredentialsProvider("oauth", token)
+            return UsernamePasswordCredentialsProvider("x-access-token", token)
         }
         val tokenEnv = config.tokenEnv?.takeIf { it.isNotBlank() } ?: return null
         val token = System.getenv(tokenEnv)?.takeIf { it.isNotBlank() } ?: return null
-        return UsernamePasswordCredentialsProvider("git", token)
+        return UsernamePasswordCredentialsProvider("x-access-token", token)
     }
 
     private fun openRepository(): Repository? {
@@ -331,18 +469,37 @@ data class GitSyncOutcome(
     val pushAttempted: Boolean,
     val pushSucceeded: Boolean,
     val files: List<String>,
-    val syncCompleted: Boolean
+    val syncCompleted: Boolean,
+    val repositoryChanged: Boolean
+)
+
+data class GitPullOutcome(
+    val repositoryChanged: Boolean,
+    val message: String?
 )
 
 private data class PushAttemptResult(
     val succeeded: Boolean,
     val rejectedByRemoteUpdate: Boolean,
+    val detail: String?,
+    val repositoryChanged: Boolean
+)
+
+private data class BranchSyncResult(
+    val succeeded: Boolean,
+    val repositoryChanged: Boolean,
     val detail: String?
 )
 
 private val SUCCESSFUL_REBASE_STATUSES = setOf(
     "OK",
     "UP_TO_DATE",
+    "FAST_FORWARD",
+    "NOTHING_TO_COMMIT"
+)
+
+private val REPOSITORY_CHANGED_REBASE_STATUSES = setOf(
+    "OK",
     "FAST_FORWARD",
     "NOTHING_TO_COMMIT"
 )
