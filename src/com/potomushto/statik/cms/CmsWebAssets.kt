@@ -1154,6 +1154,12 @@ internal object CmsWebAssets {
             return snapshot ? snapshot.type : (elements.type.value || null);
           }
 
+          function currentContentExtension() {
+            const sourcePath = currentContentPath() || String(elements.sourcePath.value || "").trim();
+            const dotIndex = sourcePath.lastIndexOf(".");
+            return dotIndex >= 0 ? sourcePath.slice(dotIndex + 1).toLowerCase() : "";
+          }
+
           function activeContentPath() {
             return currentContentPath() || state.selected;
           }
@@ -2076,6 +2082,61 @@ internal object CmsWebAssets {
             return "---\n" + normalizedFrontmatter + "\n---\n" + normalizedBody;
           }
 
+          function markdownBodyStart(source) {
+            const normalizedSource = String(source || "");
+            const match = /^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?([\s\S]*)$/.exec(normalizedSource);
+            if (!match) {
+              return 0;
+            }
+            return normalizedSource.length - match[2].length;
+          }
+
+          function supportsMarkdownFormattingShortcuts() {
+            return state.mode === "content" &&
+              !elements.source.readOnly &&
+              currentContentExtension() === "md";
+          }
+
+          function replaceSourceSelection(replacement, start, end, selectionStart, selectionEnd) {
+            const scrollTop = elements.source.scrollTop;
+            elements.source.focus();
+            elements.source.setSelectionRange(start, end);
+            elements.source.setRangeText(replacement, start, end, "end");
+            elements.source.setSelectionRange(selectionStart, selectionEnd);
+            elements.source.scrollTop = scrollTop;
+            elements.source.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+
+          function wrapSourceSelection(marker) {
+            if (!supportsMarkdownFormattingShortcuts()) {
+              return false;
+            }
+
+            const selectionStart = elements.source.selectionStart;
+            const selectionEnd = elements.source.selectionEnd;
+            const bodyStart = markdownBodyStart(elements.source.value);
+            if (selectionStart < bodyStart || selectionEnd < bodyStart) {
+              return false;
+            }
+
+            const selectedText = elements.source.value.slice(selectionStart, selectionEnd);
+            const replacement = marker + selectedText + marker;
+            if (selectionStart === selectionEnd) {
+              const cursor = selectionStart + marker.length;
+              replaceSourceSelection(replacement, selectionStart, selectionEnd, cursor, cursor);
+              return true;
+            }
+
+            replaceSourceSelection(
+              replacement,
+              selectionStart,
+              selectionEnd,
+              selectionStart + marker.length,
+              selectionEnd + marker.length
+            );
+            return true;
+          }
+
           async function loadStatus() {
             try {
               const status = await api("/status");
@@ -2554,6 +2615,22 @@ internal object CmsWebAssets {
             interruptSaveInFlight();
             captureContentSnapshot();
             scheduleAutosave();
+          });
+          elements.source.addEventListener("keydown", event => {
+            if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+              return;
+            }
+
+            const key = event.key.toLowerCase();
+            if (key !== "b" && key !== "i") {
+              return;
+            }
+
+            if (!wrapSourceSelection(key === "b" ? "**" : "*")) {
+              return;
+            }
+
+            event.preventDefault();
           });
 
           elements.mediaFileInput.addEventListener("change", () => {

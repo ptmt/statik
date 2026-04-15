@@ -81,6 +81,18 @@ class CmsWebAssetsTest {
     }
 
     @Test
+    fun `app script adds markdown formatting shortcuts to markdown source editing`() {
+        val script = CmsWebAssets.appJs
+
+        assertTrue(script.contains("""function currentContentExtension() {"""))
+        assertTrue(script.contains("""function markdownBodyStart(source) {"""))
+        assertTrue(script.contains("""currentContentExtension() === "md";"""))
+        assertTrue(script.contains("""elements.source.addEventListener("keydown", event => {"""))
+        assertTrue(script.contains("""if (key !== "b" && key !== "i") {"""))
+        assertTrue(script.contains("""if (!wrapSourceSelection(key === "b" ? "**" : "*")) {"""))
+    }
+
+    @Test
     fun `app script updates browser title from editor heading`() {
         val script = CmsWebAssets.appJs
 
