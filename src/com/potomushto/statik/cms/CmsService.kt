@@ -299,7 +299,7 @@ class CmsService(
         val dirtyPaths = dirtyContentPaths + dirtyMediaPaths
         val outcome = gitSyncService.sync(dirtyPaths, commitMessage, push, accessToken)
 
-        if (outcome.committed) {
+        if (outcome.syncCompleted) {
             val timestamp = System.currentTimeMillis()
             repository.markSynced(dirtyContentPaths, timestamp)
             repository.markMediaSynced(dirtyMediaPaths, timestamp)

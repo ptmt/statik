@@ -7,6 +7,8 @@ import com.potomushto.statik.config.PathConfig
 import com.potomushto.statik.config.ThemeConfig
 import com.potomushto.statik.generators.SiteGenerator
 import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.transport.RefSpec
+import org.eclipse.jgit.transport.URIish
 import java.util.Base64
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createDirectories
@@ -29,6 +31,7 @@ class CmsServiceTest {
 
     private lateinit var tempRoot: java.nio.file.Path
     private lateinit var config: BlogConfig
+    private val extraRoots = mutableListOf<java.nio.file.Path>()
 
     @BeforeTest
     fun setUp() {
@@ -58,6 +61,8 @@ class CmsServiceTest {
     @AfterTest
     fun tearDown() {
         tempRoot.deleteRecursively()
+        extraRoots.forEach { it.deleteRecursively() }
+        extraRoots.clear()
     }
 
     @Test
@@ -562,6 +567,112 @@ class CmsServiceTest {
         assertEquals(0, service.status().dirty)
     }
 
+    @Test
+    fun `sync rebases and pushes when remote branch advanced`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+        val remoteRoot = initializeGitRemote()
+        pushFromPeer(
+            remoteRoot = remoteRoot,
+            relativePath = "notes.txt",
+            contents = "remote update",
+            commitMessage = "remote: update notes"
+        )
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+        service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/hello.md",
+                frontmatter = """
+                    title: Synced
+                    published: 2024-01-03T11:00:00
+                """.trimIndent(),
+                body = "Synced content."
+            )
+        )
+
+        val sync = service.sync("cms: update hello", push = true)
+
+        assertTrue(sync.committed)
+        assertTrue(sync.pushSucceeded)
+        assertEquals(0, sync.dirtyRemaining)
+        assertFalse(service.get("posts/hello.md").dirty)
+        assertTrue(sync.message.contains("rebasing onto origin/"))
+
+        Git.cloneRepository().setURI(remoteRoot.toUri().toString()).setDirectory(createScratchDir("statik-cms-verify").toFile()).call().use { clone ->
+            val pulled = clone.repository.workTree.toPath()
+            assertTrue((pulled / "posts" / "hello.md").readText().contains("Synced content."))
+            assertTrue((pulled / "notes.txt").readText().contains("remote update"))
+        }
+    }
+
+    @Test
+    fun `sync keeps CMS entries dirty when push fails after rebase conflict`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+        val remoteRoot = initializeGitRemote()
+        pushFromPeer(
+            remoteRoot = remoteRoot,
+            relativePath = "posts/hello.md",
+            contents = """
+                ---
+                title: Remote
+                published: 2024-01-04T12:00:00
+                ---
+                Remote body.
+            """.trimIndent(),
+            commitMessage = "remote: update hello"
+        )
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+        service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/hello.md",
+                frontmatter = """
+                    title: Local
+                    published: 2024-01-05T12:00:00
+                """.trimIndent(),
+                body = "Local body."
+            )
+        )
+
+        val sync = service.sync("cms: conflicting hello", push = true)
+
+        assertTrue(sync.committed)
+        assertFalse(sync.pushSucceeded)
+        assertEquals(1, sync.dirtyRemaining)
+        assertTrue(service.get("posts/hello.md").dirty)
+        assertTrue(sync.message.contains("automatic rebase could not be completed"))
+
+        Git.open(tempRoot.toFile()).use { git ->
+            assertTrue(git.status().call().isClean)
+        }
+    }
+
     private fun createCmsService(): CmsService {
         val generator = SiteGenerator(tempRoot.toString(), config)
         generator.generate()
@@ -584,5 +695,65 @@ class CmsServiceTest {
         Git.open(tempRoot.toFile()).use { git ->
             return git.log().setMaxCount(1).call().first().fullMessage
         }
+    }
+
+    private fun initializeGitRemote(): java.nio.file.Path {
+        val remoteRoot = createScratchDir("statik-cms-remote")
+        Git.init().setBare(true).setDirectory(remoteRoot.toFile()).call().use { }
+
+        Git.init().setDirectory(tempRoot.toFile()).call().use { git ->
+            git.add().addFilepattern(".").call()
+            git.commit()
+                .setMessage("init")
+                .setAuthor("Init", "init@example.com")
+                .setCommitter("Init", "init@example.com")
+                .call()
+            git.remoteAdd()
+                .setName("origin")
+                .setUri(URIish(remoteRoot.toUri().toString()))
+                .call()
+
+            val branch = git.repository.branch
+            git.push()
+                .setRemote("origin")
+                .setRefSpecs(RefSpec("HEAD:refs/heads/$branch"))
+                .call()
+            config = config.copy(
+                cms = config.cms.copy(
+                    git = config.cms.git.copy(branch = branch)
+                )
+            )
+        }
+
+        return remoteRoot
+    }
+
+    private fun pushFromPeer(
+        remoteRoot: java.nio.file.Path,
+        relativePath: String,
+        contents: String,
+        commitMessage: String
+    ) {
+        val peerRoot = createScratchDir("statik-cms-peer")
+        Git.cloneRepository().setURI(remoteRoot.toUri().toString()).setDirectory(peerRoot.toFile()).call().use { git ->
+            val file = peerRoot / relativePath
+            file.parent.createDirectories()
+            file.writeText(contents)
+            git.add().addFilepattern(relativePath).call()
+            git.commit()
+                .setMessage(commitMessage)
+                .setAuthor("Peer", "peer@example.com")
+                .setCommitter("Peer", "peer@example.com")
+                .call()
+            val branch = git.repository.branch
+            git.push()
+                .setRemote("origin")
+                .setRefSpecs(RefSpec("HEAD:refs/heads/$branch"))
+                .call()
+        }
+    }
+
+    private fun createScratchDir(prefix: String): java.nio.file.Path {
+        return createTempDirectory(prefix).also(extraRoots::add)
     }
 }
