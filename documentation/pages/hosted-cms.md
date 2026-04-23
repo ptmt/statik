@@ -138,6 +138,7 @@ After startup:
 
 - the generated site is served on port `3000`
 - the CMS UI is available at `http://localhost:3000/__statik__/cms`
+- the CMS preview is available under `http://localhost:3000/__statik__/cms/preview` after sign-in and includes draft posts
 - the managed checkout is created inside `/srv/statik-cms/.statik/checkout` unless you override `cms.repo.checkoutDir`
 
 ## First Login Experience

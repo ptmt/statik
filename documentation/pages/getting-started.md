@@ -203,6 +203,7 @@ This post is still being written...
 **How drafts work:**
 
 - **Development mode** (`--w` flag): Draft posts are included and visible
+- **CMS preview** (`--cms`): Draft posts are included in the authenticated CMS preview
 - **Production build**: Draft posts are automatically filtered out
 - **Supported values**: `true`, `yes`, `1` (case-insensitive: `TRUE`, `Yes`, etc.)
 
@@ -211,6 +212,9 @@ This post is still being written...
 ```bash
 # Development: See all posts including drafts
 ./amper run -- --root-path . --w
+
+# CMS: See drafts through the protected CMS preview
+./amper run -- --root-path . --cms
 
 # Production: Drafts are excluded automatically
 ./amper run -- --root-path .

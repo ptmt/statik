@@ -267,6 +267,7 @@ Typical flow:
 - If the GitHub App is not yet installed on `cms.repo.owner/cms.repo.name`, the CMS sends you to the install flow for that app and repo.
 - After installation, Statik clones the configured repo into `cms.repo.checkoutDir`, indexes it into SQLite, and opens the editor.
 - Edit a post or page, save it, and let Statik rebuild the affected output.
+- Use the CMS Preview link to view the development preview. It includes draft posts and is served under `cms.basePath`, so it uses the same auth protection as the CMS UI when `cms.auth.enabled` is on.
 - Use `Commit Sync` to create a git commit for the dirty CMS-managed source files.
 
 Git sync notes:

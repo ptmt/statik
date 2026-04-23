@@ -21,12 +21,17 @@ fun Routing.installCmsRoutes(
     json: Json,
     workspaceManager: CmsWorkspaceManager? = null
 ) {
-    suspend fun renderCmsShell(call: ApplicationCall) {
-        val session = if (authService?.isEnabled() == true) {
-            requireHtmlSession(call, basePath, authService) ?: return
+    suspend fun cmsHtmlSession(call: ApplicationCall): CmsAuthSession? {
+        return if (authService?.isEnabled() == true) {
+            requireHtmlSession(call, basePath, authService)
         } else {
             null
         }
+    }
+
+    suspend fun renderCmsShell(call: ApplicationCall) {
+        val session = cmsHtmlSession(call)
+        if (authService?.isEnabled() == true && session == null) return
 
         val service = resolveCmsService(
             cmsServiceProvider = cmsServiceProvider,
@@ -140,11 +145,8 @@ fun Routing.installCmsRoutes(
     }
 
     suspend fun renderPreview(call: ApplicationCall, requestedPath: String) {
-        val session = if (authService?.isEnabled() == true) {
-            requireHtmlSession(call, basePath, authService) ?: return
-        } else {
-            null
-        }
+        val session = cmsHtmlSession(call)
+        if (authService?.isEnabled() == true && session == null) return
 
         val service = requireCmsService(
             call = call,
@@ -185,11 +187,8 @@ fun Routing.installCmsRoutes(
     }
 
     get("$basePath/theme-assets/{path...}") {
-        val session = if (authService?.isEnabled() == true) {
-            requireHtmlSession(call, basePath, authService) ?: return@get
-        } else {
-            null
-        }
+        val session = cmsHtmlSession(call)
+        if (authService?.isEnabled() == true && session == null) return@get
 
         val service = requireCmsService(
             call = call,
