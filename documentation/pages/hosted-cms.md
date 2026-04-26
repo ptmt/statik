@@ -163,7 +163,7 @@ It does **not** require a repository checkout to be mounted into the container a
 Inside the CMS:
 
 - `Save And Rebuild` writes the source file into the managed checkout and regenerates the affected output
-- `Refresh Index` rescans the repo into SQLite
+- `Refresh Index` rereads the repo into SQLite and pulls latest Git changes when possible, attempting to rebase local CMS edits
 - `Commit Sync` commits the edited content files
 
 In hosted managed-checkout mode, pushes use a GitHub App installation token for the configured repository. The generated site output is not committed; only CMS-managed source content is.

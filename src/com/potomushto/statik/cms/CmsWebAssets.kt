@@ -28,7 +28,7 @@ internal object CmsWebAssets {
                     <span class="chip chip-skeleton" aria-hidden="true">synced 00:00</span>
                   </div>
                   <div class="rail-actions">
-                    <button id="refresh-index" class="tree-action" type="button">Rescan</button>
+                    <button id="refresh-index" class="tree-action" type="button">Refresh Index</button>
                   </div>
 
                   <section class="tree-section">
@@ -2525,13 +2525,13 @@ internal object CmsWebAssets {
           }
 
           async function refreshIndex() {
-            log("Rescanning content and media from disk.");
+            log("Refreshing index from content and media on disk.");
             const response = await api("/refresh", { method: "POST" });
             if (!response) return;
             if (response.message) {
               log(response.message);
             }
-            log("Rescan complete: " + response.items + " item(s), " + response.dirty + " dirty.");
+            log("Refresh complete: " + response.items + " item(s), " + response.dirty + " dirty.");
             await Promise.all([loadStatus(), loadList(), loadMedia()]);
           }
 

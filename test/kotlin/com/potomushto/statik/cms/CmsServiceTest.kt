@@ -23,6 +23,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -608,6 +609,92 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `refresh index pulls remote changes while keeping dirty cms edits`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+        val remoteRoot = initializeGitRemote()
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+        service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/hello.md",
+                frontmatter = """
+                    title: Local Dirty
+                    published: 2024-01-05T12:00:00
+                """.trimIndent(),
+                body = "Local dirty body."
+            )
+        )
+        pushFromPeer(
+            remoteRoot = remoteRoot,
+            relativePath = "pages/about.md",
+            contents = """
+                ---
+                title: Remote About
+                ---
+                Remote page body.
+            """.trimIndent(),
+            commitMessage = "remote: add about page"
+        )
+
+        val refresh = service.refreshIndex()
+
+        assertEquals(1, refresh.dirty)
+        assertTrue((tempRoot / "posts" / "hello.md").readText().contains("Local dirty body."))
+        assertTrue((tempRoot / "pages" / "about.md").readText().contains("Remote page body."))
+        assertTrue(service.get("posts/hello.md").dirty)
+        assertTrue(service.get("posts/hello.md").body.contains("Local dirty body."))
+        assertTrue(service.get("pages/about.md").body.contains("Remote page body."))
+    }
+
+    @Test
+    fun `refresh index keeps dirty media edits when pull conflicts`() {
+        (tempRoot / "static" / "hero.png").parent.createDirectories()
+        java.nio.file.Files.write(tempRoot / "static" / "hero.png", byteArrayOf(0, 1, 2, 3))
+
+        val generator = SiteGenerator(tempRoot.toString(), config)
+        generator.generate()
+        val remoteRoot = initializeGitRemote()
+
+        val service = CmsService(tempRoot, config, generator).also { it.bootstrap() }
+        service.uploadMedia(
+            CmsMediaUploadRequest(
+                targetDirectory = "static",
+                fileName = "hero.png",
+                contentsBase64 = Base64.getEncoder().encodeToString(byteArrayOf(0, 9, 9, 9))
+            )
+        )
+        pushBytesFromPeer(
+            remoteRoot = remoteRoot,
+            relativePath = "static/hero.png",
+            contents = byteArrayOf(0, 7, 7, 7),
+            commitMessage = "remote: conflicting hero"
+        )
+
+        val error = assertFailsWith<IllegalStateException> {
+            service.refreshIndex()
+        }
+
+        assertTrue(error.message?.contains("Consider syncing them to a branch.") == true)
+        assertTrue(java.nio.file.Files.readAllBytes(tempRoot / "static" / "hero.png").contentEquals(byteArrayOf(0, 9, 9, 9)))
+        assertEquals(1, service.listMedia().dirty)
+        assertEquals(1, service.status().dirty)
+        assertEquals("init", latestCommitMessage())
+    }
+
+    @Test
     fun `sync without cms dirties rebases remote changes and pushes existing local commits`() {
         createPost(
             "posts/hello.md",
@@ -831,6 +918,31 @@ class CmsServiceTest {
             val file = peerRoot / relativePath
             file.parent.createDirectories()
             file.writeText(contents)
+            git.add().addFilepattern(relativePath).call()
+            git.commit()
+                .setMessage(commitMessage)
+                .setAuthor("Peer", "peer@example.com")
+                .setCommitter("Peer", "peer@example.com")
+                .call()
+            val branch = git.repository.branch
+            git.push()
+                .setRemote("origin")
+                .setRefSpecs(RefSpec("HEAD:refs/heads/$branch"))
+                .call()
+        }
+    }
+
+    private fun pushBytesFromPeer(
+        remoteRoot: java.nio.file.Path,
+        relativePath: String,
+        contents: ByteArray,
+        commitMessage: String
+    ) {
+        val peerRoot = createScratchDir("statik-cms-peer")
+        Git.cloneRepository().setURI(remoteRoot.toUri().toString()).setDirectory(peerRoot.toFile()).call().use { git ->
+            val file = peerRoot / relativePath
+            file.parent.createDirectories()
+            java.nio.file.Files.write(file, contents)
             git.add().addFilepattern(relativePath).call()
             git.commit()
                 .setMessage(commitMessage)

@@ -39,6 +39,13 @@ class CmsWebAssetsTest {
     }
 
     @Test
+    fun `index html labels refresh action clearly`() {
+        val html = CmsWebAssets.indexHtml("Demo", "/__statik__/cms")
+
+        assertTrue(html.contains("""id="refresh-index" class="tree-action" type="button">Refresh Index</button>"""))
+    }
+
+    @Test
     fun `styles keep status strip height stable`() {
         val styles = CmsWebAssets.stylesCss
 

@@ -3,6 +3,11 @@ package com.potomushto.statik.cms
 import com.potomushto.statik.config.CmsGitConfig
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.RebaseCommand
+import org.eclipse.jgit.api.ResetCommand
+import org.eclipse.jgit.api.errors.GitAPIException
+import org.eclipse.jgit.api.errors.StashApplyFailureException
+import org.eclipse.jgit.api.errors.WrongRepositoryStateException
+import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport.PushResult
@@ -34,7 +39,7 @@ class GitSyncService(
         repository.use { repo ->
             ensureLocalExcludes(repo)
             Git(repo).use { git ->
-                val pullResult = pullLatest(git, accessToken)
+                val pullResult = pullLatest(git, accessToken, preserveLocalChanges = true)
                 check(pullResult.succeeded) {
                     pullResult.detail ?: "Pull from ${config.remote} could not be completed."
                 }
@@ -234,13 +239,16 @@ class GitSyncService(
         }.sorted()
     }
 
-    private fun pullLatest(git: Git, accessToken: String?): BranchSyncResult {
+    private fun pullLatest(git: Git, accessToken: String?, preserveLocalChanges: Boolean = false): BranchSyncResult {
         val branch = targetBranch(git.repository)
             ?: return BranchSyncResult(
                 succeeded = true,
                 repositoryChanged = false,
                 detail = null
             )
+        if (preserveLocalChanges) {
+            return pullLatestPreservingLocalChanges(git, accessToken, branch)
+        }
         fetchRemote(git, accessToken)
         val rebaseResult = rebaseOntoRemote(git, branch)
         return if (rebaseResult.succeeded) {
@@ -259,6 +267,59 @@ class GitSyncService(
                 repositoryChanged = false,
                 detail = "Pull from ${config.remote}/$branch could not be completed automatically."
             )
+        }
+    }
+
+    private fun pullLatestPreservingLocalChanges(git: Git, accessToken: String?, branch: String): BranchSyncResult {
+        val originalHead = git.repository.resolve("HEAD")
+            ?: return BranchSyncResult(
+                succeeded = true,
+                repositoryChanged = false,
+                detail = null
+            )
+        val stashId = createTemporaryStash(git)
+
+        try {
+            fetchRemote(git, accessToken)
+            val rebaseResult = rebaseOntoRemote(git, branch)
+            if (!rebaseResult.succeeded) {
+                restoreStashQuietly(git, stashId)
+                return BranchSyncResult(
+                    succeeded = false,
+                    repositoryChanged = false,
+                    detail = rebaseResult.detail
+                        ?: "Pull from ${config.remote}/$branch could not be completed automatically. " +
+                            "Local edits were kept. Consider syncing them to a branch."
+                )
+            }
+
+            if (stashId != null) {
+                val stashApplied = applyTemporaryStash(git, stashId)
+                if (!stashApplied) {
+                    restoreOriginalWorkingTree(git, originalHead, stashId)
+                    return BranchSyncResult(
+                        succeeded = false,
+                        repositoryChanged = false,
+                        detail = "Pull from ${config.remote}/$branch conflicted with local CMS edits. " +
+                            "Local edits were kept. Consider syncing them to a branch."
+                    )
+                }
+            }
+
+            return BranchSyncResult(
+                succeeded = true,
+                repositoryChanged = rebaseResult.repositoryChanged,
+                detail = if (rebaseResult.repositoryChanged) {
+                    "Pulled latest changes from ${config.remote}/$branch."
+                } else {
+                    null
+                }
+            )
+        } catch (error: Exception) {
+            if (stashId != null) {
+                restoreOriginalWorkingTreeQuietly(git, originalHead, stashId)
+            }
+            throw error
         }
     }
 
@@ -329,10 +390,65 @@ class GitSyncService(
             PushAttemptResult(
                 succeeded = false,
                 rejectedByRemoteUpdate = true,
-                detail = "Push was rejected by ${config.remote}/$branch, and automatic rebase could not be completed.",
+                detail = "Push was rejected by ${config.remote}/$branch, and automatic rebase could not be completed. Consider pushing these changes to a branch.",
                 repositoryChanged = false
             )
         }
+    }
+
+    private fun createTemporaryStash(git: Git): ObjectId? {
+        val status = git.status().call()
+        val hasLocalChanges = !status.isClean || status.untracked.isNotEmpty() || status.untrackedFolders.isNotEmpty()
+        if (!hasLocalChanges) {
+            return null
+        }
+        return git.stashCreate()
+            .setRef(null)
+            .setIncludeUntracked(true)
+            .call()
+    }
+
+    private fun applyTemporaryStash(git: Git, stashId: ObjectId): Boolean {
+        return try {
+            git.stashApply()
+                .setStashRef(stashId.name())
+                .call()
+            true
+        } catch (_: StashApplyFailureException) {
+            false
+        } catch (_: WrongRepositoryStateException) {
+            false
+        } catch (_: GitAPIException) {
+            false
+        }
+    }
+
+    private fun restoreStashQuietly(git: Git, stashId: ObjectId?) {
+        if (stashId == null) {
+            return
+        }
+        check(applyTemporaryStash(git, stashId)) {
+            "Failed to restore local edits after pull attempt."
+        }
+    }
+
+    private fun restoreOriginalWorkingTree(git: Git, originalHead: ObjectId, stashId: ObjectId) {
+        git.reset()
+            .setMode(ResetCommand.ResetType.HARD)
+            .setRef(originalHead.name())
+            .call()
+        check(applyTemporaryStash(git, stashId)) {
+            "Failed to restore local edits after resolving pull conflict."
+        }
+    }
+
+    private fun restoreOriginalWorkingTreeQuietly(git: Git, originalHead: ObjectId, stashId: ObjectId) {
+        runCatching {
+            git.rebase()
+                .setOperation(RebaseCommand.Operation.ABORT)
+                .call()
+        }
+        restoreOriginalWorkingTree(git, originalHead, stashId)
     }
 
     private fun executePush(git: Git, accessToken: String?, branch: String?): PushAttemptResult {
