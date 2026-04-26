@@ -1,5 +1,6 @@
 package com.potomushto.statik.template
 
+import com.potomushto.statik.models.BlogPost
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -125,6 +126,38 @@ class HandlebarsTemplateEngineTest {
     }
 
     @Test
+    fun `groupBy helper groups posts by formatted date property`() {
+        val template = "{{#each (groupBy posts \"date\" format=\"yyyy\")}}{{name}}:{{#each items}}{{title}}|{{/each}};{{/each}}"
+        val data = mapOf(
+            "posts" to listOf(
+                blogPost("Ask Your AI To Fill This", LocalDateTime.of(2026, 2, 10, 10, 0), "2026/tell-your-ai"),
+                blogPost("Lost in time", LocalDateTime.of(2025, 11, 2, 12, 0), "2025/lost-in-time"),
+                blogPost("We are so back", LocalDateTime.of(2025, 1, 8, 10, 0), "2025/return")
+            )
+        )
+
+        val actual = engine.render(template, data)
+
+        assertEquals("2026:Ask Your AI To Fill This|;2025:Lost in time|We are so back|;", actual)
+    }
+
+    @Test
+    fun `groupBy helper keeps metadata fallback for simple keys`() {
+        val template = "{{#each (groupBy posts \"lang\")}}{{name}}:{{#each items}}{{title}}|{{/each}};{{/each}}"
+        val data = mapOf(
+            "posts" to listOf(
+                blogPost("First", LocalDateTime.of(2026, 1, 1, 10, 0), "2026/first", mapOf("lang" to "en")),
+                blogPost("Second", LocalDateTime.of(2025, 1, 1, 10, 0), "2025/second", mapOf("lang" to "de")),
+                blogPost("Third", LocalDateTime.of(2025, 1, 2, 10, 0), "2025/third", mapOf("lang" to "en"))
+            )
+        )
+
+        val actual = engine.render(template, data)
+
+        assertEquals("en:First|Third|;de:Second|;", actual)
+    }
+
+    @Test
     fun `content helper injects overrides into layout blocks`() {
         val layout = templatesDir.resolve("layouts/default.hbs")
         Files.createDirectories(layout.parent)
@@ -220,4 +253,18 @@ class HandlebarsTemplateEngineTest {
     }
 
     private fun String.normalizeQuotes(): String = this.replace("\\\"", "\"")
+
+    private fun blogPost(
+        title: String,
+        date: LocalDateTime,
+        path: String,
+        metadata: Map<String, Any?> = emptyMap()
+    ) = BlogPost(
+        id = title.lowercase().replace(' ', '-'),
+        title = title,
+        date = date,
+        content = "",
+        metadata = metadata,
+        outputPath = path
+    )
 }

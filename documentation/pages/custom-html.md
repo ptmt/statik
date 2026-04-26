@@ -308,6 +308,28 @@ Conditional comparison:
 {{/if}}
 ```
 
+### `groupBy`
+
+Group a list into sections. The helper returns objects with `name` and `items`.
+
+Simple keys still fall back to `metadata`, so both metadata-backed datasources and direct properties work:
+
+```handlebars
+{{#each (groupBy posts "date" format="yyyy")}}
+  <h2>{{name}}</h2>
+  {{#each items}}
+    <a href="/{{path}}">{{title}}</a>
+  {{/each}}
+{{/each}}
+
+{{#each (groupBy datasource.entities.api "category")}}
+  <h2>{{name}}</h2>
+  {{#each items}}
+    <code>{{title}}</code>
+  {{/each}}
+{{/each}}
+```
+
 ## Best Practices
 
 1. **Choose the Right Format**
