@@ -282,16 +282,12 @@ class CmsService(
     }
 
     private fun refreshIndexLocked(accessToken: String?): CmsRefreshResponse {
-        var message: String? = null
-        if (repository.dirtyCount() + repository.mediaDirtyCount() == 0) {
-            val pullOutcome = gitSyncService.pull(accessToken)
-            if (pullOutcome.repositoryChanged) {
-                rebuildGeneratedSiteLocked()
-            }
-            message = pullOutcome.message
+        val pullOutcome = gitSyncService.pull(accessToken)
+        if (pullOutcome.repositoryChanged) {
+            rebuildGeneratedSiteLocked()
         }
 
-        return refreshIndexFromDiskLocked().copy(message = message)
+        return refreshIndexFromDiskLocked().copy(message = pullOutcome.message)
     }
 
     private fun refreshIndexFromDiskLocked(): CmsRefreshResponse {
