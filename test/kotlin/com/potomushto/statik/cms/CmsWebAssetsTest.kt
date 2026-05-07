@@ -84,7 +84,20 @@ class CmsWebAssetsTest {
         assertTrue(script.contains("""if (!currentSnapshot || currentSnapshot.key !== snapshot.key) {"""))
         assertTrue(script.contains("""elements.source.addEventListener("input", () => {"""))
         assertTrue(script.contains("""captureContentSnapshot();"""))
-        assertTrue(script.contains("""const normalizedSource = sourceWithFormMetadata(String(source || ""), normalizedType);"""))
+        assertTrue(script.contains("""const normalizedSource = includeFormMetadata"""))
+    }
+
+    @Test
+    fun `app script stores unsaved content drafts locally`() {
+        val script = CmsWebAssets.appJs
+
+        assertTrue(script.contains("""const LOCAL_DRAFT_PREFIX = "statik.cms.localDraft.v1:";"""))
+        assertTrue(script.contains("""function persistLocalDraft(snapshot) {"""))
+        assertTrue(script.contains("""window.localStorage.setItem(localDraftKey(snapshot.sourcePath), JSON.stringify({"""))
+        assertTrue(script.contains("""function restoreLocalDraftIfNeeded(sourcePath, serverSnapshot) {"""))
+        assertTrue(script.contains("""restoreLocalDraftIfNeeded(response.sourcePath, serverSnapshot);"""))
+        assertTrue(script.contains("""clearLocalDraft(snapshot.sourcePath);"""))
+        assertTrue(script.contains("""window.addEventListener("beforeunload", () => {"""))
     }
 
     @Test

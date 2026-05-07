@@ -895,6 +895,7 @@ internal object CmsWebAssets {
           const apiBase = basePath + "/api";
           const AUTOSAVE_DELAY_MS = 5000;
           const RAIL_COLLAPSED_KEY = "statik.cms.railCollapsed";
+          const LOCAL_DRAFT_PREFIX = "statik.cms.localDraft.v1:";
           const state = {
             items: [],
             mediaItems: [],
@@ -1060,6 +1061,7 @@ internal object CmsWebAssets {
 
           function setEditorEditable(editable) {
             elements.sourcePath.readOnly = !editable;
+            elements.postPermalink.readOnly = !editable;
             elements.source.readOnly = !editable;
             if (!editable) {
               setAutosaveStatus("Read only");
@@ -1086,10 +1088,12 @@ internal object CmsWebAssets {
             });
           }
 
-          function snapshotForContent(type, sourcePath, source) {
+          function snapshotForContent(type, sourcePath, source, includeFormMetadata = true) {
             const normalizedType = type || null;
             const normalizedSourcePath = String(sourcePath || "").trim();
-            const normalizedSource = sourceWithFormMetadata(String(source || ""), normalizedType);
+            const normalizedSource = includeFormMetadata
+              ? sourceWithFormMetadata(String(source || ""), normalizedType)
+              : String(source || "");
             const parsed = parseDocument(normalizedSource);
             return {
               type: normalizedType,
@@ -1101,11 +1105,91 @@ internal object CmsWebAssets {
             };
           }
 
+          function localDraftKey(sourcePath) {
+            return LOCAL_DRAFT_PREFIX + basePath + ":" + String(sourcePath || "").trim();
+          }
+
+          function persistLocalDraft(snapshot) {
+            if (!snapshot || !snapshot.sourcePath || snapshot.key === lastSavedSnapshot) {
+              return;
+            }
+
+            try {
+              window.localStorage.setItem(localDraftKey(snapshot.sourcePath), JSON.stringify({
+                type: snapshot.type,
+                sourcePath: snapshot.sourcePath,
+                source: snapshot.source,
+                key: snapshot.key,
+                updatedAt: Date.now()
+              }));
+            } catch (_error) {
+              setAutosaveStatus("Local backup unavailable", true);
+            }
+          }
+
+          function clearLocalDraft(sourcePath) {
+            if (!sourcePath) {
+              return;
+            }
+
+            try {
+              window.localStorage.removeItem(localDraftKey(sourcePath));
+            } catch (_error) {
+              // Ignore storage failures; server save has already succeeded.
+            }
+          }
+
+          function localDraftSnapshot(sourcePath) {
+            if (!sourcePath) {
+              return null;
+            }
+
+            try {
+              const raw = window.localStorage.getItem(localDraftKey(sourcePath));
+              if (!raw) {
+                return null;
+              }
+              const draft = JSON.parse(raw);
+              if (!draft || draft.sourcePath !== sourcePath || !draft.type || typeof draft.source !== "string") {
+                clearLocalDraft(sourcePath);
+                return null;
+              }
+              const snapshot = snapshotForContent(draft.type, draft.sourcePath, draft.source, false);
+              return {
+                ...snapshot,
+                updatedAt: Number.isFinite(draft.updatedAt) ? draft.updatedAt : Date.now()
+              };
+            } catch (_error) {
+              clearLocalDraft(sourcePath);
+              return null;
+            }
+          }
+
+          function restoreLocalDraftIfNeeded(sourcePath, serverSnapshot) {
+            const draftSnapshot = localDraftSnapshot(sourcePath);
+            if (!draftSnapshot) {
+              return false;
+            }
+
+            if (serverSnapshot && draftSnapshot.key === serverSnapshot.key) {
+              clearLocalDraft(sourcePath);
+              return false;
+            }
+
+            elements.source.value = draftSnapshot.source;
+            setPostMetadataControls(draftSnapshot.type, draftSnapshot.frontmatter);
+            applyContentSnapshot(draftSnapshot);
+            setAutosaveStatus("Unsaved local draft", true);
+            scheduleAutosave();
+            log("Restored unsaved local draft for " + sourcePath + ".");
+            return true;
+          }
+
           function currentContentSnapshot() {
             return contentDraftSnapshot;
           }
 
-          function captureContentSnapshot() {
+          function captureContentSnapshot(options = {}) {
             if (!elements.type.value || state.mode !== "content") {
               contentDraftSnapshot = null;
               return null;
@@ -1115,6 +1199,9 @@ internal object CmsWebAssets {
               elements.sourcePath.value,
               elements.source.value
             );
+            if (options.persist !== false) {
+              persistLocalDraft(contentDraftSnapshot);
+            }
             return contentDraftSnapshot;
           }
 
@@ -1131,7 +1218,8 @@ internal object CmsWebAssets {
             return snapshotForContent(
               document.type,
               document.sourcePath,
-              serializeDocument(document.frontmatter || "", document.body || "")
+              serializeDocument(document.frontmatter || "", document.body || ""),
+              false
             );
           }
 
@@ -2331,7 +2419,9 @@ internal object CmsWebAssets {
             setEditorHeading(fileNameFromPath(response.sourcePath), subtitle);
             renderList();
             renderMediaTree();
-            rememberSavedSnapshot("Autosave on", captureContentSnapshot());
+            const serverSnapshot = captureContentSnapshot({ persist: false });
+            rememberSavedSnapshot("Autosave on", serverSnapshot);
+            restoreLocalDraftIfNeeded(response.sourcePath, serverSnapshot);
             if (logLoad) {
               log("Loaded " + response.sourcePath);
             }
@@ -2364,7 +2454,7 @@ internal object CmsWebAssets {
             setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
             renderList();
             renderMediaTree();
-            rememberSavedSnapshot("Autosave on", captureContentSnapshot());
+            rememberSavedSnapshot("Autosave on", captureContentSnapshot({ persist: false }));
             beginContentRename(elements.sourcePath.value);
             log("Preparing " + elements.sourcePath.value + ".");
           }
@@ -2426,6 +2516,8 @@ internal object CmsWebAssets {
                   return;
                 }
 
+                clearLocalDraft(snapshot.sourcePath);
+                clearLocalDraft(payload.previousSourcePath);
                 state.selected = response.item.sourcePath;
                 state.renamingContentPath = null;
                 setActiveContentTab(response.item.type);
@@ -2642,6 +2734,11 @@ internal object CmsWebAssets {
             log("Refresh complete: " + response.items + " item(s), " + response.dirty + " dirty.");
             await Promise.all([loadStatus(), loadList(), loadMedia()]);
           }
+
+          window.addEventListener("beforeunload", () => {
+            const snapshot = currentContentSnapshot() || captureContentSnapshot({ persist: false });
+            persistLocalDraft(snapshot);
+          });
 
           document.addEventListener("keydown", event => {
             const saveShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
