@@ -16,6 +16,7 @@ title: "My Post"
 published: "2024-10-07T10:00:00"
 description: "Optional meta description"
 draft: false
+permalink: /notes/my-post
 nav_order: 2       # Controls sidebar ordering for pages
 layout: "main"     # Overrides template layout if needed
 category: Guides   # Custom fields are allowed
@@ -25,6 +26,7 @@ category: Guides   # Custom fields are allowed
 - `title` is recommended for both pages and posts.
 - `published` controls post dates; falls back to file mtime when omitted.
 - `draft: true` hides the post in production builds.
+- `permalink` overrides a post URL path.
 - Add any custom keys; access them in templates with `{{post.metadata.category}}` or `{{page.metadata.category}}`.
 
 ## Headings and anchors

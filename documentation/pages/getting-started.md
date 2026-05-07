@@ -179,6 +179,7 @@ The YAML frontmatter supports these options:
 - `title`: Page title (required)
 - `published`: Publication date for posts (format: "YYYY-MM-DDTHH:MM:SS")
 - `draft`: Mark post as draft (see Draft Posts below)
+- `permalink`: Override a post URL path (for example, `/notes/hello-world`)
 - `nav_order`: Order in navigation menu (for pages)
 - `layout`: Specify a custom layout (e.g., "minimal", "landing")
 - `description`: Page description for SEO

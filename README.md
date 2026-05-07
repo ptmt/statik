@@ -142,7 +142,7 @@ Example `config.json`:
   },
   "cms": {
     "enabled": false,
-    "basePath": "/__statik__/cms",
+    "basePath": "/cms",
     "databasePath": ".statik/cms.db",
     "autoSyncOnSave": false,
     "sharedStylesheets": ["static/css/tokens.css"],
@@ -160,11 +160,11 @@ Example `config.json`:
       "allowedUser": "potomushto",
       "clientId": "github-app-client-id",
       "clientSecretEnv": "GITHUB_CLIENT_SECRET",
-      "callbackUrl": "https://cms.example.com/__statik__/cms/auth/github/callback",
+      "callbackUrl": "https://cms.example.com/cms/auth/github/callback",
       "appId": "123456",
       "appSlug": "statik-cms",
       "privateKeyPath": "keys/statik-cms.private-key.pem",
-      "setupUrl": "https://cms.example.com/__statik__/cms/auth/github/setup",
+      "setupUrl": "https://cms.example.com/cms/auth/github/setup",
       "scopes": ["repo", "read:user"],
       "sessionTtlDays": 30
     },
@@ -204,7 +204,7 @@ If you want the CMS shell to share typography, colors, or tokens with your site 
 - `staticDatasource.imagesFileName`: File name for the aggregated images list (default `images.json`).
 - `staticDatasource.configFile`: Optional dataset definition file (default `datasource-config.json`).
 - `cms.enabled`: Starts the embedded CMS server when enabled in config or via `--cms`.
-- `cms.basePath`: Route prefix for the editor UI and API (default `/__statik__/cms`).
+- `cms.basePath`: Route prefix for the editor UI and API (default `/cms`).
 - `cms.databasePath`: SQLite file used as the CMS index, dirty-state store, and persisted auth session store. Put it on persistent storage if you want sessions to survive deploys/restarts.
 - `cms.autoSyncOnSave`: If `true`, each save also commits through the configured git sync path.
 - `cms.git.remote`: Remote name to use for sync operations (default `origin`).
@@ -262,7 +262,7 @@ Statik now includes a lightweight CMS that mounts next to the generated site. In
 
 Typical flow:
 - Run `./amper run -- --root-path . --cms` on the host config directory. This directory stores `config.json`, the SQLite file, the GitHub App private key, and the managed checkout.
-- Open `http://localhost:3000/__statik__/cms`.
+- Open `http://localhost:3000/cms`.
 - Sign in with GitHub as `cms.auth.allowedUser`. Any other GitHub login gets `permissions denied` immediately.
 - If the GitHub App is not yet installed on `cms.repo.owner/cms.repo.name`, the CMS sends you to the install flow for that app and repo.
 - After installation, Statik clones the configured repo into `cms.repo.checkoutDir`, indexes it into SQLite, and opens the editor.

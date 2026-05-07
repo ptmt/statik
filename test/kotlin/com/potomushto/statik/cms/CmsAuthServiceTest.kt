@@ -179,11 +179,11 @@ class CmsAuthServiceTest {
             allowedUser = "potomushto",
             clientId = "github-client-id",
             clientSecretEnv = "GITHUB_CLIENT_SECRET",
-            callbackUrl = "https://cms.example.com/__statik__/cms/auth/github/callback",
+            callbackUrl = "https://cms.example.com/cms/auth/github/callback",
             appId = "123456",
             appSlug = "statik-cms",
             privateKeyPath = "private-key.pem",
-            setupUrl = "https://cms.example.com/__statik__/cms/auth/github/setup",
+            setupUrl = "https://cms.example.com/cms/auth/github/setup",
             scopes = listOf("repo", "read:user"),
             sessionTtlDays = sessionTtlDays
         )

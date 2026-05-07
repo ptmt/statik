@@ -70,6 +70,13 @@ internal object CmsWebAssets {
                   <input id="content-type" type="hidden">
                   <input id="source-path" type="hidden">
 
+                  <section id="post-meta-card" class="editor-card meta-card" hidden>
+                    <label class="compact-field">
+                      <span>Permalink</span>
+                      <input id="post-permalink" type="text" placeholder="/my-post">
+                    </label>
+                  </section>
+
                   <section class="editor-card source-card">
                     <div class="editor-toolbar">
                       <span>Source</span>
@@ -580,7 +587,7 @@ internal object CmsWebAssets {
           min-width: 0;
           padding: 18px;
           display: grid;
-          grid-template-rows: auto minmax(0, 1fr);
+          grid-template-rows: auto auto minmax(0, 1fr);
           gap: 12px;
         }
 
@@ -884,7 +891,7 @@ internal object CmsWebAssets {
 
     val appJs: String = """
         (() => {
-          const basePath = window.STATIK_CMS_BASE_PATH || "/__statik__/cms";
+          const basePath = window.STATIK_CMS_BASE_PATH || "/cms";
           const apiBase = basePath + "/api";
           const AUTOSAVE_DELAY_MS = 5000;
           const RAIL_COLLAPSED_KEY = "statik.cms.railCollapsed";
@@ -920,6 +927,8 @@ internal object CmsWebAssets {
             editorSubtitle: document.getElementById("editor-subtitle"),
             type: document.getElementById("content-type"),
             sourcePath: document.getElementById("source-path"),
+            postMetaCard: document.getElementById("post-meta-card"),
+            postPermalink: document.getElementById("post-permalink"),
             source: document.getElementById("source-document"),
             autosaveStatus: document.getElementById("autosave-status"),
             logsButton: document.getElementById("logs-button"),
@@ -1080,7 +1089,7 @@ internal object CmsWebAssets {
           function snapshotForContent(type, sourcePath, source) {
             const normalizedType = type || null;
             const normalizedSourcePath = String(sourcePath || "").trim();
-            const normalizedSource = String(source || "");
+            const normalizedSource = sourceWithFormMetadata(String(source || ""), normalizedType);
             const parsed = parseDocument(normalizedSource);
             return {
               type: normalizedType,
@@ -1317,6 +1326,7 @@ internal object CmsWebAssets {
             elements.type.value = "";
             elements.sourcePath.value = "";
             elements.source.value = "";
+            setPostMetadataControls(null, "");
             setEditorEditable(false);
             contentDraftSnapshot = null;
             lastSavedSnapshot = null;
@@ -1593,6 +1603,7 @@ internal object CmsWebAssets {
             elements.type.value = "";
             elements.sourcePath.value = sourcePath;
             elements.source.value = mediaEditorText(sourcePath, kind);
+            setPostMetadataControls(null, "");
             setEditorEditable(false);
             const mediaItem = kind === "file" ? findMediaItem(sourcePath) : null;
             setPreviewHref(mediaItem && mediaItem.publicPath ? mediaItem.publicPath : previewHrefFromSitePath("/"));
@@ -2082,6 +2093,100 @@ internal object CmsWebAssets {
             return "---\n" + normalizedFrontmatter + "\n---\n" + normalizedBody;
           }
 
+          function stripYamlQuotes(value) {
+            const trimmed = String(value || "").trim();
+            if (
+              (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+              (trimmed.startsWith("'") && trimmed.endsWith("'"))
+            ) {
+              return trimmed.slice(1, -1);
+            }
+            return trimmed;
+          }
+
+          function yamlScalar(value) {
+            const normalized = String(value || "").trim();
+            return /^[A-Za-z0-9/_\-.]+$/.test(normalized)
+              ? normalized
+              : JSON.stringify(normalized);
+          }
+
+          function normalizePermalink(value) {
+            const trimmed = String(value || "").trim().replaceAll("\\", "/").replace(/^\/+|\/+$/g, "");
+            return trimmed ? "/" + trimmed : "";
+          }
+
+          function frontmatterFieldValue(frontmatter, key) {
+            const pattern = new RegExp("^\\\\s*" + key + "\\\\s*:\\\\s*(.*?)\\\\s*$", "m");
+            const match = pattern.exec(frontmatter || "");
+            return match ? stripYamlQuotes(match[1]) : "";
+          }
+
+          function permalinkFromFrontmatter(frontmatter) {
+            return normalizePermalink(frontmatterFieldValue(frontmatter, "permalink"));
+          }
+
+          function updateFrontmatterField(source, key, value) {
+            const parsed = parseDocument(source);
+            const nextValue = String(value || "").trim();
+            const lines = parsed.frontmatter ? parsed.frontmatter.split(/\r?\n/) : [];
+            const pattern = new RegExp("^\\\\s*" + key + "\\\\s*:");
+            let replaced = false;
+            const nextLines = [];
+
+            lines.forEach(line => {
+              if (pattern.test(line)) {
+                replaced = true;
+                if (nextValue) {
+                  nextLines.push(key + ": " + yamlScalar(nextValue));
+                }
+              } else {
+                nextLines.push(line);
+              }
+            });
+
+            if (!replaced && nextValue) {
+              nextLines.push(key + ": " + yamlScalar(nextValue));
+            }
+
+            return serializeDocument(nextLines.join("\n"), parsed.body);
+          }
+
+          function setPostMetadataControls(type, frontmatter) {
+            const isPost = type === "POST";
+            elements.postMetaCard.hidden = !isPost;
+            elements.postPermalink.value = isPost ? permalinkFromFrontmatter(frontmatter) : "";
+          }
+
+          function syncPostPermalinkFieldFromSource() {
+            if (elements.type.value !== "POST" || state.mode !== "content") {
+              return;
+            }
+            const parsed = parseDocument(elements.source.value);
+            elements.postPermalink.value = permalinkFromFrontmatter(parsed.frontmatter);
+          }
+
+          function sourceWithFormMetadata(source, type) {
+            if (type !== "POST") {
+              return source;
+            }
+            return updateFrontmatterField(source, "permalink", normalizePermalink(elements.postPermalink.value));
+          }
+
+          function applyPostPermalinkInput() {
+            if (elements.type.value !== "POST" || state.mode !== "content") {
+              return;
+            }
+            elements.postPermalink.value = normalizePermalink(elements.postPermalink.value);
+            const nextSource = sourceWithFormMetadata(elements.source.value, "POST");
+            if (nextSource !== elements.source.value) {
+              elements.source.value = nextSource;
+            }
+            interruptSaveInFlight();
+            captureContentSnapshot();
+            scheduleAutosave();
+          }
+
           function markdownBodyStart(source) {
             const normalizedSource = String(source || "");
             const match = /^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?([\s\S]*)$/.exec(normalizedSource);
@@ -2218,6 +2323,7 @@ internal object CmsWebAssets {
             elements.type.value = response.type;
             elements.sourcePath.value = response.sourcePath;
             elements.source.value = serializeDocument(response.frontmatter || "", response.body || "");
+            setPostMetadataControls(response.type, response.frontmatter || "");
             setEditorEditable(true);
             setContentPreviewPath(previewPathFromOutputPath(response.outputPath));
 
@@ -2252,6 +2358,7 @@ internal object CmsWebAssets {
             elements.type.value = type;
             elements.sourcePath.value = defaultPath(type);
             elements.source.value = serializeDocument(defaultFrontmatter(type), "");
+            setPostMetadataControls(type, defaultFrontmatter(type));
             setEditorEditable(true);
             setContentPreviewPath(previewPathFromOutputPath(""));
             setEditorHeading(fileNameFromPath(elements.sourcePath.value), "new file");
@@ -2324,6 +2431,7 @@ internal object CmsWebAssets {
                 setActiveContentTab(response.item.type);
                 elements.type.value = response.item.type;
                 elements.sourcePath.value = response.item.sourcePath;
+                setPostMetadataControls(response.item.type, response.item.frontmatter || "");
                 setContentPreviewPath(previewPathFromOutputPath(response.item.outputPath));
                 setEditorHeading(
                   fileNameFromPath(response.item.sourcePath),
@@ -2616,8 +2724,12 @@ internal object CmsWebAssets {
           });
           elements.source.addEventListener("input", () => {
             interruptSaveInFlight();
+            syncPostPermalinkFieldFromSource();
             captureContentSnapshot();
             scheduleAutosave();
+          });
+          elements.postPermalink.addEventListener("input", () => {
+            applyPostPermalinkInput();
           });
           elements.source.addEventListener("keydown", event => {
             if (!(event.metaKey || event.ctrlKey) || event.altKey) {

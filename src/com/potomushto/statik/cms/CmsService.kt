@@ -131,13 +131,14 @@ class CmsService(
                 lastSyncedAt = existing?.lastSyncedAt
             )
 
+            val outputPathChanged = existing != null && existing.outputPath != saved.outputPath
             if (previousEntry != null && previousEntry.sourcePath != normalizedSourcePath) {
                 markContentDeleted(previousEntry.sourcePath, previousEntry.lastSyncedAt, previousEntry.dirty)
-                if (previousEntry.outputPath != saved.outputPath) {
-                    deleteGeneratedContent(previousEntry.outputPath)
-                    if (previewInitialized) {
-                        deleteGeneratedPreviewContent(previousEntry.outputPath)
-                    }
+            }
+            if (outputPathChanged) {
+                deleteGeneratedContent(existing.outputPath)
+                if (previewInitialized) {
+                    deleteGeneratedPreviewContent(existing.outputPath)
                 }
             }
 
@@ -569,7 +570,7 @@ class CmsService(
         }
 
         internal fun normalizeBasePath(basePath: String): String {
-            val trimmed = basePath.trim().ifBlank { "/__statik__/cms" }
+            val trimmed = basePath.trim().ifBlank { "/cms" }
             return "/" + trimmed.removePrefix("/").removeSuffix("/")
         }
 

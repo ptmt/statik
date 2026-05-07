@@ -84,6 +84,22 @@ class ContentRepositoryTest {
     }
 
     @Test
+    fun `loadAllPosts uses permalink metadata for post output path`() {
+        createPost("posts/2024/hello.md", """
+            ---
+            title: Hello
+            published: 2024-06-02T08:30:00
+            permalink: /notes/hello-world/
+            ---
+            Hello content.
+        """.trimIndent())
+
+        val posts = repository.loadAllPosts(useCache = false)
+
+        assertEquals("notes/hello-world", posts.single().outputPath)
+    }
+
+    @Test
     fun `loadAllPages returns pages sorted by navOrder then title`() {
         createPage("pages/zebra.md", """
             ---

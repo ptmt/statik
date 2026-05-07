@@ -2,6 +2,8 @@ package com.potomushto.statik.cms
 
 import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.generators.FileWalker
+import com.potomushto.statik.generators.normalizePermalinkPath
+import com.potomushto.statik.metadata.string
 import com.potomushto.statik.processors.FrontmatterParser
 import java.nio.file.Files
 import java.nio.file.Path
@@ -83,7 +85,8 @@ class ContentFileService(
         val sourcePath = rootPath.relativize(file).toString().replace('\\', '/')
         val title = document.metadata["title"]?.toString()?.takeIf { it.isNotBlank() } ?: file.nameWithoutExtension
         val outputPath = when (type) {
-            CmsContentType.POST -> fileWalker.generatePath(file, contentRoot)
+            CmsContentType.POST -> normalizePermalinkPath(document.metadata.string("permalink"))
+                ?: fileWalker.generatePath(file, contentRoot)
             CmsContentType.PAGE -> resolvePageOutputPath(file, contentRoot)
         }
 

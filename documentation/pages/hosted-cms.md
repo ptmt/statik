@@ -47,8 +47,8 @@ Create a GitHub App and configure these values:
 
 Configure these URLs in the GitHub App settings:
 
-- **Callback URL**: `https://your-host.example/__statik__/cms/auth/github/callback`
-- **Setup URL**: `https://your-host.example/__statik__/cms/auth/github/setup`
+- **Callback URL**: `https://your-host.example/cms/auth/github/callback`
+- **Setup URL**: `https://your-host.example/cms/auth/github/setup`
 
 Install the app on the single repository you want Statik to manage. Use GitHub’s “Only select repositories” mode and select just that repository.
 
@@ -71,7 +71,7 @@ If you keep install scope to one repository, the app remains tightly scoped even
   "author": "Your Name",
   "cms": {
     "enabled": true,
-    "basePath": "/__statik__/cms",
+    "basePath": "/cms",
     "databasePath": ".statik/cms.db",
     "autoSyncOnSave": false,
     "sharedStylesheets": ["static/css/tokens.css"],
@@ -88,11 +88,11 @@ If you keep install scope to one repository, the app remains tightly scoped even
       "allowedUser": "potomushto",
       "clientId": "Iv1.1234567890abcdef",
       "clientSecretEnv": "GITHUB_CLIENT_SECRET",
-      "callbackUrl": "https://cms.example.com/__statik__/cms/auth/github/callback",
+      "callbackUrl": "https://cms.example.com/cms/auth/github/callback",
       "appId": "123456",
       "appSlug": "statik-cms",
       "privateKeyPath": "keys/statik-cms.private-key.pem",
-      "setupUrl": "https://cms.example.com/__statik__/cms/auth/github/setup",
+      "setupUrl": "https://cms.example.com/cms/auth/github/setup",
       "scopes": ["repo", "read:user"],
       "sessionTtlDays": 30
     },
@@ -137,8 +137,8 @@ docker run --rm \
 After startup:
 
 - the generated site is served on port `3000`
-- the CMS UI is available at `http://localhost:3000/__statik__/cms`
-- the CMS preview is available under `http://localhost:3000/__statik__/cms/preview` after sign-in and includes draft posts
+- the CMS UI is available at `http://localhost:3000/cms`
+- the CMS preview is available under `http://localhost:3000/cms/preview` after sign-in and includes draft posts
 - the managed checkout is created inside `/srv/statik-cms/.statik/checkout` unless you override `cms.repo.checkoutDir`
 
 ## First Login Experience

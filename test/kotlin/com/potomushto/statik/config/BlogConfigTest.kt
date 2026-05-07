@@ -56,7 +56,7 @@ class BlogConfigTest {
         assertEquals("articles", config.paths.posts)
         assertEquals(3000, config.devServer.port)
         assertEquals(false, config.cms.enabled)
-        assertEquals("/__statik__/cms", config.cms.basePath)
+        assertEquals("/cms", config.cms.basePath)
         assertEquals(".statik/cms.db", config.cms.databasePath)
         assertEquals(false, config.cms.autoSyncOnSave)
         assertEquals(emptyList(), config.cms.sharedStylesheets)

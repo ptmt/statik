@@ -80,10 +80,10 @@ class CmsRoutesTest {
         val client = createClient {
             followRedirects = false
         }
-        val response = client.get("/__statik__/cms/preview/draft")
+        val response = client.get("/cms/preview/draft")
 
         assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals("/__statik__/cms/login", response.headers[HttpHeaders.Location])
+        assertEquals("/cms/login", response.headers[HttpHeaders.Location])
     }
 
     @Test
@@ -104,7 +104,7 @@ class CmsRoutesTest {
             }
         }
 
-        val response = client.get("/__statik__/cms/preview/draft") {
+        val response = client.get("/cms/preview/draft") {
             header(HttpHeaders.Cookie, "statik_cms_session=${session.id}")
         }
 
@@ -131,7 +131,7 @@ class CmsRoutesTest {
             }
         }
 
-        val response = client.get("/__statik__/cms/preview/draft")
+        val response = client.get("/cms/preview/draft")
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("Draft body."))
@@ -185,11 +185,11 @@ class CmsRoutesTest {
             allowedUser = "potomushto",
             clientId = "github-client-id",
             clientSecretEnv = "GITHUB_CLIENT_SECRET",
-            callbackUrl = "https://cms.example.com/__statik__/cms/auth/github/callback",
+            callbackUrl = "https://cms.example.com/cms/auth/github/callback",
             appId = "123456",
             appSlug = "statik-cms",
             privateKeyPath = "private-key.pem",
-            setupUrl = "https://cms.example.com/__statik__/cms/auth/github/setup",
+            setupUrl = "https://cms.example.com/cms/auth/github/setup",
             scopes = listOf("repo", "read:user")
         )
     }

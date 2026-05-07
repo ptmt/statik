@@ -124,7 +124,8 @@ class ContentRepository(
                     content = parsedPost.content,
                     rawHtml = null,
                     metadata = parsedPost.metadata,
-                    outputPath = fileWalker.generatePath(file, postsDirectory),
+                    outputPath = normalizePermalinkPath(parsedPost.metadata.string("permalink"))
+                        ?: fileWalker.generatePath(file, postsDirectory),
                     isTemplate = file.extension.lowercase() == "hbs"
                 )
             }

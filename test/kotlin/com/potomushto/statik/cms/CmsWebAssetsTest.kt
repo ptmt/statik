@@ -7,7 +7,7 @@ class CmsWebAssetsTest {
 
     @Test
     fun `index html reserves chip space before status loads`() {
-        val html = CmsWebAssets.indexHtml("Demo", "/__statik__/cms")
+        val html = CmsWebAssets.indexHtml("Demo", "/cms")
 
         assertTrue(html.contains("""id="status-chips" class="status-strip status-strip-loading""""))
         assertTrue(html.contains("""<span class="chip chip-skeleton" aria-hidden="true">000 dirty</span>"""))
@@ -18,20 +18,20 @@ class CmsWebAssetsTest {
     fun `index html loads shared stylesheets before cms styles`() {
         val html = CmsWebAssets.indexHtml(
             siteName = "Demo",
-            basePath = "/__statik__/cms",
-            sharedStylesheetHrefs = listOf("/__statik__/cms/theme-assets/static/css/tokens.css")
+            basePath = "/cms",
+            sharedStylesheetHrefs = listOf("/cms/theme-assets/static/css/tokens.css")
         )
 
-        assertTrue(html.contains("""<link rel="stylesheet" href="/__statik__/cms/theme-assets/static/css/tokens.css">"""))
+        assertTrue(html.contains("""<link rel="stylesheet" href="/cms/theme-assets/static/css/tokens.css">"""))
         assertTrue(
             html.indexOf("""/theme-assets/static/css/tokens.css""") <
-                html.indexOf("href=\"/__statik__/cms/styles.css\"")
+                html.indexOf("href=\"/cms/styles.css\"")
         )
     }
 
     @Test
     fun `index html includes media in the primary content tabs`() {
-        val html = CmsWebAssets.indexHtml("Demo", "/__statik__/cms")
+        val html = CmsWebAssets.indexHtml("Demo", "/cms")
 
         assertTrue(html.contains("""id="content-tab-media""""))
         assertTrue(html.contains("""data-content-type="MEDIA">Media</button>"""))
@@ -40,7 +40,7 @@ class CmsWebAssetsTest {
 
     @Test
     fun `index html labels refresh action clearly`() {
-        val html = CmsWebAssets.indexHtml("Demo", "/__statik__/cms")
+        val html = CmsWebAssets.indexHtml("Demo", "/cms")
 
         assertTrue(html.contains("""id="refresh-index" class="tree-action" type="button">Refresh Index</button>"""))
     }
@@ -84,7 +84,19 @@ class CmsWebAssetsTest {
         assertTrue(script.contains("""if (!currentSnapshot || currentSnapshot.key !== snapshot.key) {"""))
         assertTrue(script.contains("""elements.source.addEventListener("input", () => {"""))
         assertTrue(script.contains("""captureContentSnapshot();"""))
-        assertTrue(!script.contains("""const parsed = parseDocument(elements.source.value);"""))
+        assertTrue(script.contains("""const normalizedSource = sourceWithFormMetadata(String(source || ""), normalizedType);"""))
+    }
+
+    @Test
+    fun `index html includes post permalink editor`() {
+        val html = CmsWebAssets.indexHtml("Demo", "/cms")
+        val script = CmsWebAssets.appJs
+
+        assertTrue(html.contains("""id="post-meta-card" class="editor-card meta-card" hidden"""))
+        assertTrue(html.contains("""<input id="post-permalink" type="text" placeholder="/my-post">"""))
+        assertTrue(script.contains("""function applyPostPermalinkInput() {"""))
+        assertTrue(script.contains("""updateFrontmatterField(source, "permalink", normalizePermalink(elements.postPermalink.value));"""))
+        assertTrue(script.contains("""elements.postPermalink.addEventListener("input", () => {"""))
     }
 
     @Test

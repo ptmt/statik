@@ -140,6 +140,41 @@ class CmsServiceTest {
     }
 
     @Test
+    fun `save updates post permalink and removes previous output`() {
+        createPost(
+            "posts/hello.md",
+            """
+                ---
+                title: Before
+                published: 2024-01-01T09:30:00
+                ---
+                Before body.
+            """.trimIndent()
+        )
+
+        val service = createCmsService()
+        assertTrue((tempRoot / "build" / "hello" / "index.html").exists())
+
+        val response = service.save(
+            CmsSaveRequest(
+                type = CmsContentType.POST,
+                sourcePath = "posts/hello.md",
+                frontmatter = """
+                    title: After
+                    published: 2024-01-02T10:45:00
+                    permalink: /notes/hello-world/
+                """.trimIndent(),
+                body = "Permalink body."
+            )
+        )
+
+        assertEquals("notes/hello-world", response.item.outputPath)
+        assertTrue((tempRoot / "posts" / "hello.md").readText().contains("permalink: /notes/hello-world/"))
+        assertFalse((tempRoot / "build" / "hello").exists())
+        assertTrue((tempRoot / "build" / "notes" / "hello-world" / "index.html").readText().contains("Permalink body."))
+    }
+
+    @Test
     fun `save with previous source path renames content and cleans previous output`() {
         createPost(
             "posts/hello.md",
@@ -264,7 +299,7 @@ class CmsServiceTest {
 
         assertTrue(previewPost.readText().contains("Draft body."))
         assertTrue(previewHome.readText().contains("Draft Preview"))
-        assertTrue(previewHome.readText().contains("/__statik__/cms/preview/draft/"))
+        assertTrue(previewHome.readText().contains("/cms/preview/draft/"))
     }
 
     @Test
@@ -281,7 +316,7 @@ class CmsServiceTest {
         val service = CmsService(tempRoot, configWithSharedStyles, generator).also { it.bootstrap() }
 
         assertEquals(
-            listOf("/__statik__/cms/theme-assets/static/css/tokens.css"),
+            listOf("/cms/theme-assets/static/css/tokens.css"),
             service.sharedStylesheetHrefs()
         )
 
