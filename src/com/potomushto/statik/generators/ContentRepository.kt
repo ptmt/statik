@@ -111,8 +111,9 @@ class ContentRepository(
         return fileWalker.walkMarkdownFiles(postsDirectory, excludeIndex = true)
             .map { file ->
                 val parsedPost = contentProcessor.process(file)
-                val title = parsedPost.metadata.string("title") ?: file.nameWithoutExtension
-                val date = parsedPost.metadata.string("published")?.let { LocalDateTime.parse(it) }
+                val metadata = withDefaultLanguage(parsedPost.metadata)
+                val title = metadata.string("title") ?: file.nameWithoutExtension
+                val date = metadata.string("published")?.let { LocalDateTime.parse(it) }
                     ?: Files.getLastModifiedTime(file).let {
                         LocalDateTime.ofInstant(it.toInstant(), ZoneId.systemDefault())
                     }
@@ -123,8 +124,8 @@ class ContentRepository(
                     date = date,
                     content = parsedPost.content,
                     rawHtml = null,
-                    metadata = parsedPost.metadata,
-                    outputPath = normalizePermalinkPath(parsedPost.metadata.string("permalink"))
+                    metadata = metadata,
+                    outputPath = normalizePermalinkPath(metadata.string("permalink"))
                         ?: fileWalker.generatePath(file, postsDirectory),
                     isTemplate = file.extension.lowercase() == "hbs"
                 )
@@ -149,9 +150,10 @@ class ContentRepository(
             fileWalker.walkMarkdownFiles(pagesDirectory)
                 .map { file ->
                     val parsedPage = contentProcessor.process(file)
-                    val title = parsedPage.metadata.string("title") ?: file.nameWithoutExtension
-                    val navOrder = parsedPage.metadata.string("nav_order")?.toIntOrNull()
-                        ?: parsedPage.metadata.string("navOrder")?.toIntOrNull()
+                    val metadata = withDefaultLanguage(parsedPage.metadata)
+                    val title = metadata.string("title") ?: file.nameWithoutExtension
+                    val navOrder = metadata.string("nav_order")?.toIntOrNull()
+                        ?: metadata.string("navOrder")?.toIntOrNull()
 
                     val basePath = fileWalker.generatePath(file, pagesDirectory, stripIndex = true)
 
@@ -169,7 +171,7 @@ class ContentRepository(
                         id = file.nameWithoutExtension,
                         title = title,
                         content = parsedPage.content,
-                        metadata = parsedPage.metadata,
+                        metadata = metadata,
                         outputPath = outputPath,
                         navOrder = navOrder,
                         isTemplate = file.extension.lowercase() == "hbs"
@@ -178,5 +180,18 @@ class ContentRepository(
         }
             .sortedWith(compareBy<SitePage> { it.navOrder ?: Int.MAX_VALUE }.thenBy { it.title.lowercase() })
             .toList()
+    }
+
+    private fun withDefaultLanguage(metadata: Map<String, Any?>): Map<String, Any?> {
+        if (!metadata.string("lang").isNullOrBlank()) {
+            return metadata
+        }
+        return LinkedHashMap(metadata).apply {
+            put("lang", DEFAULT_LANGUAGE)
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_LANGUAGE = "en"
     }
 }

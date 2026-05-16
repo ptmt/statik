@@ -555,6 +555,54 @@ class ContentRepositoryTest {
         assertEquals(0, posts.size, "All drafts should be filtered in production")
     }
 
+    @Test
+    fun `loadAllPosts defaults missing lang to English`() {
+        createPost("posts/english-default.md", """
+            ---
+            title: English Default
+            published: 2024-01-01T00:00:00
+            ---
+            English content.
+        """.trimIndent())
+
+        createPost("posts/german.md", """
+            ---
+            title: German Post
+            published: 2024-02-01T00:00:00
+            lang: de
+            ---
+            German content.
+        """.trimIndent())
+
+        val posts = repository.loadAllPosts(useCache = false)
+
+        assertEquals("en", posts.single { it.id == "english-default" }.metadata["lang"])
+        assertEquals("de", posts.single { it.id == "german" }.metadata["lang"])
+    }
+
+    @Test
+    fun `loadAllPages defaults missing lang to English`() {
+        createPage("pages/about.md", """
+            ---
+            title: About
+            ---
+            About content.
+        """.trimIndent())
+
+        createPage("pages/impressum.md", """
+            ---
+            title: Impressum
+            lang: de
+            ---
+            Impressum content.
+        """.trimIndent())
+
+        val pages = repository.loadAllPages(useCache = false)
+
+        assertEquals("en", pages.single { it.id == "about" }.metadata["lang"])
+        assertEquals("de", pages.single { it.id == "impressum" }.metadata["lang"])
+    }
+
     private fun createFile(relative: String, content: String) {
         val target = tempRoot / relative
         target.parent?.createDirectories()
