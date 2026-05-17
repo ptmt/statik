@@ -35,24 +35,38 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      - name: Cache Amper dependencies
+        uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+            ~/.cache/Amper
+            ~/.cache/JetBrains/Amper
+          key: ${{ runner.os }}-amper-${{ hashFiles('amper', 'module.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-amper-
 
       - name: Make amper executable
         run: chmod +x ./amper
 
       - name: Build Statik
-        run: ./amper
+        run: |
+          for attempt in 1 2 3; do
+            ./amper build && exit 0
+            if [ "$attempt" = "3" ]; then
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
 
       - name: Run tests
-        run: ./amper test
+        run: |
+          for attempt in 1 2 3; do
+            ./amper test && exit 0
+            if [ "$attempt" = "3" ]; then
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
 
       - name: Generate documentation site
         run: ./amper run -- --root-path=./documentation

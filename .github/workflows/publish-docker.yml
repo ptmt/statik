@@ -38,6 +38,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Cache Amper dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/Amper
+            ~/.cache/JetBrains/Amper
+          key: ${{ runner.os }}-amper-${{ hashFiles('amper', 'module.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-amper-
+
+      - name: Make amper executable
+        run: chmod +x ./amper
+
+      - name: Build executable jar
+        run: |
+          for attempt in 1 2 3; do
+            ./amper task :statik:executableJarJvm && exit 0
+            if [ "$attempt" = "3" ]; then
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -81,6 +110,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Verify tinyserve deploy token is set
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           TINYSERVE_DEPLOY_TOKEN: ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}
         run: |
@@ -90,6 +120,7 @@ jobs:
           fi
 
       - name: Deploy to tinyserve
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           TINYSERVE_DEPLOY_TOKEN: ${{ secrets.TINYSERVE_DEPLOY_TOKEN }}
         run: |

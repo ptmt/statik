@@ -1,6 +1,11 @@
 .git
 .idea
 .claude
-build/
+build/*
+!build/tasks/
+build/tasks/*
+!build/tasks/_statik_executableJarJvm/
+build/tasks/_statik_executableJarJvm/*
+!build/tasks/_statik_executableJarJvm/statik-jvm-executable.jar
 .DS_Store
 documentation/docs/

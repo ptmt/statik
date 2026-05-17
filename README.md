@@ -74,6 +74,9 @@ The project is published as a Docker image at `ghcr.io/ptmt/statik:latest`.
 To build the Docker image for your platform:
 
 ```bash
+# Build the executable jar used by the image
+./amper task :statik:executableJarJvm
+
 # Build for current platform (recommended)
 docker build --platform linux/$(uname -m) -t statik .
 

@@ -1,22 +1,13 @@
+# syntax=docker/dockerfile:1
 FROM amazoncorretto:21
 
-RUN yum install -y tar gzip coreutils && \
-    yum clean all
+COPY build/tasks/_statik_executableJarJvm/statik-jvm-executable.jar /app/statik.jar
+COPY docker-entrypoint.sh /usr/local/bin/statik-entrypoint
+RUN chmod +x /usr/local/bin/statik-entrypoint
 
-COPY . /src
-
-WORKDIR /src
-
-# Ensure amper is executable and verify it exists
-RUN chmod +x ./amper && ls -la ./amper
-
-# Pre-build the project to cache dependencies
-RUN ./amper build
-
-# Verify amper still exists after build
-RUN ls -la ./amper && ./amper --help || echo "amper help failed"
+WORKDIR /github/workspace
 
 EXPOSE 3000
 
-ENTRYPOINT ["./amper"]
+ENTRYPOINT ["statik-entrypoint"]
 CMD ["run"]
