@@ -9,5 +9,7 @@ WORKDIR /github/workspace
 
 EXPOSE 3000
 
+ENV AMPER_OVERRIDE_MAVEN_CENTRAL_URL_TO_CACHE_REDIRECTOR="true"
+
 ENTRYPOINT ["statik-entrypoint"]
 CMD ["run"]
