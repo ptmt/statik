@@ -13,7 +13,7 @@ on:
       - ".github/workflows/publish-docker.yml"
       - ".dockerignore"
       - "Dockerfile"
-      - "amper"
+      - "kotlin"
       - "module.yaml"
       - "src/**"
   workflow_dispatch:
@@ -48,19 +48,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/Amper
-            ~/.cache/JetBrains/Amper
-          key: ${{ runner.os }}-amper-${{ hashFiles('amper', 'module.yaml') }}
+            ~/.cache/Kotlin
+            ~/.cache/JetBrains/Kotlin
+          key: ${{ runner.os }}-kotlin-${{ hashFiles('kotlin', 'module.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-amper-
+            ${{ runner.os }}-kotlin-
 
-      - name: Make amper executable
-        run: chmod +x ./amper
+      - name: Make kotlin executable
+        run: chmod +x ./kotlin
 
       - name: Build executable jar
         run: |
           for attempt in 1 2 3; do
-            ./amper task :statik:executableJarJvm && exit 0
+            ./kotlin task :statik:executableJarJvm && exit 0
             if [ "$attempt" = "3" ]; then
               exit 1
             fi

@@ -37,13 +37,13 @@ docker run --rm -v $(pwd):/github/workspace ghcr.io/ptmt/statik:latest run -- --
 
 ```bash
 # Build the project
-./amper
+./kotlin
 
 # Run on your content (built-in templates work automatically)
-./amper run -- --root-path=/path/to/your/site
+./kotlin run -- --root-path=/path/to/your/site
 
 # Development mode with live reload
-./amper run -- --root-path=/path/to/your/site --w
+./kotlin run -- --root-path=/path/to/your/site --w
 ```
 
 ## How This Site Works

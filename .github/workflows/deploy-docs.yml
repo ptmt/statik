@@ -7,7 +7,7 @@ on:
       - 'documentation/**'
       - 'src/**'
       - 'module.yaml'
-      - 'amper'
+      - 'kotlin'
   pull_request:
     branches: [ main ]
     paths:
@@ -39,19 +39,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/Amper
-            ~/.cache/JetBrains/Amper
-          key: ${{ runner.os }}-amper-${{ hashFiles('amper', 'module.yaml') }}
+            ~/.cache/Kotlin
+            ~/.cache/JetBrains/Kotlin
+          key: ${{ runner.os }}-kotlin-${{ hashFiles('kotlin', 'module.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-amper-
+            ${{ runner.os }}-kotlin-
 
-      - name: Make amper executable
-        run: chmod +x ./amper
+      - name: Make kotlin executable
+        run: chmod +x ./kotlin
 
       - name: Build Statik
         run: |
           for attempt in 1 2 3; do
-            ./amper build && exit 0
+            ./kotlin build && exit 0
             if [ "$attempt" = "3" ]; then
               exit 1
             fi
@@ -61,7 +61,7 @@ jobs:
       - name: Run tests
         run: |
           for attempt in 1 2 3; do
-            ./amper test && exit 0
+            ./kotlin test && exit 0
             if [ "$attempt" = "3" ]; then
               exit 1
             fi
@@ -69,7 +69,7 @@ jobs:
           done
 
       - name: Generate documentation site
-        run: ./amper run -- --root-path=./documentation
+        run: ./kotlin run -- --root-path=./documentation
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

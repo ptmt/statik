@@ -8,16 +8,16 @@ To build and preview this site locally:
 
 1. **Build Statik** (from project root):
    ```bash
-   ./amper
+   ./kotlin
    ```
 
 2. **Generate the site**:
    ```bash
-   ./amper run -- --root-path=./documentation
+   ./kotlin run -- --root-path=./documentation
    ```
 3. **Development with hot reload**:
    ```bash
-   ./amper run -- --root-path=./documentation --watch
+   ./kotlin run -- --root-path=./documentation --watch
    ```
 
 ## Deployment
