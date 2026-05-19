@@ -32,7 +32,7 @@ Statik works out of the box with built-in templates. Just create content and go!
 
 3. **Generate your site**
    ```bash
-   ./kotlin run -- --root-path .
+   ./amper run -- --root-path .
    ```
 
 That's it! Statik includes clean, minimal built-in templates to get you started.
@@ -54,7 +54,7 @@ That's it! Statik includes clean, minimal built-in templates to get you started.
 
 2. **Build the Project**
    ```bash
-   ./kotlin
+   ./amper
    ```
 
 ### Option 2: Use Docker (Recommended)
@@ -212,13 +212,13 @@ This post is still being written...
 
 ```bash
 # Development: See all posts including drafts
-./kotlin run -- --root-path . --w
+./amper run -- --root-path . --w
 
 # CMS: See drafts through the protected CMS preview
-./kotlin run -- --root-path . --cms
+./amper run -- --root-path . --cms
 
 # Production: Drafts are excluded automatically
-./kotlin run -- --root-path .
+./amper run -- --root-path .
 ```
 
 This is perfect for:
@@ -315,7 +315,7 @@ Available in all templates:
 Run with live reload for development:
 
 ```bash
-./kotlin run -- --root-path=/path/to/your/site --w
+./amper run -- --root-path=/path/to/your/site --w
 ```
 
 This starts a local server at `http://localhost:8080` and automatically rebuilds when files change.
@@ -325,7 +325,7 @@ This starts a local server at `http://localhost:8080` and automatically rebuilds
 Generate static files for deployment:
 
 ```bash
-./kotlin run -- --root-path=/path/to/your/site
+./amper run -- --root-path=/path/to/your/site
 ```
 
 The generated files will be in your configured output directory (default: `build/`).

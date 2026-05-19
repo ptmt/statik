@@ -29,14 +29,14 @@ This is my first post!
 
 3. Generate your site:
 ```bash
-./kotlin run -- --root-path .
+./amper run -- --root-path .
 ```
 
 That's it! No templates required - Statik includes clean, minimal built-in templates to get you started.
 
 To run the hosted CMS server:
 ```bash
-./kotlin run -- --root-path . --cms
+./amper run -- --root-path . --cms
 ```
 
 ## Humans and agents contribution guidelines
@@ -44,11 +44,11 @@ To run the hosted CMS server:
 This README provides quick guidelines for both human contributors and AI coding assistants.
 
 ## Build & Run Commands
-- Build: `./kotlin`
-- Run: `./kotlin run`
-- Test: `./kotlin test`
-- Single test: `./kotlin test --tests <TestClassName>` or `./kotlin test --tests <TestClassName.testMethodName>`
-- Build and watch a documentation website: `./kotlin run -- --root-path=./documentation --w`
+- Build: `./amper`
+- Run: `./amper run`
+- Test: `./amper test`
+- Single test: `./amper test --tests <TestClassName>` or `./amper test --tests <TestClassName.testMethodName>`
+- Build and watch a documentation website: `./amper run -- --root-path=./documentation --w`
 - Test Docker image: `./test-docker.sh` (comprehensive) 
 
 ## Code Style Guidelines
@@ -75,7 +75,7 @@ To build the Docker image for your platform:
 
 ```bash
 # Build the executable jar used by the image
-./kotlin task :statik:executableJarJvm
+./amper task :statik:executableJarJvm
 
 # Build for current platform (recommended)
 docker build --platform linux/$(uname -m) -t statik .
@@ -264,7 +264,7 @@ Read the full guide in [documentation/pages/static-datasources.md](documentation
 Statik now includes a lightweight CMS that mounts next to the generated site. In hosted mode it signs one allowed GitHub user in, verifies that the configured GitHub App is installed on one configured repository, clones that repo into a managed checkout, indexes the configured `posts/` and `pages/` folders into SQLite, serves a web editor, writes changes back to source files, regenerates affected pages, and can commit and push those source changes back to GitHub.
 
 Typical flow:
-- Run `./kotlin run -- --root-path . --cms` on the host config directory. This directory stores `config.json`, the SQLite file, the GitHub App private key, and the managed checkout.
+- Run `./amper run -- --root-path . --cms` on the host config directory. This directory stores `config.json`, the SQLite file, the GitHub App private key, and the managed checkout.
 - Open `http://localhost:3000/cms`.
 - Sign in with GitHub as `cms.auth.allowedUser`. Any other GitHub login gets `permissions denied` immediately.
 - If the GitHub App is not yet installed on `cms.repo.owner/cms.repo.name`, the CMS sends you to the install flow for that app and repo.

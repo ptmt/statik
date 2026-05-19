@@ -1,6 +1,6 @@
 product: jvm/app
 repositories:
-  - https://maven-central.storage-download.googleapis.com/maven2/
+  - https://cache-redirector.jetbrains.com/maven-central
 dependencies:
   - com.vladsch.flexmark:flexmark:0.64.8
   - com.vladsch.flexmark:flexmark-html-parser:0.50.50
