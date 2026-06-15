@@ -4,9 +4,12 @@ import com.potomushto.statik.config.BlogConfig
 import com.potomushto.statik.logging.LoggerFactory
 import com.potomushto.statik.models.BlogPost
 import com.potomushto.statik.models.SitePage
+import org.jsoup.Jsoup
+import java.net.URLDecoder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.text.Charsets.UTF_8
 import kotlin.io.path.createDirectories
 import kotlin.io.path.extension
 import kotlin.io.path.nameWithoutExtension
@@ -25,7 +28,7 @@ class BuildOrchestrator(
     private val injectLiveReload: Boolean = false
 ) {
     private val logger = LoggerFactory.getLogger(BuildOrchestrator::class.java)
-    private val outputPath = Paths.get(rootPath, config.theme.output)
+    private val outputPath = Paths.get(rootPath, config.theme.output).toAbsolutePath().normalize()
 
     private val liveReloadScript = """
         <script src="/__statik__/livereload.js"></script>
@@ -47,15 +50,19 @@ class BuildOrchestrator(
 
         val context = BuildContext(posts, pages, datasourceContext)
 
+        // Assets are needed before posts so output sizes can include local images.
+        assetManager.copyAllAssets()
+
+        // Generate posts first so listing templates can use generated output sizes.
+        val contextWithOutputSizes = buildAllPosts(context)
+
         // Generate all pages
-        buildHomePage(context)
-        buildPostsPage(context)
-        buildAllPosts(context)
-        buildAllPages(context)
+        buildHomePage(contextWithOutputSizes)
+        buildPostsPage(contextWithOutputSizes)
+        buildAllPages(contextWithOutputSizes)
 
         // Generate supplementary content
-        rssGenerator.generate(posts)
-        assetManager.copyAllAssets()
+        rssGenerator.generate(contextWithOutputSizes.posts)
         datasourceGenerator.writeBundle(datasourceBundle)
 
         logger.debug { "Full site build completed" }
@@ -97,6 +104,12 @@ class BuildOrchestrator(
         val datasourceContext = datasourceBundle.toTemplateContext()
         val context = BuildContext(posts, pages, datasourceContext)
 
+        // Asset sizes can contribute to post output sizes, so copy them before rebuilding listings.
+        changes.assetFiles.forEach { assetFile ->
+            logger.info { "Copying asset: ${assetFile.fileName}" }
+            assetManager.copySingleAsset(assetFile)
+        }
+
         // Handle post changes
         changes.postFiles.forEach { postFile ->
             val postId = postFile.nameWithoutExtension
@@ -108,12 +121,13 @@ class BuildOrchestrator(
             val updatedContext = context.copy(posts = updatedPosts)
 
             buildSinglePost(postId, updatedContext)
+            val updatedContextWithOutputSizes = attachPostOutputSizes(updatedContext)
 
             // Home page shows post list, so rebuild it too
-            buildHomePage(updatedContext)
+            buildHomePage(updatedContextWithOutputSizes)
 
             // RSS feed includes posts
-            rssGenerator.generate(updatedPosts)
+            rssGenerator.generate(updatedContextWithOutputSizes.posts)
 
             // Update datasource
             val updatedBundle = datasourceGenerator.buildBundle(updatedPosts, pages)
@@ -137,10 +151,10 @@ class BuildOrchestrator(
             datasourceGenerator.writeBundle(updatedBundle)
         }
 
-        // Handle asset changes
-        changes.assetFiles.forEach { assetFile ->
-            logger.info { "Copying asset: ${assetFile.fileName}" }
-            assetManager.copySingleAsset(assetFile)
+        if (changes.assetFiles.isNotEmpty() && changes.postFiles.isEmpty()) {
+            val contextWithOutputSizes = attachPostOutputSizes(context)
+            buildHomePage(contextWithOutputSizes)
+            buildPostsPage(contextWithOutputSizes)
         }
 
         logger.info { "Incremental build completed" }
@@ -149,11 +163,11 @@ class BuildOrchestrator(
     /**
      * Build a single blog post
      */
-    fun buildSinglePost(postId: String, context: BuildContext) {
+    fun buildSinglePost(postId: String, context: BuildContext): Long? {
         val post = context.posts.find { it.id == postId }
         if (post == null) {
             logger.warn { "Post not found: $postId" }
-            return
+            return null
         }
 
         val html = templateRenderer.renderPost(post, context.pages, context.datasourceContext)
@@ -163,6 +177,7 @@ class BuildOrchestrator(
         Files.writeString(outputFile, finalHtml)
 
         logger.debug { "Built post: $postId -> ${post.path}" }
+        return renderedPageSizeBytes(finalHtml, post.path)
     }
 
     /**
@@ -220,10 +235,71 @@ class BuildOrchestrator(
     /**
      * Build all blog posts
      */
-    private fun buildAllPosts(context: BuildContext) {
-        context.posts.forEach { post ->
-            buildSinglePost(post.id, context)
+    private fun buildAllPosts(context: BuildContext): BuildContext {
+        val postsWithOutputSizes = context.posts.map { post ->
+            val outputSizeBytes = buildSinglePost(post.id, context)
+            post.copy(outputSizeBytes = outputSizeBytes)
         }
+        return context.copy(posts = postsWithOutputSizes)
+    }
+
+    private fun attachPostOutputSizes(context: BuildContext): BuildContext {
+        val postsWithOutputSizes = context.posts.map { post ->
+            val outputFile = outputPath.resolve(post.path).resolve("index.html")
+            val outputSizeBytes = if (Files.exists(outputFile)) {
+                renderedPageSizeBytes(Files.readString(outputFile), post.path)
+            } else {
+                post.outputSizeBytes
+            }
+            post.copy(outputSizeBytes = outputSizeBytes)
+        }
+        return context.copy(posts = postsWithOutputSizes)
+    }
+
+    private fun renderedPageSizeBytes(html: String, pagePath: String): Long {
+        val htmlBytes = html.toByteArray(UTF_8).size.toLong()
+        val imageBytes = Jsoup.parse(html)
+            .select("img[src]")
+            .mapNotNull { resolveLocalOutputAsset(it.attr("src"), pagePath) }
+            .toSet()
+            .sumOf { Files.size(it) }
+        return htmlBytes + imageBytes
+    }
+
+    private fun resolveLocalOutputAsset(src: String, pagePath: String): Path? {
+        val normalizedSrc = src.trim()
+        if (
+            normalizedSrc.isEmpty() ||
+            normalizedSrc.startsWith("http://", ignoreCase = true) ||
+            normalizedSrc.startsWith("https://", ignoreCase = true) ||
+            normalizedSrc.startsWith("//") ||
+            normalizedSrc.startsWith("data:", ignoreCase = true)
+        ) {
+            return null
+        }
+
+        val srcPath = normalizedSrc
+            .substringBefore('#')
+            .substringBefore('?')
+            .replace('\\', '/')
+            .takeIf { it.isNotBlank() }
+            ?: return null
+
+        val outputRelativePath = if (srcPath.startsWith("/")) {
+            srcPath.removePrefix("/")
+        } else {
+            val pageDirectory = pagePath.trim('/').substringBeforeLast("/", missingDelimiterValue = "")
+            if (pageDirectory.isBlank()) srcPath else "$pageDirectory/$srcPath"
+        }
+
+        val decodedPath = try {
+            URLDecoder.decode(outputRelativePath, UTF_8.name())
+        } catch (_: IllegalArgumentException) {
+            outputRelativePath
+        }
+
+        val outputAsset = outputPath.resolve(decodedPath).normalize()
+        return outputAsset.takeIf { it.startsWith(outputPath) && Files.isRegularFile(it) }
     }
 
     /**

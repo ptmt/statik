@@ -518,6 +518,55 @@ class BuildOrchestratorTest {
     }
 
     @Test
+    fun `buildFull exposes generated post output size to home template`() {
+        createTemplate("templates/home.hbs", """
+            {{#each posts}}<div class="post-size">{{outputSizeBytes}}</div>{{/each}}
+        """.trimIndent())
+
+        createPost("posts/test.md", """
+            ---
+            title: Test Post
+            published: 2024-01-01T00:00:00
+            ---
+            Test content.
+        """.trimIndent())
+
+        orchestrator.buildFull()
+
+        val buildDir = tempRoot / "build"
+        val postSizeBytes = (buildDir / "test" / "index.html").toFile().length().toString()
+        val homeHtml = (buildDir / "index.html").readText()
+
+        assertTrue(homeHtml.contains("""<div class="post-size">$postSizeBytes</div>"""))
+    }
+
+    @Test
+    fun `buildFull includes local image asset bytes in post output size`() {
+        createTemplate("templates/home.hbs", """
+            {{#each posts}}<div class="post-size">{{outputSizeBytes}}</div>{{/each}}
+        """.trimIndent())
+
+        createPost("posts/test.md", """
+            ---
+            title: Test Post
+            published: 2024-01-01T00:00:00
+            ---
+            ![Alt](/image.png)
+        """.trimIndent())
+
+        createAsset("public/image.png", "image-bytes")
+
+        orchestrator.buildFull()
+
+        val buildDir = tempRoot / "build"
+        val expectedSizeBytes = (buildDir / "test" / "index.html").toFile().length() +
+            (buildDir / "image.png").toFile().length()
+        val homeHtml = (buildDir / "index.html").readText()
+
+        assertTrue(homeHtml.contains("""<div class="post-size">$expectedSizeBytes</div>"""))
+    }
+
+    @Test
     fun `buildIncremental handles mixed changes correctly`() {
         createPost("posts/blog.md", """
             ---

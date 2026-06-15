@@ -12,6 +12,7 @@ data class BlogPost(
     val rawHtml: String? = null, // Optional custom HTML
     val metadata: Map<String, Any?> = mapOf(), // For SEO and other metadata
     val outputPath: String,          // URL path like "2024/blog-title"
+    val outputSizeBytes: Long? = null, // Generated HTML plus local image asset size in bytes
     val isTemplate: Boolean = false  // True if content is a Handlebars template
 ) {
     val path: String get() = outputPath//.removePrefix("../../posts")         // URL path like "2024/blog-title"
