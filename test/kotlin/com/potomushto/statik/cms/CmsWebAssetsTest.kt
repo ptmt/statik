@@ -15,6 +15,14 @@ class CmsWebAssetsTest {
     }
 
     @Test
+    fun `index html exposes configured preview path`() {
+        val html = CmsWebAssets.indexHtml("Demo", "", "/__preview")
+
+        assertTrue(html.contains("window.STATIK_CMS_PREVIEW_PATH = \"/__preview\""))
+        assertTrue(CmsWebAssets.appJs.contains("return previewPath +"))
+    }
+
+    @Test
     fun `index html loads shared stylesheets before cms styles`() {
         val html = CmsWebAssets.indexHtml(
             siteName = "Demo",

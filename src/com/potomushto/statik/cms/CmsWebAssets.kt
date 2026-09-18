@@ -1,7 +1,12 @@
 package com.potomushto.statik.cms
 
 internal object CmsWebAssets {
-    fun indexHtml(siteName: String, basePath: String, sharedStylesheetHrefs: List<String> = emptyList()): String {
+    fun indexHtml(
+        siteName: String,
+        basePath: String,
+        previewPath: String = "/__preview",
+        sharedStylesheetHrefs: List<String> = emptyList()
+    ): String {
         val sharedStylesheetsHtml = sharedStylesheetHrefs.joinToString("\n") { href ->
             """  <link rel="stylesheet" href="${htmlAttribute(href)}">"""
         }
@@ -180,7 +185,8 @@ internal object CmsWebAssets {
                 </div>
               </dialog>
 
-              <script>window.STATIK_CMS_BASE_PATH = ${jsonString(basePath)};</script>
+              <script>window.STATIK_CMS_BASE_PATH = ${jsonString(basePath)};
+              window.STATIK_CMS_PREVIEW_PATH = ${jsonString(previewPath)};</script>
               <script src="$basePath/app.js"></script>
             </body>
             </html>
@@ -891,8 +897,9 @@ internal object CmsWebAssets {
 
     val appJs: String = """
         (() => {
-          const basePath = window.STATIK_CMS_BASE_PATH || "/cms";
+          const basePath = window.STATIK_CMS_BASE_PATH ?? "";
           const apiBase = basePath + "/api";
+          const previewPath = window.STATIK_CMS_PREVIEW_PATH || "/__preview";
           const AUTOSAVE_DELAY_MS = 5000;
           const RAIL_COLLAPSED_KEY = "statik.cms.railCollapsed";
           const LOCAL_DRAFT_PREFIX = "statik.cms.localDraft.v1:";
@@ -1368,9 +1375,9 @@ internal object CmsWebAssets {
           function previewHrefFromSitePath(path) {
             const normalized = String(path || "").trim();
             if (!normalized || normalized === "/") {
-              return basePath + "/preview/";
+              return previewPath + "/";
             }
-            return basePath + "/preview" + (normalized.startsWith("/") ? normalized : "/" + normalized);
+            return previewPath + (normalized.startsWith("/") ? normalized : "/" + normalized);
           }
 
           function setPreviewHref(href) {

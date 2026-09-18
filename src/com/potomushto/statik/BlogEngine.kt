@@ -154,6 +154,7 @@ class BlogEngine {
                         installCmsRoutes(
                             siteNameProvider = { workspaceManager?.siteName() ?: config.siteName },
                             basePath = CmsService.normalizeBasePath(config.cms.basePath),
+                            previewPath = CmsService.normalizePreviewPath(config.cms.previewPath),
                             cmsServiceProvider = { workspaceManager?.serviceOrNull() ?: cmsService },
                             authService = authService,
                             json = json,
@@ -163,6 +164,7 @@ class BlogEngine {
                         installCmsRoutes(
                             siteNameProvider = { workspaceManager.siteName() },
                             basePath = CmsService.normalizeBasePath(config.cms.basePath),
+                            previewPath = CmsService.normalizePreviewPath(config.cms.previewPath),
                             cmsServiceProvider = { workspaceManager.serviceOrNull() },
                             authService = authService,
                             json = json,
@@ -170,24 +172,22 @@ class BlogEngine {
                         )
                     }
 
-                    // Posts listing page - handle both /posts and /posts/
-                    get("/posts") {
-                        call.respondRedirect("/posts/", permanent = false)
-                    }
+                    if (cmsService == null && workspaceManager == null) {
+                        // In watch-only mode the generated site remains available at the root.
+                        get("/posts") {
+                            call.respondRedirect("/posts/", permanent = false)
+                        }
 
-                    get("/") {
-                        serveGeneratedSite(call, resolvePublicRoot(rootPath, config, workspaceManager), "")
-                    }
+                        get("/") {
+                            serveGeneratedSite(call, resolvePublicRoot(rootPath, config, null), "")
+                        }
 
-                    get("{path...}") {
-                        val requestedPath = call.parameters.getAll("path")
-                            ?.joinToString("/")
-                            .orEmpty()
-                        serveGeneratedSite(
-                            call,
-                            resolvePublicRoot(rootPath, config, workspaceManager),
-                            requestedPath
-                        )
+                        get("{path...}") {
+                            val requestedPath = call.parameters.getAll("path")
+                                ?.joinToString("/")
+                                .orEmpty()
+                            serveGeneratedSite(call, resolvePublicRoot(rootPath, config, null), requestedPath)
+                        }
                     }
                 }
             }

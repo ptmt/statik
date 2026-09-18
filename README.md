@@ -145,7 +145,8 @@ Example `config.json`:
   },
   "cms": {
     "enabled": false,
-    "basePath": "/cms",
+    "basePath": "/",
+    "previewPath": "/__preview",
     "databasePath": ".statik/cms.db",
     "autoSyncOnSave": false,
     "sharedStylesheets": ["static/css/tokens.css"],
@@ -163,11 +164,11 @@ Example `config.json`:
       "allowedUser": "potomushto",
       "clientId": "github-app-client-id",
       "clientSecretEnv": "GITHUB_CLIENT_SECRET",
-      "callbackUrl": "https://cms.example.com/cms/auth/github/callback",
+      "callbackUrl": "https://cms.example.com/auth/github/callback",
       "appId": "123456",
       "appSlug": "statik-cms",
       "privateKeyPath": "keys/statik-cms.private-key.pem",
-      "setupUrl": "https://cms.example.com/cms/auth/github/setup",
+      "setupUrl": "https://cms.example.com/auth/github/setup",
       "scopes": ["repo", "read:user"],
       "sessionTtlDays": 30
     },
@@ -207,7 +208,8 @@ If you want the CMS shell to share typography, colors, or tokens with your site 
 - `staticDatasource.imagesFileName`: File name for the aggregated images list (default `images.json`).
 - `staticDatasource.configFile`: Optional dataset definition file (default `datasource-config.json`).
 - `cms.enabled`: Starts the embedded CMS server when enabled in config or via `--cms`.
-- `cms.basePath`: Route prefix for the editor UI and API (default `/cms`).
+- `cms.basePath`: Route prefix for the editor UI and API (default `/`, so the authenticated CMS is at the site root).
+- `cms.previewPath`: Separate route prefix for the generated development preview (default `/__preview`).
 - `cms.databasePath`: SQLite file used as the CMS index, dirty-state store, and persisted auth session store. Put it on persistent storage if you want sessions to survive deploys/restarts.
 - `cms.autoSyncOnSave`: If `true`, each save also commits through the configured git sync path.
 - `cms.git.remote`: Remote name to use for sync operations (default `origin`).
@@ -261,16 +263,16 @@ Read the full guide in [documentation/pages/static-datasources.md](documentation
 
 ## CMS
 
-Statik now includes a lightweight CMS that mounts next to the generated site. In hosted mode it signs one allowed GitHub user in, verifies that the configured GitHub App is installed on one configured repository, clones that repo into a managed checkout, indexes the configured `posts/` and `pages/` folders into SQLite, serves a web editor, writes changes back to source files, regenerates affected pages, and can commit and push those source changes back to GitHub.
+Statik now includes a lightweight CMS that owns the site root while the generated preview is mounted at a separate path. In hosted mode it signs one allowed GitHub user in, verifies that the configured GitHub App is installed on one configured repository, clones that repo into a managed checkout, indexes the configured `posts/` and `pages/` folders into SQLite, serves a web editor, writes changes back to source files, regenerates affected pages, and can commit and push those source changes back to GitHub.
 
 Typical flow:
 - Run `./amper run -- --root-path . --cms` on the host config directory. This directory stores `config.json`, the SQLite file, the GitHub App private key, and the managed checkout.
-- Open `http://localhost:3000/cms`.
+- Open `http://localhost:3000/`.
 - Sign in with GitHub as `cms.auth.allowedUser`. Any other GitHub login gets `permissions denied` immediately.
 - If the GitHub App is not yet installed on `cms.repo.owner/cms.repo.name`, the CMS sends you to the install flow for that app and repo.
 - After installation, Statik clones the configured repo into `cms.repo.checkoutDir`, indexes it into SQLite, and opens the editor.
 - Edit a post or page, save it, and let Statik rebuild the affected output.
-- Use the CMS Preview link to view the development preview. It includes draft posts and is served under `cms.basePath`, so it uses the same auth protection as the CMS UI when `cms.auth.enabled` is on.
+- Use the CMS Preview link to view the development preview. It includes draft posts and is served under `cms.previewPath` (by default, `/__preview`). It uses the same auth protection as the CMS UI when `cms.auth.enabled` is on.
 - Use `Commit Sync` to create a git commit for the dirty CMS-managed source files.
 
 Git sync notes:

@@ -56,7 +56,8 @@ class BlogConfigTest {
         assertEquals("articles", config.paths.posts)
         assertEquals(3000, config.devServer.port)
         assertEquals(false, config.cms.enabled)
-        assertEquals("/cms", config.cms.basePath)
+        assertEquals("/", config.cms.basePath)
+        assertEquals("/__preview", config.cms.previewPath)
         assertEquals(".statik/cms.db", config.cms.databasePath)
         assertEquals(false, config.cms.autoSyncOnSave)
         assertEquals(emptyList(), config.cms.sharedStylesheets)
@@ -141,6 +142,7 @@ class BlogConfigTest {
               "cms": {
                 "enabled": true,
                 "basePath": "/editor",
+                "previewPath": "/draft-preview",
                 "databasePath": ".cache/editor.db",
                 "autoSyncOnSave": true,
                 "sharedStylesheets": ["static/css/tokens.css", "static/css/cms-preview.css"],
@@ -183,6 +185,7 @@ class BlogConfigTest {
 
         assertEquals(true, config.cms.enabled)
         assertEquals("/editor", config.cms.basePath)
+        assertEquals("/draft-preview", config.cms.previewPath)
         assertEquals(".cache/editor.db", config.cms.databasePath)
         assertEquals(true, config.cms.autoSyncOnSave)
         assertEquals(listOf("static/css/tokens.css", "static/css/cms-preview.css"), config.cms.sharedStylesheets)

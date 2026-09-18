@@ -25,6 +25,7 @@ class CmsService(
 ) {
     private val lock = Any()
     private val basePath = normalizeBasePath(config.cms.basePath)
+    private val previewPath = normalizePreviewPath(config.cms.previewPath)
     private val sharedStylesheetPaths = config.cms.sharedStylesheets
         .mapNotNull(::normalizeSharedStylesheetPath)
         .distinct()
@@ -34,7 +35,7 @@ class CmsService(
     private val previewGenerator = SiteGenerator(
         rootPath = rootPath.toString(),
         config = previewConfig,
-        baseUrlOverride = "$basePath/preview/",
+        baseUrlOverride = "$previewPath/",
         isDevelopment = true
     )
     private val previewAssetManager = AssetManager(rootPath.toString(), previewConfig, FileWalker(rootPath.toString()))
@@ -59,7 +60,7 @@ class CmsService(
 
     fun sharedStylesheetHrefs(): List<String> {
         return sharedStylesheetPaths.map { sourcePath ->
-            "$basePath/theme-assets/${encodePathForHref(sourcePath)}"
+            "${routePath(basePath, "theme-assets")}/${encodePathForHref(sourcePath)}"
         }
     }
 
@@ -570,8 +571,26 @@ class CmsService(
         }
 
         internal fun normalizeBasePath(basePath: String): String {
-            val trimmed = basePath.trim().ifBlank { "/cms" }
-            return "/" + trimmed.removePrefix("/").removeSuffix("/")
+            val normalized = normalizeRoutePath(basePath, "/")
+            return normalized.takeUnless { it == "/" }.orEmpty()
+        }
+
+        internal fun normalizePreviewPath(previewPath: String): String =
+            normalizeRoutePath(previewPath, "/__preview")
+
+        internal fun routePath(basePath: String, suffix: String = ""): String {
+            val base = basePath.removeSuffix("/")
+            val child = suffix.trim('/')
+            return when {
+                base.isEmpty() && child.isEmpty() -> "/"
+                child.isEmpty() -> base
+                else -> "$base/$child"
+            }
+        }
+
+        private fun normalizeRoutePath(path: String, fallback: String): String {
+            val trimmed = path.trim().ifBlank { fallback }
+            return "/" + trimmed.trim('/')
         }
 
         private fun normalizeSourcePath(sourcePath: String): String {
