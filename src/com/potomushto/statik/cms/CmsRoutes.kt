@@ -16,11 +16,14 @@ import kotlinx.serialization.json.Json
 fun Routing.installCmsRoutes(
     siteNameProvider: () -> String,
     basePath: String,
+    previewPath: String = "/__preview",
     cmsServiceProvider: () -> CmsService?,
     authService: CmsAuthService?,
     json: Json,
     workspaceManager: CmsWorkspaceManager? = null
 ) {
+    fun cmsPath(suffix: String = "") = CmsService.routePath(basePath, suffix)
+
     suspend fun cmsHtmlSession(call: ApplicationCall): CmsAuthSession? {
         return if (authService?.isEnabled() == true) {
             requireHtmlSession(call, basePath, authService)
@@ -60,23 +63,20 @@ fun Routing.installCmsRoutes(
             CmsWebAssets.indexHtml(
                 siteName = siteNameProvider(),
                 basePath = basePath,
+                previewPath = previewPath,
                 sharedStylesheetHrefs = service.sharedStylesheetHrefs()
             ),
             ContentType.Text.Html
         )
     }
 
-    get(basePath) {
+    get(cmsPath()) {
         renderCmsShell(call)
     }
 
-    get("$basePath/") {
-        renderCmsShell(call)
-    }
-
-    get("$basePath/login") {
+    get(cmsPath("login")) {
         if (authService?.isEnabled() != true) {
-            call.respondRedirect(basePath)
+            call.respondRedirect(cmsPath())
             return@get
         }
 
@@ -84,32 +84,32 @@ fun Routing.installCmsRoutes(
             authService.currentSession(call.request.cookies[CMS_SESSION_COOKIE])
         }.getOrNull()
         if (existingSession != null) {
-            call.respondRedirect(basePath)
+            call.respondRedirect(cmsPath())
             return@get
         }
 
         call.respondText(CmsWebAssets.loginHtml(siteNameProvider(), basePath), ContentType.Text.Html)
     }
 
-    get("$basePath/install") {
+    get(cmsPath("install")) {
         val auth = requireAuthService(authService)
         val manager = requireManagedWorkspace(workspaceManager)
         val session = requireHtmlSession(call, basePath, auth) ?: return@get
 
         if (resolveCmsService(cmsServiceProvider, manager, auth, session) != null) {
-            call.respondRedirect(basePath)
+            call.respondRedirect(cmsPath())
             return@get
         }
 
         call.respondRedirect(auth.startInstallation(session.id))
     }
 
-    get("$basePath/auth/github") {
+    get(cmsPath("auth/github")) {
         val auth = requireAuthService(authService)
         call.respondRedirect(auth.startAuthorization())
     }
 
-    get("$basePath/auth/github/callback") {
+    get(cmsPath("auth/github/callback")) {
         val auth = requireAuthService(authService)
         val code = call.request.queryParameters["code"]
             ?: throw IllegalArgumentException("Missing query parameter: code")
@@ -124,14 +124,14 @@ fun Routing.installCmsRoutes(
                 resolveCmsService(cmsServiceProvider, workspaceManager, auth, session)
             }
 
-            call.respondRedirect(basePath)
+            call.respondRedirect(cmsPath())
         } catch (_: CmsPermissionDeniedException) {
             call.response.cookies.append(expiredSessionCookie(basePath))
             call.respondText("permissions denied", status = HttpStatusCode.Forbidden)
         }
     }
 
-    get("$basePath/auth/github/setup") {
+    get(cmsPath("auth/github/setup")) {
         val auth = requireAuthService(authService)
         val manager = requireManagedWorkspace(workspaceManager)
         val session = requireHtmlSession(call, basePath, auth) ?: return@get
@@ -141,7 +141,7 @@ fun Routing.installCmsRoutes(
             ?: throw IllegalArgumentException("Missing or invalid query parameter: installation_id")
 
         manager.completeInstallation(auth, session, state, installationId)
-        call.respondRedirect(basePath)
+        call.respondRedirect(cmsPath())
     }
 
     suspend fun renderPreview(call: ApplicationCall, requestedPath: String) {
@@ -165,28 +165,28 @@ fun Routing.installCmsRoutes(
         call.respondText(text = "404: Page Not Found", status = HttpStatusCode.NotFound)
     }
 
-    post("$basePath/logout") {
+    post(cmsPath("logout")) {
         authService?.clearSession(call.request.cookies[CMS_SESSION_COOKIE])
         call.response.cookies.append(expiredSessionCookie(basePath))
         call.respondText("logged out", ContentType.Text.Plain)
     }
 
-    get("$basePath/preview") {
+    get(previewPath) {
         renderPreview(call, "")
     }
 
-    get("$basePath/preview/") {
+    get("$previewPath/") {
         renderPreview(call, "")
     }
 
-    get("$basePath/preview/{path...}") {
+    get("$previewPath/{path...}") {
         val requestedPath = call.parameters.getAll("path")
             ?.joinToString("/")
             .orEmpty()
         renderPreview(call, requestedPath)
     }
 
-    get("$basePath/theme-assets/{path...}") {
+    get(cmsPath("theme-assets/{path...}")) {
         val session = cmsHtmlSession(call)
         if (authService?.isEnabled() == true && session == null) return@get
 
@@ -210,15 +210,15 @@ fun Routing.installCmsRoutes(
         call.respondText(text = "404: Page Not Found", status = HttpStatusCode.NotFound)
     }
 
-    get("$basePath/styles.css") {
+    get(cmsPath("styles.css")) {
         call.respondText(CmsWebAssets.stylesCss, ContentType.Text.CSS)
     }
 
-    get("$basePath/app.js") {
+    get(cmsPath("app.js")) {
         call.respondText(CmsWebAssets.appJs, ContentType.Text.JavaScript)
     }
 
-    get("$basePath/api/status") {
+    get(cmsPath("api/status")) {
         val session = requireApiSession(call, basePath, authService) ?: return@get
         val authStatus = authService?.status(session?.id)
 
@@ -233,14 +233,14 @@ fun Routing.installCmsRoutes(
         call.respondJson(json, service.status().copy(auth = authStatus))
     }
 
-    get("$basePath/api/content") {
+    get(cmsPath("api/content")) {
         val session = requireApiSession(call, basePath, authService) ?: return@get
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@get
         val type = CmsContentType.fromString(call.request.queryParameters["type"])
         call.respondJson(json, service.list(type))
     }
 
-    get("$basePath/api/content/item") {
+    get(cmsPath("api/content/item")) {
         val session = requireApiSession(call, basePath, authService) ?: return@get
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@get
         val sourcePath = call.request.queryParameters["sourcePath"]
@@ -248,47 +248,47 @@ fun Routing.installCmsRoutes(
         call.respondJson(json, service.get(sourcePath))
     }
 
-    get("$basePath/api/media") {
+    get(cmsPath("api/media")) {
         val session = requireApiSession(call, basePath, authService) ?: return@get
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@get
         call.respondJson(json, service.listMedia())
     }
 
-    post("$basePath/api/content") {
+    post(cmsPath("api/content")) {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsSaveRequest>(call.receiveText())
         call.respondJson(json, service.save(payload, accessToken(authService, workspaceManager, session)))
     }
 
-    post("$basePath/api/media/upload") {
+    post(cmsPath("api/media/upload")) {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsMediaUploadRequest>(call.receiveText())
         call.respondJson(json, service.uploadMedia(payload))
     }
 
-    post("$basePath/api/media/rename") {
+    post(cmsPath("api/media/rename")) {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsMediaRenameRequest>(call.receiveText())
         call.respondJson(json, service.renameMedia(payload))
     }
 
-    post("$basePath/api/media/delete") {
+    post(cmsPath("api/media/delete")) {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsMediaDeleteRequest>(call.receiveText())
         call.respondJson(json, service.deleteMedia(payload))
     }
 
-    post("$basePath/api/refresh") {
+    post(cmsPath("api/refresh")) {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         call.respondJson(json, service.refreshIndex(accessToken(authService, workspaceManager, session)))
     }
 
-    post("$basePath/api/sync") {
+    post(cmsPath("api/sync")) {
         val session = requireApiSession(call, basePath, authService) ?: return@post
         val service = requireCmsService(call, cmsServiceProvider, workspaceManager, authService, session) ?: return@post
         val payload = json.decodeFromString<CmsSyncRequest>(call.receiveText())
@@ -367,7 +367,7 @@ private suspend fun requireHtmlSession(
             call.response.cookies.append(sessionCookie(basePath, session.id, authService.sessionTtlSeconds()))
         }
     } catch (_: CmsAuthenticationRequiredException) {
-        call.respondRedirect("$basePath/login")
+        call.respondRedirect(CmsService.routePath(basePath, "login"))
         null
     } catch (_: CmsPermissionDeniedException) {
         call.response.cookies.append(expiredSessionCookie(basePath))
@@ -413,7 +413,7 @@ private fun sessionCookie(basePath: String, sessionId: String, maxAgeSeconds: In
     return Cookie(
         name = CMS_SESSION_COOKIE,
         value = sessionId,
-        path = basePath,
+        path = basePath.ifEmpty { "/" },
         httpOnly = true,
         maxAge = maxAgeSeconds,
         extensions = mapOf("SameSite" to "Lax")
@@ -424,7 +424,7 @@ private fun expiredSessionCookie(basePath: String): Cookie {
     return Cookie(
         name = CMS_SESSION_COOKIE,
         value = "",
-        path = basePath,
+        path = basePath.ifEmpty { "/" },
         httpOnly = true,
         maxAge = 0,
         extensions = mapOf("SameSite" to "Lax")

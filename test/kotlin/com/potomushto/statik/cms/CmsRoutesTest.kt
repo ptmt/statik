@@ -61,6 +61,30 @@ class CmsRoutesTest {
     }
 
     @Test
+    fun `cms root redirects to login when auth session is missing`() = testApplication {
+        val service = createCmsService()
+        val auth = createAuthService()
+
+        application {
+            routing {
+                installCmsRoutes(
+                    siteNameProvider = { config.siteName },
+                    basePath = CmsService.normalizeBasePath(config.cms.basePath),
+                    cmsServiceProvider = { service },
+                    authService = auth,
+                    json = Json { ignoreUnknownKeys = true }
+                )
+            }
+        }
+
+        val client = createClient { followRedirects = false }
+        val response = client.get("/")
+
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals("/login", response.headers[HttpHeaders.Location])
+    }
+
+    @Test
     fun `preview redirects to cms login when auth session is missing`() = testApplication {
         val service = createCmsService()
         val auth = createAuthService()
@@ -80,10 +104,10 @@ class CmsRoutesTest {
         val client = createClient {
             followRedirects = false
         }
-        val response = client.get("/cms/preview/draft")
+        val response = client.get("/__preview/draft")
 
         assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals("/cms/login", response.headers[HttpHeaders.Location])
+        assertEquals("/login", response.headers[HttpHeaders.Location])
     }
 
     @Test
@@ -104,7 +128,7 @@ class CmsRoutesTest {
             }
         }
 
-        val response = client.get("/cms/preview/draft") {
+        val response = client.get("/__preview/draft") {
             header(HttpHeaders.Cookie, "statik_cms_session=${session.id}")
         }
 
@@ -131,7 +155,7 @@ class CmsRoutesTest {
             }
         }
 
-        val response = client.get("/cms/preview/draft")
+        val response = client.get("/__preview/draft")
 
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(response.bodyAsText().contains("Draft body."))

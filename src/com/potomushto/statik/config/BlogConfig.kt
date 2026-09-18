@@ -76,7 +76,8 @@ data class DevServerConfig(
 @Serializable
 data class CmsConfig(
     val enabled: Boolean = false,
-    val basePath: String = "/cms",
+    val basePath: String = "/",
+    val previewPath: String = "/__preview",
     val databasePath: String = ".statik/cms.db",
     val autoSyncOnSave: Boolean = false,
     val sharedStylesheets: List<String> = emptyList(),
