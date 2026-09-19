@@ -299,7 +299,7 @@ class CmsServiceTest {
 
         assertTrue(previewPost.readText().contains("Draft body."))
         assertTrue(previewHome.readText().contains("Draft Preview"))
-        assertTrue(previewHome.readText().contains("/cms/preview/draft/"))
+        assertTrue(previewHome.readText().contains("/__preview/draft/"))
     }
 
     @Test
@@ -316,7 +316,7 @@ class CmsServiceTest {
         val service = CmsService(tempRoot, configWithSharedStyles, generator).also { it.bootstrap() }
 
         assertEquals(
-            listOf("/cms/theme-assets/static/css/tokens.css"),
+            listOf("/theme-assets/static/css/tokens.css"),
             service.sharedStylesheetHrefs()
         )
 

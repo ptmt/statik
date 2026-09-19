@@ -6,12 +6,19 @@ on:
     paths:
       - 'documentation/**'
       - 'src/**'
+      - 'test/**'
       - 'module.yaml'
       - 'amper'
+      - '.github/workflows/deploy-docs.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'documentation/**'
+      - 'src/**'
+      - 'test/**'
+      - 'module.yaml'
+      - 'amper'
+      - '.github/workflows/deploy-docs.yml'
 
 permissions:
   contents: read
